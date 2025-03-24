@@ -15,6 +15,12 @@ const (
 	defaultMaxSize    = 10 * 1024 * 1024 // 10MB
 	defaultMaxFiles   = 5
 	defaultBufferSize = 4096
+
+	// Log levels
+	LevelDebug = iota
+	LevelInfo
+	LevelWarn
+	LevelError
 )
 
 // FlockLogger implements file-based logging with rotation
@@ -26,6 +32,7 @@ type FlockLogger struct {
 	maxSize     int64
 	maxFiles    int
 	currentSize int64
+	level       int // minimum log level
 }
 
 // NewFlockLogger creates a new file logger
@@ -56,6 +63,7 @@ func NewFlockLogger(path string) (*FlockLogger, error) {
 		maxSize:     defaultMaxSize,
 		maxFiles:    defaultMaxFiles,
 		currentSize: info.Size(),
+		level:       LevelInfo, // Default to Info level
 	}
 
 	return f, nil
@@ -75,8 +83,96 @@ func (f *FlockLogger) SetMaxFiles(count int) {
 	f.maxFiles = count
 }
 
-// Flog writes a formatted log entry
+// SetLevel sets the minimum log level
+func (f *FlockLogger) SetLevel(level int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.level = level
+}
+
+// Debug logs a debug message
+func (f *FlockLogger) Debug(args ...interface{}) {
+	if f.level <= LevelDebug {
+		f.flocklogf("[DEBUG] %s", fmt.Sprint(args...))
+	}
+}
+
+// Debugf logs a formatted debug message
+func (f *FlockLogger) Debugf(format string, args ...interface{}) {
+	if f.level <= LevelDebug {
+		f.flocklogf("[DEBUG] %s", fmt.Sprintf(format, args...))
+	}
+}
+
+// Info logs an info message
+func (f *FlockLogger) Info(args ...interface{}) {
+	if f.level <= LevelInfo {
+		f.flocklogf("[INFO] %s", fmt.Sprint(args...))
+	}
+}
+
+// Infof logs a formatted info message
+func (f *FlockLogger) Infof(format string, args ...interface{}) {
+	if f.level <= LevelInfo {
+		f.flocklogf("[INFO] %s", fmt.Sprintf(format, args...))
+	}
+}
+
+// Warn logs a warning message
+func (f *FlockLogger) Warn(args ...interface{}) {
+	if f.level <= LevelWarn {
+		f.flocklogf("[WARN] %s", fmt.Sprint(args...))
+	}
+}
+
+// Warnf logs a formatted warning message
+func (f *FlockLogger) Warnf(format string, args ...interface{}) {
+	if f.level <= LevelWarn {
+		f.flocklogf("[WARN] %s", fmt.Sprintf(format, args...))
+	}
+}
+
+// Error logs an error message
+func (f *FlockLogger) Error(args ...interface{}) {
+	if f.level <= LevelError {
+		f.flocklogf("[ERROR] %s", fmt.Sprint(args...))
+	}
+}
+
+// Errorf logs a formatted error message
+func (f *FlockLogger) Errorf(format string, args ...interface{}) {
+	if f.level <= LevelError {
+		f.flocklogf("[ERROR] %s", fmt.Sprintf(format, args...))
+	}
+}
+
+// Flog logs a formatted message directly
 func (f *FlockLogger) Flog(format string, args ...interface{}) {
+	f.flocklogf(format, args...)
+}
+
+// log writes a log entry with the specified level
+// This method is kept for potential backward compatibility
+func (f *FlockLogger) log(level int, message string) {
+	var levelStr string
+	switch level {
+	case LevelDebug:
+		levelStr = "DEBUG"
+	case LevelInfo:
+		levelStr = "INFO"
+	case LevelWarn:
+		levelStr = "WARN"
+	case LevelError:
+		levelStr = "ERROR"
+	default:
+		levelStr = "LOG"
+	}
+
+	f.flocklogf("[%s] %s", levelStr, message)
+}
+
+// flocklogf writes a formatted log entry
+func (f *FlockLogger) flocklogf(format string, args ...interface{}) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

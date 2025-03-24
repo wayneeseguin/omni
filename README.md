@@ -36,6 +36,74 @@ func main() {
 }
 ```
 
+### Standard Logging Levels
+
+FlockLogger supports standard logging levels (DEBUG, INFO, WARN, ERROR):
+
+```go
+logger, err := flocklogger.NewFlockLogger("app.log")
+if err != nil {
+    panic(err)
+}
+defer logger.Close()
+
+// Set minimum log level (default is INFO)
+logger.SetLevel(flocklogger.LevelDebug) // Options: LevelDebug, LevelInfo, LevelWarn, LevelError
+
+// Log at different levels
+logger.Debug("Debug message")
+logger.Debugf("Formatted %s message", "debug")
+
+logger.Info("Info message")
+logger.Infof("Formatted %s message", "info")
+
+logger.Warn("Warning message")
+logger.Warnf("Formatted %s message", "warning")
+
+logger.Error("Error message")
+logger.Errorf("Formatted %s message", "error")
+```
+
+### Log Rotation
+
+FlockLogger supports automatic log rotation:
+
+```go
+logger, err := flocklogger.NewFlockLogger("app.log")
+if err != nil {
+    panic(err)
+}
+defer logger.Close()
+
+// Set maximum log file size (in bytes)
+logger.SetMaxSize(10 * 1024 * 1024) // 10MB
+
+// Set maximum number of log files to keep
+logger.SetMaxFiles(5)
+```
+
+### API Request/Response Logging
+
+FlockLogger provides methods for safely logging API requests and responses with automatic redaction of sensitive data:
+
+```go
+// Log an API request
+headers := map[string][]string{
+    "Authorization": {"Bearer token123"},
+    "Content-Type": {"application/json"},
+}
+body := `{"username": "user", "password": "secret"}`
+logger.FlogRequest("POST", "/api/login", headers, body)
+
+// Log an API response
+respHeaders := map[string][]string{
+    "X-Auth-Token": {"sensitive-token"},
+    "Content-Type": {"application/json"},
+}
+respBody := `{"status": "success", "token": "jwt-token-here"}`
+logger.FlogResponse(200, respHeaders, respBody)
+```
+
 For more examples, see the [examples](examples) directory.
 
 ## Testing

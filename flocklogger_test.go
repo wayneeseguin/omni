@@ -549,3 +549,201 @@ func TestRotationMaxFiles(t *testing.T) {
 		t.Errorf("Rotation file %s should not exist", tooHighRotation)
 	}
 }
+
+func TestLogLevels(t *testing.T) {
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "levels.log")
+
+	logger, err := flocklogger.NewFlockLogger(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Test all log levels
+	logger.Debug("Debug message")
+	logger.Debugf("Debug %s message", "formatted")
+	logger.Info("Info message")
+	logger.Infof("Info %s message", "formatted")
+	logger.Warn("Warn message")
+	logger.Warnf("Warn %s message", "formatted")
+	logger.Error("Error message")
+	logger.Errorf("Error %s message", "formatted")
+
+	// Flush to ensure all content is written
+	logger.Flush()
+
+	// Read and verify the log file
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Default level is INFO, so DEBUG should not be present
+	if strings.Contains(contentStr, "DEBUG") {
+		t.Errorf("DEBUG messages should not be logged at default INFO level")
+	}
+
+	// INFO, WARN, and ERROR should be present
+	if !strings.Contains(contentStr, "INFO") {
+		t.Errorf("INFO messages not found in the log")
+	}
+	if !strings.Contains(contentStr, "WARN") {
+		t.Errorf("WARN messages not found in the log")
+	}
+	if !strings.Contains(contentStr, "ERROR") {
+		t.Errorf("ERROR messages not found in the log")
+	}
+}
+
+func TestLevelFiltering(t *testing.T) {
+	testCases := []struct {
+		level         int
+		shouldContain []string
+		shouldNotHave []string
+	}{
+		{
+			level:         flocklogger.LevelDebug,
+			shouldContain: []string{"DEBUG", "INFO", "WARN", "ERROR"},
+			shouldNotHave: []string{},
+		},
+		{
+			level:         flocklogger.LevelInfo,
+			shouldContain: []string{"INFO", "WARN", "ERROR"},
+			shouldNotHave: []string{"DEBUG"},
+		},
+		{
+			level:         flocklogger.LevelWarn,
+			shouldContain: []string{"WARN", "ERROR"},
+			shouldNotHave: []string{"DEBUG", "INFO"},
+		},
+		{
+			level:         flocklogger.LevelError,
+			shouldContain: []string{"ERROR"},
+			shouldNotHave: []string{"DEBUG", "INFO", "WARN"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("Level%d", tc.level), func(t *testing.T) {
+			tempDir := t.TempDir()
+			logPath := filepath.Join(tempDir, "level_test.log")
+
+			logger, err := flocklogger.NewFlockLogger(logPath)
+			if err != nil {
+				t.Fatalf("Failed to create logger: %v", err)
+			}
+			logger.SetLevel(tc.level)
+
+			// Write logs at each level
+			logger.Debug("Debug message")
+			logger.Info("Info message")
+			logger.Warn("Warn message")
+			logger.Error("Error message")
+
+			logger.Flush()
+			logger.Close()
+
+			// Read log contents
+			content, err := os.ReadFile(logPath)
+			if err != nil {
+				t.Fatalf("Failed to read log file: %v", err)
+			}
+			contentStr := string(content)
+
+			// Check for expected content
+			for _, expected := range tc.shouldContain {
+				if !strings.Contains(contentStr, expected) {
+					t.Errorf("Log should contain %q but it doesn't", expected)
+				}
+			}
+
+			// Check for unexpected content
+			for _, unexpected := range tc.shouldNotHave {
+				if strings.Contains(contentStr, unexpected) {
+					t.Errorf("Log should not contain %q but it does", unexpected)
+				}
+			}
+		})
+	}
+}
+
+func TestRotation(t *testing.T) {
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "rotation.log")
+
+	logger, err := flocklogger.NewFlockLogger(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	// Set a small max size to trigger rotation
+	logger.SetMaxSize(100)
+	logger.SetMaxFiles(3)
+
+	// Write enough logs to trigger multiple rotations
+	for i := 0; i < 20; i++ {
+		logger.Infof("This is log message %d with enough content to exceed size limit", i)
+	}
+
+	logger.Flush()
+	logger.Close()
+
+	// Check if rotation happened
+	files, err := filepath.Glob(logPath + "*")
+	if err != nil {
+		t.Fatalf("Failed to list log files: %v", err)
+	}
+
+	// Should have current file plus rotated files
+	if len(files) < 2 {
+		t.Errorf("Expected rotated files but found only %d files", len(files))
+	}
+
+	// Shouldn't exceed max files
+	if len(files) > 4 { // Current file + 3 rotated files
+		t.Errorf("Found %d files, which exceeds maxFiles setting", len(files))
+	}
+}
+
+func TestFlushAndClose(t *testing.T) {
+	tempDir := t.TempDir()
+	logPath := filepath.Join(tempDir, "flush_close.log")
+
+	logger, err := flocklogger.NewFlockLogger(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	// Write some logs
+	logger.Info("Test message")
+
+	// Test Flush
+	err = logger.Flush()
+	if err != nil {
+		t.Errorf("Flush failed: %v", err)
+	}
+
+	// Verify content was written
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	if !strings.Contains(string(content), "Test message") {
+		t.Errorf("Log content not found after flush")
+	}
+
+	// Test Close
+	err = logger.Close()
+	if err != nil {
+		t.Errorf("Close failed: %v", err)
+	}
+
+	// Trying to use a closed logger should result in an error
+	err = logger.Flush()
+	if err == nil {
+		t.Errorf("Expected error when using closed logger, but got none")
+	}
+}
