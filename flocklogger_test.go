@@ -2,8 +2,11 @@ package flocklogger_test
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -746,4 +749,164 @@ func TestFlushAndClose(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error when using closed logger, but got none")
 	}
+}
+
+func TestMultiProcessLogging(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping multi-process test in short mode")
+	}
+
+	// Create temp directory for test
+	tmpDir, err := os.MkdirTemp("", "flocklogger-multiprocess-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Path to the shared log file
+	logPath := filepath.Join(tmpDir, "multiprocess.log")
+
+	// Create a "ready" file that child processes will wait for
+	readyFile := filepath.Join(tmpDir, "ready")
+	if err := os.WriteFile(readyFile, []byte("ready"), 0644); err != nil {
+		t.Fatalf("Failed to create ready file: %v", err)
+	}
+
+	// Number of processes to spawn
+	numProcesses := 5 // Reduced from 20 to make test more reliable
+	processes := make([]*exec.Cmd, numProcesses)
+
+	// Prepare child processes
+	for i := 0; i < numProcesses; i++ {
+		// Each process writes 5 log lines
+		cmdArgs := []string{
+			"-test.run=TestHelperProcessMultiLog",
+			"--", // Separates test flags from process args
+			logPath,
+			readyFile,
+			fmt.Sprintf("%d", i), // Process identifier
+		}
+
+		cmd := exec.Command(os.Args[0], cmdArgs...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		processes[i] = cmd
+
+		// Start each process but don't wait for it
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("Failed to start process %d: %v", i, err)
+		}
+	}
+
+	// Wait a moment to ensure all processes are ready and waiting
+	time.Sleep(100 * time.Millisecond)
+
+	// Remove the ready file to signal processes to start logging
+	if err := os.Remove(readyFile); err != nil {
+		t.Fatalf("Failed to remove ready file: %v", err)
+	}
+
+	// Wait for all processes to complete
+	for i, cmd := range processes {
+		if err := cmd.Wait(); err != nil {
+			t.Errorf("Process %d failed: %v", i, err)
+		}
+	}
+
+	// Give file system a moment to complete all writes
+	time.Sleep(100 * time.Millisecond)
+
+	// Read the log file and verify its contents
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	// Filter out empty lines
+	var nonEmptyLines []string
+	for _, line := range lines {
+		if line != "" {
+			nonEmptyLines = append(nonEmptyLines, line)
+		}
+	}
+
+	// We expect 5 lines per process
+	expectedLines := numProcesses * 5
+	if len(nonEmptyLines) != expectedLines {
+		t.Errorf("Expected %d log lines, but got %d", expectedLines, len(nonEmptyLines))
+	}
+
+	// Use regexp to extract process ID from log lines
+	processIDRegex := regexp.MustCompile(`Process (\d+) log entry`)
+
+	// Verify that each process's logs are present
+	processLogs := make(map[int]int)
+	for _, line := range nonEmptyLines {
+		matches := processIDRegex.FindStringSubmatch(line)
+		if len(matches) > 1 {
+			// Extract process ID from regex match
+			var processID int
+			fmt.Sscanf(matches[1], "%d", &processID)
+			if processID < numProcesses {
+				processLogs[processID]++
+			}
+		}
+	}
+
+	// Check that we have logs from each process
+	for i := 0; i < numProcesses; i++ {
+		count, found := processLogs[i]
+		if !found {
+			t.Errorf("No logs found from process %d", i)
+		} else if count != 5 {
+			t.Errorf("Expected 5 logs from process %d, but got %d", i, count)
+		}
+	}
+}
+
+// TestHelperProcessMultiLog is a helper for TestMultiProcessLogging
+// It's executed as a separate process
+func TestHelperProcessMultiLog(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	// Parse args: logPath, readyFile, processID
+	args := flag.Args()
+	if len(args) < 3 {
+		fmt.Fprintf(os.Stderr, "Not enough arguments: %v", args)
+		os.Exit(1)
+	}
+
+	logPath := args[0]
+	readyFile := args[1]
+	processID := args[2]
+
+	// Wait for the ready file to be removed
+	for {
+		if _, err := os.Stat(readyFile); os.IsNotExist(err) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Create a single logger instance for all messages from this process
+	logger, err := flocklogger.NewFlockLogger(logPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create logger: %v", err)
+		os.Exit(1)
+	}
+	defer logger.Close()
+
+	// Write 5 log messages
+	for i := 0; i < 5; i++ {
+		// Log the message with unique identifiers
+		logger.Infof("Process %s log entry %d", processID, i)
+		logger.Flush()
+
+		// Small random delay to increase concurrency likelihood
+		time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
+	}
+
+	os.Exit(0)
 }
