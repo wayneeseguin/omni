@@ -12,13 +12,13 @@ func (f *FlexLog) SetCompression(compressionType CompressionType) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	previousType := f.compression
-	f.compression = compressionType
+	previousType := CompressionType(f.compression)
+	f.compression = int(compressionType)
 
 	// If we're enabling compression and it wasn't enabled before
-	if f.compression != CompressionNone && previousType == CompressionNone {
+	if f.compression != int(CompressionNone) && int(previousType) == int(CompressionNone) {
 		f.startCompressionWorkers()
-	} else if f.compression == CompressionNone && previousType != CompressionNone {
+	} else if f.compression == int(CompressionNone) && int(previousType) != int(CompressionNone) {
 		f.stopCompressionWorkers()
 	}
 }
@@ -40,8 +40,7 @@ func (f *FlexLog) SetCompressWorkers(workers int) {
 	defer f.mu.Unlock()
 
 	// Only update if compression is enabled
-	if f.compression != CompressionNone {
-		oldWorkers := f.compressWorkers
+	if f.compression != int(CompressionNone) {
 		f.compressWorkers = workers
 
 		// Restart workers with new count
@@ -79,11 +78,11 @@ func (f *FlexLog) stopCompressionWorkers() {
 
 // compressFile compresses the given file using the configured compression type
 func (f *FlexLog) compressFile(path string) error {
-	if f.compression == CompressionNone {
+	if f.compression == int(CompressionNone) {
 		return nil
 	}
 
-	switch f.compression {
+	switch CompressionType(f.compression) {
 	case CompressionGzip:
 		return f.compressFileGzip(path)
 	default:
@@ -140,7 +139,7 @@ func (f *FlexLog) compressFileGzip(path string) error {
 
 // queueForCompression adds a file to the compression queue
 func (f *FlexLog) queueForCompression(path string) {
-	if f.compression != CompressionNone && f.compressCh != nil {
+	if f.compression != int(CompressionNone) && f.compressCh != nil {
 		select {
 		case f.compressCh <- path:
 			// Successfully queued

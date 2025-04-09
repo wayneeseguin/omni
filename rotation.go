@@ -263,3 +263,55 @@ func (f *FlexLog) RunCleanup() error {
 	defer f.mu.Unlock()
 	return f.cleanupOldLogs()
 }
+
+// rotateDestination rotates a specific destination's log file
+func (f *FlexLog) rotateDestination(dest *Destination) error {
+	// Only rotate file-based destinations
+	if dest.Backend != BackendFlock {
+		return nil
+	}
+
+	// Flush the current file
+	if err := dest.Writer.Flush(); err != nil {
+		return fmt.Errorf("flushing log: %w", err)
+	}
+
+	// Close the file
+	if err := dest.File.Close(); err != nil {
+		return fmt.Errorf("closing log file: %w", err)
+	}
+
+	// Generate timestamp for rotation
+	timestamp := time.Now().Format("20060102-150405.000")
+	rotatedPath := fmt.Sprintf("%s.%s", dest.URI, timestamp)
+
+	// Rename the current file
+	if err := os.Rename(dest.URI, rotatedPath); err != nil {
+		return fmt.Errorf("renaming log file: %w", err)
+	}
+
+	// Open a new file
+	newFile, err := os.OpenFile(dest.URI, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("opening new log file: %w", err)
+	}
+
+	// Update destination fields
+	dest.File = newFile
+	dest.Writer = bufio.NewWriterSize(newFile, defaultBufferSize)
+	dest.Size = 0
+
+	// Attempt compression if configured at the logger level
+	if f.compression != CompressionNone && f.compressCh != nil {
+		select {
+		case f.compressCh <- rotatedPath:
+			// Successfully queued for compression
+		default:
+			// Compression queue full, just log and continue
+			fmt.Fprintf(dest.Writer, "[%s] WARNING: Compression queue full, skipping compression for %s\n",
+				time.Now().Format("2006-01-02 15:04:05.000"), rotatedPath)
+		}
+	}
+
+	return nil
+}

@@ -50,7 +50,7 @@ func main() {
     }
     defer logger.Close()
 
-    logger.Flog("Hello, %s!", "world")
+    logger.log("Hello, %s!", "world")
 }
 ```
 

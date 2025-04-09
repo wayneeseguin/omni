@@ -1,6 +1,7 @@
 package flexlog
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 func (f *FlexLog) SetFormat(format LogFormat) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.format = format
+	f.format = int(format)
 }
 
 // SetFormatOption sets a format option
@@ -18,41 +19,54 @@ func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// Validate the option value
+	// Validate and set the option value
 	switch option {
 	case FormatOptionTimestampFormat:
-		if _, ok := value.(string); !ok {
+		if strValue, ok := value.(string); ok {
+			f.formatOptions.TimestampFormat = strValue
+		} else {
 			return fmt.Errorf("timestamp format must be a string")
 		}
 	case FormatOptionIncludeLevel:
-		if _, ok := value.(bool); !ok {
+		if boolValue, ok := value.(bool); ok {
+			f.formatOptions.IncludeLevel = boolValue
+		} else {
 			return fmt.Errorf("include level must be a boolean")
 		}
 	case FormatOptionLevelFormat:
-		if _, ok := value.(LevelFormat); !ok {
+		if formatValue, ok := value.(LevelFormat); ok {
+			f.formatOptions.LevelFormat = formatValue
+		} else {
 			return fmt.Errorf("level format must be a LevelFormat")
 		}
-	case FormatOptionIncludeLocation:
-		if _, ok := value.(bool); !ok {
-			return fmt.Errorf("include location must be a boolean")
-		}
 	case FormatOptionIndentJSON:
-		if _, ok := value.(bool); !ok {
+		if boolValue, ok := value.(bool); ok {
+			f.formatOptions.IndentJSON = boolValue
+		} else {
 			return fmt.Errorf("indent JSON must be a boolean")
 		}
 	case FormatOptionFieldSeparator:
-		if _, ok := value.(string); !ok {
+		if strValue, ok := value.(string); ok {
+			f.formatOptions.FieldSeparator = strValue
+		} else {
 			return fmt.Errorf("field separator must be a string")
 		}
 	case FormatOptionTimeZone:
-		if _, ok := value.(*time.Location); !ok {
+		if tzValue, ok := value.(*time.Location); ok {
+			f.formatOptions.TimeZone = tzValue
+		} else {
 			return fmt.Errorf("time zone must be a *time.Location")
+		}
+	case FormatOptionIncludeTime:
+		if boolValue, ok := value.(bool); ok {
+			f.formatOptions.IncludeTime = boolValue
+		} else {
+			return fmt.Errorf("include time must be a boolean")
 		}
 	default:
 		return fmt.Errorf("unknown format option: %v", option)
 	}
 
-	f.formatOptions[option] = value
 	return nil
 }
 
@@ -60,19 +74,37 @@ func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error 
 func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.formatOptions[option]
+
+	switch option {
+	case FormatOptionTimestampFormat:
+		return f.formatOptions.TimestampFormat
+	case FormatOptionIncludeLevel:
+		return f.formatOptions.IncludeLevel
+	case FormatOptionLevelFormat:
+		return f.formatOptions.LevelFormat
+	case FormatOptionIndentJSON:
+		return f.formatOptions.IndentJSON
+	case FormatOptionFieldSeparator:
+		return f.formatOptions.FieldSeparator
+	case FormatOptionTimeZone:
+		return f.formatOptions.TimeZone
+	case FormatOptionIncludeTime:
+		return f.formatOptions.IncludeTime
+	default:
+		return nil
+	}
 }
 
 // formatTimestamp formats a timestamp according to the current options
 func (f *FlexLog) formatTimestamp(t time.Time) string {
-	format := f.formatOptions[FormatOptionTimestampFormat].(string)
-	tz := f.formatOptions[FormatOptionTimeZone].(*time.Location)
+	format := f.formatOptions.TimestampFormat
+	tz := f.formatOptions.TimeZone
 	return t.In(tz).Format(format)
 }
 
 // formatLevel formats a level string according to the current options
 func (f *FlexLog) formatLevel(level int) string {
-	if includeLevel, ok := f.formatOptions[FormatOptionIncludeLevel].(bool); !ok || !includeLevel {
+	if !f.formatOptions.IncludeLevel {
 		return ""
 	}
 
@@ -90,8 +122,7 @@ func (f *FlexLog) formatLevel(level int) string {
 		levelStr = "LOG"
 	}
 
-	format, _ := f.formatOptions[FormatOptionLevelFormat].(LevelFormat)
-	switch format {
+	switch f.formatOptions.LevelFormat {
 	case LevelFormatNameUpper:
 		return levelStr
 	case LevelFormatNameLower:
@@ -106,14 +137,40 @@ func (f *FlexLog) formatLevel(level int) string {
 }
 
 // defaultFormatOptions returns default formatting options
-func defaultFormatOptions() map[FormatOption]interface{} {
-	return map[FormatOption]interface{}{
-		FormatOptionTimestampFormat: "2006-01-02 15:04:05.000",
-		FormatOptionIncludeLevel:    true,
-		FormatOptionLevelFormat:     LevelFormatNameUpper,
-		FormatOptionIncludeLocation: false,
-		FormatOptionIndentJSON:      false,
-		FormatOptionFieldSeparator:  " ",
-		FormatOptionTimeZone:        time.Local,
+func defaultFormatOptions() FormatOptions {
+	return FormatOptions{
+		TimestampFormat: "2006-01-02 15:04:05.000",
+		IncludeLevel:    true,
+		IncludeTime:     true,
+		LevelFormat:     LevelFormatNameUpper,
+		IndentJSON:      false,
+		FieldSeparator:  " ",
+		TimeZone:        time.Local,
 	}
+}
+
+// formatJSONEntry formats a LogEntry as JSON
+func formatJSONEntry(entry *LogEntry) (string, error) {
+	// Implementation would format the entry as JSON
+	// Using a placeholder for now
+	return fmt.Sprintf("{\"timestamp\":\"%s\",\"level\":\"%s\",\"message\":\"%s\"}\n",
+		entry.Timestamp, entry.Level, entry.Message), nil
+}
+
+// formatJSON formats an object as JSON with optional indentation
+func formatJSON(v interface{}, indent bool) (string, error) {
+	var data []byte
+	var err error
+
+	if indent {
+		data, err = json.MarshalIndent(v, "", "  ")
+	} else {
+		data, err = json.Marshal(v)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
 }

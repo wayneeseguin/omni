@@ -16,7 +16,7 @@ func (f *FlexLog) SetSampling(strategy SamplingStrategy, rate float64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.samplingStrategy = strategy
+	f.samplingStrategy = int(strategy)
 
 	// Validate and normalize rate
 	switch strategy {
@@ -69,7 +69,7 @@ func (f *FlexLog) shouldLog(level int, message string, fields map[string]interfa
 	}
 
 	// Apply sampling
-	switch f.samplingStrategy {
+	switch SamplingStrategy(f.samplingStrategy) {
 	case SamplingNone:
 		return true
 

@@ -1,49 +1,213 @@
 package flexlog
 
 import (
-	"io"
+	"bufio"
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
+	"time"
+
+	"github.com/gofrs/flock"
 )
 
-// AddDestination adds a new log destination
-func (f *FlexLog) AddDestination(name string, writer io.Writer) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	// Check if destination with this name already exists
-	for i, dest := range f.destinations {
-		if dest.Name == name {
-			// Update existing destination
-			f.destinations[i].Writer = writer
-			f.destinations[i].Enabled = true
-			return
-		}
+// createDestination creates a new destination based on URI and backend type
+func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, error) {
+	dest := &Destination{
+		URI:     uri,
+		Backend: backendType,
+		Done:    make(chan struct{}),
 	}
 
-	// Add new destination
-	f.destinations = append(f.destinations, LogDestination{
-		Writer:  writer,
-		Name:    name,
-		Enabled: true,
-	})
+	var err error
+
+	switch backendType {
+	case BackendFlock:
+		// Regular file with flock
+		err = f.setupFlockDestination(dest)
+	case BackendSyslog:
+		// Syslog destination
+		err = f.setupSyslogDestination(dest)
+	default:
+		return nil, fmt.Errorf("unknown backend type: %d", backendType)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return dest, nil
 }
 
-// RemoveDestination removes a log destination by name
-func (f *FlexLog) RemoveDestination(name string) bool {
+// setupFlockDestination sets up a file destination with flock
+func (f *FlexLog) setupFlockDestination(dest *Destination) error {
+	// Ensure directory exists
+	dir := filepath.Dir(dest.URI)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("creating log directory: %w", err)
+	}
+
+	// Create lock file using flock
+	lockPath := dest.URI + ".lock"
+	dest.Lock = flock.New(lockPath)
+
+	// Acquire the lock before opening the log file - blocking call
+	if err := dest.Lock.RLock(); err != nil {
+		return fmt.Errorf("acquiring file lock: %w", err)
+	}
+	defer dest.Lock.Unlock()
+
+	// Open log file
+	file, err := os.OpenFile(dest.URI, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("opening log file: %w", err)
+	}
+
+	// Get current file size
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return fmt.Errorf("getting file info: %w", err)
+	}
+
+	dest.File = file
+	dest.Writer = bufio.NewWriterSize(file, defaultBufferSize)
+	dest.Size = info.Size()
+
+	return nil
+}
+
+// setupSyslogDestination sets up a syslog destination
+func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
+	// Parse the URI to determine the network type and address
+	// Supported formats:
+	// - syslog:///dev/log (Unix socket)
+	// - syslog://127.0.0.1:514 (UDP)
+	// - syslog+tcp://127.0.0.1:514 (TCP)
+
+	var network, address string
+
+	if strings.HasPrefix(dest.URI, "syslog:///") {
+		// Unix socket
+		network = "unix"
+		address = strings.TrimPrefix(dest.URI, "syslog:///")
+	} else if strings.HasPrefix(dest.URI, "syslog+tcp://") {
+		// TCP
+		network = "tcp"
+		address = strings.TrimPrefix(dest.URI, "syslog+tcp://")
+	} else if strings.HasPrefix(dest.URI, "syslog://") {
+		// UDP (default)
+		network = "udp"
+		address = strings.TrimPrefix(dest.URI, "syslog://")
+	} else {
+		return fmt.Errorf("invalid syslog URI format: %s", dest.URI)
+	}
+
+	// Default to standard syslog port if not specified
+	if !strings.Contains(address, ":") && network != "unix" {
+		address = address + ":514"
+	}
+
+	// Open connection to syslog server
+	conn, err := net.Dial(network, address)
+	if err != nil {
+		return fmt.Errorf("connecting to syslog server: %w", err)
+	}
+
+	// Use a buffered writer for the connection
+	dest.Writer = bufio.NewWriterSize(conn, defaultBufferSize)
+
+	// Store the connection details
+	dest.SyslogConn = &syslogConn{
+		network:  network,
+		address:  address,
+		conn:     conn,
+		priority: 13,        // Default to notice level, user facility (1*8 + 5)
+		tag:      "flexlog", // Default tag
+	}
+
+	return nil
+}
+
+// AddDestination adds a new log destination with the default backend (flock)
+func (f *FlexLog) AddDestination(uri string) error {
+	return f.AddDestinationWithBackend(uri, BackendFlock)
+}
+
+// AddDestinationWithBackend adds a new log destination with a specific backend type
+func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Create a new destination
+	dest, err := f.createDestination(uri, backendType)
+	if err != nil {
+		return err
+	}
+
+	// Add to destinations
+	f.destinations = append(f.destinations, dest)
+
+	// Start a worker goroutine for this destination
+	f.workerWg.Add(1)
+	go f.logWorker(dest)
+
+	return nil
+}
+
+// RemoveDestination removes a log destination
+func (f *FlexLog) RemoveDestination(uri string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	for i, dest := range f.destinations {
-		if dest.Name == name {
-			// Remove by replacing with last element and truncating slice
-			lastIdx := len(f.destinations) - 1
-			f.destinations[i] = f.destinations[lastIdx]
-			f.destinations = f.destinations[:lastIdx]
-			return true
+		if dest.URI == uri {
+			// Signal the worker to stop
+			close(dest.Done)
+
+			// Flush and close the destination
+			dest.Writer.Flush()
+
+			// Close based on backend type
+			if dest.Backend == BackendFlock && dest.File != nil {
+				dest.File.Close()
+			} else if dest.Backend == BackendSyslog && dest.SyslogConn != nil && dest.SyslogConn.conn != nil {
+				dest.SyslogConn.conn.Close()
+			}
+
+			// Remove from destinations slice
+			f.destinations = append(f.destinations[:i], f.destinations[i+1:]...)
+
+			return nil
 		}
 	}
 
-	return false
+	return fmt.Errorf("destination not found: %s", uri)
+}
+
+// writeToDestinations writes raw bytes to all destinations
+func (f *FlexLog) writeToDestinations(p []byte) (int, error) {
+	var lastErr error
+
+	// Create a message for the raw bytes
+	msg := LogMessage{
+		Raw:       p,
+		Timestamp: time.Now(),
+	}
+
+	// Send the message to the channel for processing
+	select {
+	case f.msgChan <- msg:
+		// Message sent successfully
+	default:
+		// Channel is full, log to stderr
+		lastErr = fmt.Errorf("message channel full, dropping log message")
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", lastErr)
+	}
+
+	return len(p), lastErr
 }
 
 // EnableDestination enables a previously added destination
@@ -83,13 +247,21 @@ func (f *FlexLog) ListDestinations() []LogDestination {
 
 	// Create a copy to avoid race conditions
 	destCopy := make([]LogDestination, len(f.destinations))
-	copy(destCopy, f.destinations)
+
+	// Convert each *Destination to LogDestination
+	for i, dest := range f.destinations {
+		destCopy[i] = LogDestination{
+			Writer:  dest.Writer,
+			Name:    dest.Name,
+			Enabled: dest.Enabled,
+		}
+	}
 
 	return destCopy
 }
 
-// writeToDestinations writes data to all enabled destinations
-func (f *FlexLog) writeToDestinations(p []byte) (int, error) {
+// writeToDestinationsConcurrently writes data to all enabled destinations concurrently
+func (f *FlexLog) writeToDestinationsConcurrently(p []byte) (int, error) {
 	if len(f.destinations) == 0 {
 		return len(p), nil // No destinations, pretend we wrote everything
 	}
@@ -99,19 +271,20 @@ func (f *FlexLog) writeToDestinations(p []byte) (int, error) {
 
 	// Create a copy of destinations to avoid holding the lock during writes
 	f.mu.Lock()
-	dests := make([]LogDestination, 0, len(f.destinations))
+	// Only use enabled destinations
+	enabledDests := make([]*Destination, 0, len(f.destinations))
 	for _, d := range f.destinations {
 		if d.Enabled {
-			dests = append(dests, d)
+			enabledDests = append(enabledDests, d)
 		}
 	}
 	f.mu.Unlock()
 
 	// Write to each destination concurrently
-	errChan := make(chan error, len(dests))
-	for _, dest := range dests {
+	errChan := make(chan error, len(enabledDests))
+	for _, dest := range enabledDests {
 		wg.Add(1)
-		go func(d LogDestination) {
+		go func(d *Destination) {
 			defer wg.Done()
 			_, err := d.Writer.Write(p)
 			if err != nil {
@@ -130,4 +303,55 @@ func (f *FlexLog) writeToDestinations(p []byte) (int, error) {
 	}
 
 	return len(p), lastErr
+}
+
+// FlushAll flushes all destinations
+func (f *FlexLog) FlushAll() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var lastErr error
+
+	for _, dest := range f.destinations {
+		if err := dest.Writer.Flush(); err != nil {
+			lastErr = err
+		}
+	}
+
+	return lastErr
+}
+
+// CloseAll closes all destinations and stops all workers
+func (f *FlexLog) CloseAll() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Stop all background workers
+	close(f.msgChan)
+
+	// Wait for all workers to finish
+	f.workerWg.Wait()
+
+	// Stop background processes
+	f.stopCompressionWorkers()
+
+	// Close all destinations
+	var lastErr error
+	for _, dest := range f.destinations {
+		if err := dest.Writer.Flush(); err != nil && lastErr == nil {
+			lastErr = err
+		}
+
+		if err := dest.File.Close(); err != nil && lastErr == nil {
+			lastErr = err
+		}
+	}
+
+	// Clear destinations
+	f.destinations = nil
+	f.defaultDest = nil
+	f.writer = nil
+	f.file = nil
+
+	return lastErr
 }

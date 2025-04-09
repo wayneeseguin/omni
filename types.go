@@ -3,9 +3,12 @@ package flexlog
 import (
 	"bufio"
 	"io"
+	"net"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // ErrorLevel represents additional error severity levels
@@ -22,46 +25,13 @@ type SamplingStrategy int
 
 // LogEntry represents a structured log entry
 type LogEntry struct {
-	Timestamp  string                 `json:"timestamp"`
-	Level      string                 `json:"level"`
-	Message    string                 `json:"message"`
 	Fields     map[string]interface{} `json:"fields,omitempty"`
-	StackTrace string                 `json:"stack_trace,omitempty"`
 	File       string                 `json:"file,omitempty"`
+	Level      string                 `json:"level"`
 	Line       int                    `json:"line,omitempty"`
-}
-
-// FlexLog implements file-based logging with rotation
-type FlexLog struct {
-	mu               sync.Mutex
-	file             *os.File
-	writer           *bufio.Writer
-	path             string
-	maxSize          int64
-	maxFiles         int
-	currentSize      int64
-	level            int // minimum log level
-	lockFd           int // file descriptor for file locking
-	format           LogFormat
-	includeTrace     bool
-	stackSize        int  // size of stack trace buffer
-	captureAll       bool // capture stack traces for all levels, not just errors
-	formatOptions    map[FormatOption]interface{}
-	compression      CompressionType
-	compressMinAge   int // minimum age (in rotations) before compressing
-	compressWorkers  int // number of worker goroutines for compression
-	compressCh       chan string
-	maxAge           time.Duration                                                         // maximum age for log files
-	cleanupInterval  time.Duration                                                         // how often to check for old logs
-	cleanupTicker    *time.Ticker                                                          // ticker for periodic cleanup
-	cleanupDone      chan struct{}                                                         // signal for cleanup goroutine shutdown
-	filters          []FilterFunc                                                          // Log filters
-	samplingStrategy SamplingStrategy                                                      // Sampling strategy
-	samplingRate     float64                                                               // Sampling rate (0.0-1.0 for random, >1 for interval)
-	sampleCounter    uint64                                                                // Atomic counter for interval sampling
-	sampleKeyFunc    func(level int, message string, fields map[string]interface{}) string // Key function for consistent sampling
-	destinations     []LogDestination
-	size             int64
+	Message    string                 `json:"message"`
+	StackTrace string                 `json:"stack_trace,omitempty"`
+	Timestamp  string                 `json:"timestamp"`
 }
 
 // LogFormat defines the format for log output
@@ -83,4 +53,89 @@ type LogDestination struct {
 
 	// Enabled determines if logs should be written to this destination
 	Enabled bool
+}
+
+// LogMessage represents a message to be logged by a background worker
+type LogMessage struct {
+	Level     int
+	Format    string
+	Args      []interface{}
+	Entry     *LogEntry
+	Timestamp time.Time
+	Raw       []byte
+}
+
+// Destination represents a log destination with its own worker goroutine
+type Destination struct {
+	URI        string   // URI for the destination (file path or syslog address)
+	Name       string   // Unique identifier for this destination
+	Backend    int      // Backend type (BackendFlock or BackendSyslog)
+	File       *os.File // File handle (for file backend)
+	Writer     *bufio.Writer
+	Lock       *flock.Flock // Lock (only for flock backend)
+	Size       int64
+	Done       chan struct{}
+	SyslogConn *syslogConn // Connection for syslog backend
+	Enabled    bool        // Whether this destination is enabled
+}
+
+// syslogConn represents a connection to a syslog server
+type syslogConn struct {
+	network  string // "tcp", "udp", or "unix"
+	address  string // Address or socket path
+	conn     net.Conn
+	priority int    // Syslog priority
+	tag      string // Syslog tag
+}
+
+// FormatOptions controls the output format
+type FormatOptions struct {
+	TimestampFormat string
+	IncludeLevel    bool
+	IncludeTime     bool
+	LevelFormat     LevelFormat
+	IndentJSON      bool
+	FieldSeparator  string
+	TimeZone        *time.Location
+}
+
+// FlexLog is the main logger struct
+type FlexLog struct {
+	mu              sync.Mutex
+	file            *os.File
+	writer          *bufio.Writer
+	path            string
+	maxSize         int64
+	maxFiles        int
+	currentSize     int64
+	level           int
+	fileLock        *flock.Flock
+	format          int
+	includeTrace    bool
+	stackSize       int
+	captureAll      bool
+	formatOptions   FormatOptions
+	compression     int
+	compressMinAge  int
+	compressWorkers int
+	compressCh      chan string
+	maxAge          time.Duration
+	cleanupInterval time.Duration
+	cleanupTicker   *time.Ticker
+	cleanupDone     chan struct{}
+	filters         []Filter
+
+	// Sampling fields
+	samplingStrategy int
+	samplingRate     float64
+	sampleCounter    uint64
+	sampleKeyFunc    func(int, string, map[string]interface{}) string
+
+	// Non-blocking logging fields
+	msgChan      chan LogMessage
+	destinations []*Destination
+	defaultDest  *Destination
+	workerWg     sync.WaitGroup
+	channelSize  int
+	size         int64 // alias for currentSize for backward compatibility
 }

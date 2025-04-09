@@ -5,7 +5,7 @@ import (
 )
 
 // AddFilter adds a filter function that determines whether a log entry should be logged
-func (f *FlexLog) AddFilter(filter FilterFunc) {
+func (f *FlexLog) AddFilter(filter Filter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.filters = append(f.filters, filter)
