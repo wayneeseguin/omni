@@ -215,7 +215,6 @@ func TestLevelFiltering(t *testing.T) {
 		})
 	}
 }
-
 func TestChannelFullFallback(t *testing.T) {
 	testDir := t.TempDir()
 	logFile := filepath.Join(testDir, "test.log")
@@ -230,51 +229,35 @@ func TestChannelFullFallback(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	// Intentionally block the worker goroutine
-	// Create a channel to signal when the test is finished
-	finished := make(chan struct{})
-
-	// Override the msgChan with a buffered channel with size 1
+	// Override the msgChan with a buffered channel with size 1 and fill it
 	logger.msgChan = make(chan LogMessage, 1)
-	// Fill the channel to make it full
 	logger.msgChan <- LogMessage{Format: "blocking message"}
 
-	// Capture stderr output
+	// Capture stderr
 	originalStderr := os.Stderr
 	r, w, _ := os.Pipe()
 	os.Stderr = w
 
-	// Log a message which should go to stderr since the channel is full
-	// Use Info level which should match what's in levels.go
+	// Trigger fallback log (since channel is full)
 	logger.Info("This should go to stderr")
 
-	// Close the writer and restore stderr
+	// Make sure fallback has time to execute
+	time.Sleep(20 * time.Millisecond)
+
+	// Close pipe writer to flush
 	w.Close()
+
+	// Restore stderr
 	os.Stderr = originalStderr
 
-	// Read captured output
-	capturedOutput := make(chan string)
-	go func() {
-		var buf strings.Builder
-		data, _ := io.ReadAll(r)
-		buf.Write(data)
-		capturedOutput <- buf.String()
-		close(finished)
-	}()
+	// Read captured stderr output
+	data, _ := io.ReadAll(r)
+	output := string(data)
 
-	// Make sure we get stderr output
-	select {
-	case output := <-capturedOutput:
-		if !strings.Contains(output, "channel full") {
-			t.Errorf("Expected stderr to contain 'channel full' message, got: %s", output)
-		}
-	case <-time.After(time.Second):
-		t.Error("Timed out waiting for stderr output")
+	if !strings.Contains(output, "message channel full") {
+		t.Errorf("Expected stderr to mention full channel, got: %s", output)
 	}
 
-	// Wait for the finished signal
-	<-finished
-
-	// Clean up - don't manually close the channel, let CloseAll handle it
+	// Cleanup
 	logger.CloseAll()
 }
