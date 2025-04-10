@@ -254,7 +254,7 @@ func (f *FlexLog) Errorf(format string, args ...interface{}) {
 func GetLogLevel(level string, defaultLevel ...string) int {
 	l := strings.ToLower(level)
 	if l == "" {
-		if len(defaultLevel) > 0 {
+		if len(defaultLevel) > 0 && defaultLevel[0] != "" {
 			l = defaultLevel[0]
 		} else {
 			l = "debug" // fallback default if not given
