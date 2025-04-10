@@ -57,7 +57,10 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
 			return
 		}
-		dest.Writer.Flush()
+		if err := dest.Writer.Flush(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			return
+		}
 		dest.Size += entrySize
 	} else if msg.Entry != nil {
 		// JSON format with structured entry
@@ -83,7 +86,10 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 				fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
 				return
 			}
-			dest.Writer.Flush()
+			if err := dest.Writer.Flush(); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+				return
+			}
 			dest.Size += entrySize
 		}
 	} else {
@@ -138,17 +144,16 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
 			return
 		}
+		if err := dest.Writer.Flush(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			return
+		}
 		dest.Size += entrySize
 	}
 
 	// Set the return values
 	*entryPtr = entry
 	*entrySizePtr = entrySize
-
-	// Flush periodically
-	if dest.Size%int64(defaultBufferSize) == 0 {
-		dest.Writer.Flush()
-	}
 }
 
 // processSyslogMessage processes a message for a syslog backend

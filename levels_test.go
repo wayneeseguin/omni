@@ -1,0 +1,280 @@
+package flexlog
+
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestLevelFunctions(t *testing.T) {
+	testDir := t.TempDir()
+	logFile := filepath.Join(testDir, "test.log")
+
+	// Create a logger with default options
+	logger, err := New(logFile)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.CloseAll()
+
+	// Set level to Debug to test all logging levels
+	logger.SetLevel(LevelDebug)
+
+	tests := []struct {
+		name     string
+		logFunc  func()
+		level    int
+		expected string
+	}{
+		{
+			name: "Debug",
+			logFunc: func() {
+				logger.Debug("debug message")
+			},
+			level:    LevelDebug,
+			expected: "debug message",
+		},
+		{
+			name: "Debugf",
+			logFunc: func() {
+				logger.Debugf("debug %s", "formatted")
+			},
+			level:    LevelDebug,
+			expected: "debug formatted",
+		},
+		{
+			name: "Info",
+			logFunc: func() {
+				logger.Info("info message")
+			},
+			level:    LevelInfo,
+			expected: "info message",
+		},
+		{
+			name: "Infof",
+			logFunc: func() {
+				logger.Infof("info %s", "formatted")
+			},
+			level:    LevelInfo,
+			expected: "info formatted",
+		},
+		{
+			name: "Warn",
+			logFunc: func() {
+				logger.Warn("warn message")
+			},
+			level:    LevelWarn,
+			expected: "warn message",
+		},
+		{
+			name: "Warnf",
+			logFunc: func() {
+				logger.Warnf("warn %s", "formatted")
+			},
+			level:    LevelWarn,
+			expected: "warn formatted",
+		},
+		{
+			name: "Error",
+			logFunc: func() {
+				logger.Error("error message")
+			},
+			level:    LevelError,
+			expected: "error message",
+		},
+		{
+			name: "Errorf",
+			logFunc: func() {
+				logger.Errorf("error %s", "formatted")
+			},
+			level:    LevelError,
+			expected: "error formatted",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear log file before each test
+			if err := os.Truncate(logFile, 0); err != nil {
+				t.Fatalf("Failed to truncate log file: %v", err)
+			}
+
+			// Execute the log function
+			tt.logFunc()
+
+			// Ensure async logging completes
+			logger.defaultDest.Writer.Flush()
+			time.Sleep(10 * time.Millisecond)
+
+			// Read log file content
+			content, err := os.ReadFile(logFile)
+			if err != nil {
+				t.Fatalf("Failed to read log file: %v", err)
+			}
+
+			// Check if expected message is in the log
+			if !strings.Contains(string(content), tt.expected) {
+				t.Errorf("Log file does not contain expected message. Got:\n%s\nWant content including: %s", string(content), tt.expected)
+			}
+		})
+	}
+}
+
+func TestLevelFiltering(t *testing.T) {
+	testDir := t.TempDir()
+	logFile := filepath.Join(testDir, "test.log")
+
+	// Create logger with Info level as minimum
+	logger, err := New(logFile)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.CloseAll()
+
+	logger.SetLevel(LevelInfo)
+
+	tests := []struct {
+		name     string
+		logFunc  func()
+		level    int
+		message  string
+		expected bool // whether the message should be logged
+	}{
+		{
+			name: "Debug with Info level",
+			logFunc: func() {
+				logger.Debug("debug should be filtered")
+			},
+			level:    LevelDebug,
+			message:  "debug should be filtered",
+			expected: false,
+		},
+		{
+			name: "Info with Info level",
+			logFunc: func() {
+				logger.Info("info should be logged")
+			},
+			level:    LevelInfo,
+			message:  "info should be logged",
+			expected: true,
+		},
+		{
+			name: "Warn with Info level",
+			logFunc: func() {
+				logger.Warn("warn should be logged")
+			},
+			level:    LevelWarn,
+			message:  "warn should be logged",
+			expected: true,
+		},
+		{
+			name: "Error with Info level",
+			logFunc: func() {
+				logger.Error("error should be logged")
+			},
+			level:    LevelError,
+			message:  "error should be logged",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear log file before each test
+			if err := os.Truncate(logFile, 0); err != nil {
+				t.Fatalf("Failed to truncate log file: %v", err)
+			}
+
+			// Execute the log function
+			tt.logFunc()
+
+			// Ensure async logging completes
+			logger.defaultDest.Writer.Flush()
+			time.Sleep(10 * time.Millisecond)
+
+			// Read log file content
+			content, err := os.ReadFile(logFile)
+			if err != nil {
+				t.Fatalf("Failed to read log file: %v", err)
+			}
+
+			contentStr := string(content)
+			messageFound := strings.Contains(contentStr, tt.message)
+
+			if messageFound != tt.expected {
+				if tt.expected {
+					t.Errorf("Expected log message '%s' to be written, but it wasn't found in: %s",
+						tt.message, contentStr)
+				} else {
+					t.Errorf("Expected no log message to be written, but log file contains: %s", contentStr)
+				}
+			}
+		})
+	}
+}
+
+func TestChannelFullFallback(t *testing.T) {
+	testDir := t.TempDir()
+	logFile := filepath.Join(testDir, "test.log")
+
+	// Override defaultChannelSize for this test
+	oldSize := defaultChannelSize
+	defaultChannelSize = 1
+	defer func() { defaultChannelSize = oldSize }()
+
+	logger, err := New(logFile)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	// Intentionally block the worker goroutine
+	// Create a channel to signal when the test is finished
+	finished := make(chan struct{})
+
+	// Override the msgChan with a buffered channel with size 1
+	logger.msgChan = make(chan LogMessage, 1)
+	// Fill the channel to make it full
+	logger.msgChan <- LogMessage{Format: "blocking message"}
+
+	// Capture stderr output
+	originalStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	// Log a message which should go to stderr since the channel is full
+	// Use Info level which should match what's in levels.go
+	logger.Info("This should go to stderr")
+
+	// Close the writer and restore stderr
+	w.Close()
+	os.Stderr = originalStderr
+
+	// Read captured output
+	capturedOutput := make(chan string)
+	go func() {
+		var buf strings.Builder
+		data, _ := io.ReadAll(r)
+		buf.Write(data)
+		capturedOutput <- buf.String()
+		close(finished)
+	}()
+
+	// Make sure we get stderr output
+	select {
+	case output := <-capturedOutput:
+		if !strings.Contains(output, "channel full") {
+			t.Errorf("Expected stderr to contain 'channel full' message, got: %s", output)
+		}
+	case <-time.After(time.Second):
+		t.Error("Timed out waiting for stderr output")
+	}
+
+	// Wait for the finished signal
+	<-finished
+
+	// Clean up - don't manually close the channel, let CloseAll handle it
+	logger.CloseAll()
+}

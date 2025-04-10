@@ -148,20 +148,46 @@ func (f *FlexLog) log(level int, message string) {
 }
 
 func (f *FlexLog) logf(level int, format string, args ...interface{}) {
-	// Create log message and send to channelSize
+	if f.level > level {
+		return
+	}
+
+	// Check if we should log this based on sampling
+	if !f.shouldLog(level, format, nil) {
+		return
+	}
+
+	// Create log message and send to channel
 	msg := LogMessage{
 		Level:     level,
 		Format:    format,
 		Args:      args,
 		Timestamp: time.Now(),
 	}
+
+	// Try to send to channel, but don't block if channel is full
 	select {
 	case f.msgChan <- msg:
-	// Message sent successfully
+		// Message sent successfully
 	default:
-		// Channel is full, log to stderr and also attempt to log directly
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("%s Warning: message channel full, writing message to STDERR\n", msg.Timestamp))
-		fmt.Fprintf(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
+		// Channel is full, log to stderr
+		var levelName string
+		switch level {
+		case LevelDebug:
+			levelName = "DEBUG"
+		case LevelInfo:
+			levelName = "INFO"
+		case LevelWarn:
+			levelName = "WARN"
+		case LevelError:
+			levelName = "ERROR"
+		default:
+			levelName = "UNKNOWN"
+		}
+
+		// DO NOT DROP THE MESSAGE, LOG IT TO STDERR
+		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly\n", levelName)
+		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
 	}
 }
 

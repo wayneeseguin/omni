@@ -324,26 +324,54 @@ func (f *FlexLog) FlushAll() error {
 // CloseAll closes all destinations and stops all workers
 func (f *FlexLog) CloseAll() error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 
-	// Stop all background workers
-	close(f.msgChan)
+	// First, signal to all destinations that we're shutting down
+	for _, dest := range f.destinations {
+		select {
+		case <-dest.Done: // Already closed
+		default:
+			close(dest.Done)
+		}
+	}
+
+	// Close the message channel to signal workers to stop
+	if f.msgChan != nil {
+		close(f.msgChan)
+		f.msgChan = nil
+	}
+
+	f.mu.Unlock() // Unlock before waiting to avoid deadlock
 
 	// Wait for all workers to finish
 	f.workerWg.Wait()
 
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	// Stop background processes
 	f.stopCompressionWorkers()
 
-	// Close all destinations
+	// Flush and close all destinations
 	var lastErr error
 	for _, dest := range f.destinations {
-		if err := dest.Writer.Flush(); err != nil && lastErr == nil {
-			lastErr = err
+		if dest.Writer != nil {
+			if err := dest.Writer.Flush(); err != nil && lastErr == nil {
+				lastErr = err
+			}
 		}
 
-		if err := dest.File.Close(); err != nil && lastErr == nil {
-			lastErr = err
+		// Close file if it exists
+		if dest.File != nil {
+			if err := dest.File.Close(); err != nil && lastErr == nil {
+				lastErr = err
+			}
+		}
+
+		// Close syslog connection if it exists
+		if dest.Backend == BackendSyslog && dest.SyslogConn != nil && dest.SyslogConn.conn != nil {
+			if err := dest.SyslogConn.conn.Close(); err != nil && lastErr == nil {
+				lastErr = err
+			}
 		}
 	}
 

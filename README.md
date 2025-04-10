@@ -327,3 +327,92 @@ go test
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+# Examples
+
+## MultiLogger Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/wayneeseguin/flexlog"
+)
+
+func main() {
+	// Example 1: Basic file logger with flock backend (default)
+	fileLogger, err := flexlog.New("./logs/application.log")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating file logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer fileLogger.CloseAll()
+
+	// Example 2: Logger with syslog backend
+	syslogLogger, err := flexlog.NewSyslog("localhost", "myapp")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating syslog logger: %v\n", err)
+		// Continue with just the file logger
+	} else {
+		defer syslogLogger.CloseAll()
+	}
+
+	// Example 3: Multi-destination logger
+	multiLogger, err := flexlog.New("./logs/multi.log")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating multi logger: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Add a syslog destination
+	err = multiLogger.AddDestinationWithBackend("syslog:///dev/log", flexlog.BackendSyslog)
+	if err != nil {
+		fmt.Printf("Warning: Could not add syslog destination: %v\n", err)
+	}
+
+	// Add another file destination
+	err = multiLogger.AddDestination("./logs/secondary.log")
+	if err != nil {
+		fmt.Printf("Warning: Could not add secondary file destination: %v\n", err)
+	}
+
+	defer multiLogger.CloseAll()
+
+	// Set configuration
+	fileLogger.SetLevel(flexlog.LevelDebug)
+	multiLogger.SetLevel(flexlog.LevelInfo)
+
+	// Log some messages to the file logger
+	fileLogger.Debug("This is a debug message")
+	fileLogger.Info("File logger info message with value: %d", 42)
+	fileLogger.Warn("Warning: Something might be wrong")
+	fileLogger.Error("Error occurred: %v", fmt.Errorf("sample error"))
+
+	// If syslog logger was created successfully, log to it
+	if syslogLogger != nil {
+		syslogLogger.Info("Syslog message from application")
+		syslogLogger.Error("Error reported to syslog: %v", fmt.Errorf("connection timeout"))
+	}
+
+	// Log to multiple destinations
+	for i := 0; i < 5; i++ {
+		multiLogger.Info("Message %d going to multiple destinations", i)
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Demonstrate non-blocking behavior
+	start := time.Now()
+	for i := 0; i < 10000; i++ {
+		multiLogger.Info("Non-blocking log message %d", i)
+	}
+	elapsed := time.Since(start)
+	fmt.Printf("Logged 10,000 messages in %v (would be much longer if blocking)\n", elapsed)
+
+	// Make sure messages are flushed before exiting
+	multiLogger.FlushAll()
+}
+
+```
