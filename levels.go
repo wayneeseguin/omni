@@ -3,6 +3,7 @@ package flexlog
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -244,5 +245,21 @@ func (f *FlexLog) Error(args ...interface{}) {
 func (f *FlexLog) Errorf(format string, args ...interface{}) {
 	if f.level <= LevelError {
 		f.logf(LevelError, format, args...)
+	}
+}
+
+// Function to look up log level based on string
+func GetLogLevel(level string) int {
+	switch strings.ToLower(level) {
+	case "debug":
+		return LevelDebug
+	case "info":
+		return LevelInfo
+	case "warn":
+		return LevelWarn
+	case "error":
+		return LevelError
+	default:
+		return LevelInfo
 	}
 }
