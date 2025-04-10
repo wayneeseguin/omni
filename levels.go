@@ -249,8 +249,19 @@ func (f *FlexLog) Errorf(format string, args ...interface{}) {
 }
 
 // Function to look up log level based on string
-func GetLogLevel(level string) int {
-	switch strings.ToLower(level) {
+// how to set defaultLevel as optional parameter argument
+
+func GetLogLevel(level string, defaultLevel ...string) int {
+	l := strings.ToLower(level)
+	if l == "" {
+		if len(defaultLevel) > 0 {
+			l = defaultLevel[0]
+		} else {
+			l = "debug" // fallback default if not given
+		}
+	}
+
+	switch l {
 	case "debug":
 		return LevelDebug
 	case "info":
