@@ -3,6 +3,7 @@ package flexlog
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -111,6 +112,14 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			levelStr = "LOG"
 		}
 
+		// Format level based on format options
+		if f.formatOptions.LevelFormat == LevelFormatNameLower {
+			levelStr = strings.ToLower(levelStr)
+		} else if f.formatOptions.LevelFormat == LevelFormatSymbol {
+			// Use just the first letter for symbol format
+			levelStr = string(levelStr[0])
+		}
+
 		// Format the entry based on the logger's options
 		if f.formatOptions.IncludeLevel && f.formatOptions.IncludeTime {
 			entry = fmt.Sprintf("[%s] [%s] %s\n",
@@ -126,6 +135,10 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		} else {
 			entry = fmt.Sprintf("%s\n", message)
 		}
+
+		// Assign the formatted entry to the entryPtr immediately after formatting
+		// This ensures it's available even if we return early due to errors later
+		*entryPtr = entry
 
 		entrySize = int64(len(entry))
 
@@ -151,7 +164,8 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		dest.Size += entrySize
 	}
 
-	// Set the return values
+	// Always set the return values before returning from the function
+	// This ensures the caller gets the proper entry regardless of which path was taken
 	*entryPtr = entry
 	*entrySizePtr = entrySize
 }

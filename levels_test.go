@@ -254,8 +254,10 @@ func TestChannelFullFallback(t *testing.T) {
 	data, _ := io.ReadAll(r)
 	output := string(data)
 
-	if !strings.Contains(output, "message channel full") {
-		t.Errorf("Expected stderr to mention full channel, got: %s", output)
+	// The exact message format in levels.go for Info level when channel is full
+	expectedMsg := "Warning: message channel full, writing Info message to STDERR directly."
+	if !strings.Contains(output, expectedMsg) {
+		t.Errorf("Expected stderr to mention full channel with message '%s', got: %s", expectedMsg, output)
 	}
 
 	// Cleanup

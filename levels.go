@@ -187,7 +187,7 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 		}
 
 		// DO NOT DROP THE MESSAGE, LOG IT TO STDERR
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly\n", levelName)
+		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly.\n", strings.Title(strings.ToLower(levelName)))
 		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
 	}
 }
