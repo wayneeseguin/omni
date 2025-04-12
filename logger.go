@@ -1,9 +1,11 @@
 package flexlog
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -62,7 +64,8 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 		sampleKeyFunc:    defaultSampleKeyFunc,
 		msgChan:          make(chan LogMessage, channelSize),
 		channelSize:      channelSize,
-		destinations:     make([]*Destination, 0),
+		Destinations:     make([]*Destination, 0),
+		messageQueue:     make(chan *LogMessage, channelSize),
 	}
 
 	// Add the destination based on backend type
@@ -73,7 +76,7 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 
 	// Set as default destination
 	f.defaultDest = dest
-	f.destinations = append(f.destinations, dest)
+	f.Destinations = append(f.Destinations, dest)
 
 	// If it's a file backend, set the file and writer references at the logger level too
 	// for backward compatibility
@@ -105,7 +108,7 @@ func (f *FlexLog) logWorker(dest *Destination) {
 				return
 			}
 
-			// Process the message
+			// Process the message using the central message dispatcher
 			f.processMessage(msg, dest)
 		case <-dest.Done:
 			// Destination closed, exit
@@ -153,4 +156,29 @@ func (f *FlexLog) SetChannelSize(size int) error {
 
 	// Cannot change channel size once it's established
 	return fmt.Errorf("cannot change channel size after logger is created")
+}
+
+// NewDestination creates a new Destination based on the provided URI.
+func NewDestination(uri string) (*Destination, error) {
+	// Parse the URI to determine the destination type
+	if strings.HasPrefix(uri, "syslog://") {
+		return &Destination{
+			URI:        uri,
+			SyslogConn: nil, // Placeholder for actual syslog connection setup
+		}, nil
+	}
+
+	if strings.HasPrefix(uri, "file://") {
+		filePath := strings.TrimPrefix(uri, "file://")
+		file, err := os.Create(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file destination: %w", err)
+		}
+		return &Destination{
+			URI:    uri,
+			Writer: bufio.NewWriter(file),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported destination URI: %s", uri)
 }

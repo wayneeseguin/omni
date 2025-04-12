@@ -134,7 +134,7 @@ logger.RunCleanup()
 
 ## Multiple Output Destinations
 
-Send logs to multiple destinations:
+Send logs to multiple Destinations:
 
 ```go
 // Add stdout as a destination
@@ -153,8 +153,8 @@ logger.EnableDestination("network")
 // Remove a destination
 logger.RemoveDestination("network")
 
-// List all destinations
-destinations := logger.ListDestinations()
+// List all Destinations
+Destinations := logger.ListDestinations()
 ```
 
 ## Log Formats and Formatting Options
@@ -397,9 +397,9 @@ func main() {
 		syslogLogger.Error("Error reported to syslog: %v", fmt.Errorf("connection timeout"))
 	}
 
-	// Log to multiple destinations
+	// Log to multiple Destinations
 	for i := 0; i < 5; i++ {
-		multiLogger.Info("Message %d going to multiple destinations", i)
+		multiLogger.Info("Message %d going to multiple Destinations", i)
 		time.Sleep(100 * time.Millisecond)
 	}
 

@@ -20,7 +20,7 @@ func createTestRedactionLogger() *FlexLog {
 		format:       FormatText,
 		msgChan:      make(chan LogMessage, 10),
 		channelSize:  10,
-		destinations: make([]*Destination, 0),
+		Destinations: make([]*Destination, 0),
 	}
 
 	return logger
@@ -485,7 +485,7 @@ func createTestLogger(writer io.Writer) *FlexLog {
 		format:       FormatText,
 		msgChan:      make(chan LogMessage, 10),
 		channelSize:  10,
-		destinations: make([]*Destination, 0),
+		Destinations: make([]*Destination, 0),
 	}
 
 	// Create a destination that writes to our buffer
@@ -498,7 +498,7 @@ func createTestLogger(writer io.Writer) *FlexLog {
 	}
 
 	logger.defaultDest = dest
-	logger.destinations = append(logger.destinations, dest)
+	logger.Destinations = append(logger.Destinations, dest)
 
 	// Start a worker goroutine to handle messages
 	go func() {

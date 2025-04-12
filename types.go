@@ -101,20 +101,21 @@ type FormatOptions struct {
 
 // FlexLog is the main logger struct
 type FlexLog struct {
-	mu              sync.Mutex
-	file            *os.File
-	writer          *bufio.Writer
-	path            string
-	maxSize         int64
-	maxFiles        int
-	currentSize     int64
-	level           int
-	fileLock        *flock.Flock
-	format          int
-	includeTrace    bool
-	stackSize       int
-	captureAll      bool
-	formatOptions   FormatOptions
+	mu            sync.Mutex
+	file          *os.File
+	writer        *bufio.Writer
+	path          string
+	maxSize       int64
+	maxFiles      int
+	currentSize   int64
+	level         int
+	fileLock      *flock.Flock
+	includeTrace  bool
+	stackSize     int
+	captureAll    bool
+	formatOptions FormatOptions
+
+	// Compression
 	compression     int
 	compressMinAge  int
 	compressWorkers int
@@ -123,7 +124,9 @@ type FlexLog struct {
 	cleanupInterval time.Duration
 	cleanupTicker   *time.Ticker
 	cleanupDone     chan struct{}
-	filters         []Filter
+
+	// Filtering
+	filters []Filter
 
 	// Sampling fields
 	samplingStrategy int
@@ -132,10 +135,18 @@ type FlexLog struct {
 	sampleKeyFunc    func(int, string, map[string]interface{}) string
 
 	// Non-blocking logging fields
-	msgChan      chan LogMessage
-	destinations []*Destination
-	defaultDest  *Destination
-	workerWg     sync.WaitGroup
-	channelSize  int
-	size         int64 // alias for currentSize for backward compatibility
+	msgChan     chan LogMessage
+	defaultDest *Destination
+	workerWg    sync.WaitGroup
+	channelSize int
+	size        int64 // alias for currentSize for backward compatibility
+
+	// Multilog
+	Destinations []*Destination
+	messageQueue chan *LogMessage
+
+	// Formatting
+	format     int
+	formatOpts FormatOptions
+	closed     bool
 }

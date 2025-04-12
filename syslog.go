@@ -72,7 +72,7 @@ func (f *FlexLog) SetSyslogTag(uri string, tag string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	for _, dest := range f.destinations {
+	for _, dest := range f.Destinations {
 		if dest.URI == uri && dest.Backend == BackendSyslog && dest.SyslogConn != nil {
 			dest.SyslogConn.tag = tag
 			return nil
@@ -95,7 +95,7 @@ func (f *FlexLog) SetSyslogPriority(uri string, priority int) error {
 		return fmt.Errorf("invalid syslog priority: %d (must be 0-191)", priority)
 	}
 
-	for _, dest := range f.destinations {
+	for _, dest := range f.Destinations {
 		if dest.URI == uri && dest.Backend == BackendSyslog && dest.SyslogConn != nil {
 			dest.SyslogConn.priority = priority
 			return nil
