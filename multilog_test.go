@@ -1,6 +1,7 @@
 package flexlog_test
 
 import (
+	//"bufio"
 	"bufio"
 	"bytes"
 	"fmt"
@@ -8,11 +9,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
+	//"fmt"
+	//"io"
+	//"os"
+	//"path/filepath"
+	//"strings"
+	"sync"
 
 	"github.com/wayneeseguin/flexlog"
+	//"testing"
+	//"time"
+	//"github.com/wayneeseguin/flexlog"
 )
 
 // testWriter is a simple io.Writer implementation that captures output for testing
@@ -480,5 +489,98 @@ func TestWriteToConcurrently(t *testing.T) {
 				t.Errorf("Writer %d missing message %d", i, j)
 			}
 		}
+	}
+}
+
+// TestSetLogPath tests changing the log file path
+func TestSetLogPath(t *testing.T) {
+	// Create temp dir for test
+	tempDir := t.TempDir()
+
+	// Create initial logger
+	initialPath := filepath.Join(tempDir, "initial.log")
+	logger, err := flexlog.New(initialPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.CloseAll()
+
+	// Log an initial message
+	logger.Info("Initial message")
+	logger.FlushAll()
+
+	// Verify the message was written to the initial file
+	initialContent, err := os.ReadFile(initialPath)
+	if err != nil {
+		t.Fatalf("Failed to read initial log: %v", err)
+	}
+	if !strings.Contains(string(initialContent), "Initial message") {
+		t.Errorf("Expected message not found in initial log")
+	}
+
+	// Change the log path without moving the existing file
+	newPath := filepath.Join(tempDir, "subdir", "new.log")
+	if err := logger.SetLogPath(newPath, false); err != nil {
+		t.Fatalf("Failed to change log path: %v", err)
+	}
+
+	// Log a new message
+	logger.Info("New message")
+	logger.FlushAll()
+
+	// Verify both files have the expected content
+	newContent, err := os.ReadFile(newPath)
+	if err != nil {
+		t.Fatalf("Failed to read new log: %v", err)
+	}
+
+	// Initial file should still exist with initial message
+	if !strings.Contains(string(initialContent), "Initial message") {
+		t.Errorf("Expected initial message not found in initial log")
+	}
+	
+	// Initial file should not have the new message
+	if strings.Contains(string(initialContent), "New message") {
+		t.Errorf("New message found in initial log when it shouldn't be")
+	}
+
+	// New file should have the new message
+	if !strings.Contains(string(newContent), "New message") {
+		t.Errorf("Expected new message not found in new log")
+	}
+	
+	// New file should not have the initial message
+	if strings.Contains(string(newContent), "Initial message") {
+		t.Errorf("Initial message found in new log when it shouldn't be")
+	}
+
+	// Test with moving the file
+	thirdPath := filepath.Join(tempDir, "moved.log")
+	
+	// Write another message to the current log
+	logger.Info("Another message")
+	logger.FlushAll()
+	
+	// Change the path with move=true
+	if err := logger.SetLogPath(thirdPath, true); err != nil {
+		t.Fatalf("Failed to change log path with move: %v", err)
+	}
+	
+	// Write to the new location
+	logger.Info("After move message")
+	logger.FlushAll()
+	
+	// Check that new file location has both messages
+	thirdContent, err := os.ReadFile(thirdPath)
+	if err != nil {
+		t.Fatalf("Failed to read third log: %v", err)
+	}
+	
+	if !strings.Contains(string(thirdContent), "Another message") {
+		t.Errorf("Expected 'Another message' not found in moved log")
+	}
+	
+	if !strings.Contains(string(thirdContent), "After move message") {
+		t.Errorf("Expected 'After move message' not found in moved log")
 	}
 }

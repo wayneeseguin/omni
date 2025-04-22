@@ -315,6 +315,23 @@ respBody := `{"status": "success", "token": "jwt-token-here"}`
 logger.FlogResponse(200, respHeaders, respBody)
 ```
 
+## Changing Log File Location
+
+You can change the default log file location at runtime:
+
+```go
+// Change the log path without moving the existing file
+// Messages will go to the new location after this call
+if err := logger.SetLogPath("/var/log/newapp.log", false); err != nil {
+    fmt.Fprintf(os.Stderr, "Error changing log path: %v\n", err)
+}
+
+// Change the log path and move existing file contents to the new location
+if err := logger.SetLogPath("/var/log/newapp2.log", true); err != nil {
+    fmt.Fprintf(os.Stderr, "Error changing log path: %v\n", err)
+}
+```
+
 ## Testing
 
 To run the tests, use the following command:

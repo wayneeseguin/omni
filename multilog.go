@@ -490,3 +490,111 @@ func (f *FlexLog) FlushDestination(dest *Destination) error {
 	}
 	return nil
 }
+
+// SetLogPath changes the path of the primary log file.
+// If no primary log file exists, an error will be returned.
+// This will close the current file, rename it if requested, and open a new one at the specified path.
+func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	// Find the primary destination (the first file-based destination)
+	if len(f.Destinations) == 0 {
+		return fmt.Errorf("no destinations found")
+	}
+
+	primaryIdx := -1
+	for i, dest := range f.Destinations {
+		if dest.Backend == BackendFlock {
+			primaryIdx = i
+			break
+		}
+	}
+
+	if primaryIdx == -1 {
+		return fmt.Errorf("no file destination found")
+	}
+
+	dest := f.Destinations[primaryIdx]
+	oldPath := dest.URI
+
+	// Ensure directory exists for new log path
+	dir := filepath.Dir(newPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("creating log directory: %w", err)
+	}
+
+	// Flush and close current file
+	if dest.Writer != nil {
+		if err := dest.Writer.Flush(); err != nil {
+			return fmt.Errorf("flushing current log: %w", err)
+		}
+	}
+
+	if dest.File != nil {
+		if err := dest.File.Close(); err != nil {
+			return fmt.Errorf("closing current log: %w", err)
+		}
+	}
+
+	// Release the current lock if any
+	if dest.Lock != nil {
+		if err := dest.Lock.Unlock(); err != nil {
+			// Log error but continue - this is not fatal
+			fmt.Fprintf(os.Stderr, "Warning: failed to release lock for %s: %v\n", oldPath, err)
+		}
+	}
+
+	// Move existing file if requested
+	if moveExistingFile && oldPath != "" && oldPath != newPath {
+		// Only try to rename if the old file exists
+		if _, err := os.Stat(oldPath); err == nil {
+			if err := os.Rename(oldPath, newPath); err != nil {
+				return fmt.Errorf("moving log file: %w", err)
+			}
+		}
+	}
+
+	// Setup new destination
+	lockPath := newPath + ".lock"
+	dest.Lock = flock.New(lockPath)
+
+	// Acquire lock on new file
+	if err := dest.Lock.Lock(); err != nil {
+		return fmt.Errorf("acquiring file lock: %w", err)
+	}
+
+	// Open new file
+	file, err := os.OpenFile(newPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		dest.Lock.Unlock() // Release lock on error
+		return fmt.Errorf("opening new log file: %w", err)
+	}
+
+	// Get current file size
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		dest.Lock.Unlock()
+		return fmt.Errorf("getting file info: %w", err)
+	}
+
+	// Update destination
+	dest.URI = newPath
+	dest.File = file
+	dest.Writer = bufio.NewWriterSize(file, defaultBufferSize)
+	dest.Size = info.Size()
+
+	// Update logger-level references for backward compatibility
+	f.path = newPath
+	f.file = file
+	f.writer = dest.Writer
+	f.fileLock = dest.Lock
+	f.currentSize = dest.Size
+	f.size = dest.Size
+
+	// Release the lock after setup
+	dest.Lock.Unlock()
+
+	return nil
+}
