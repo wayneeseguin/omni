@@ -12,6 +12,9 @@ import (
 	"github.com/gofrs/flock"
 )
 
+const KeepLogFile = false
+const MoveLogFile = true
+
 // createDestination creates a new destination based on URI and backend type
 func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, error) {
 	dest := &Destination{
