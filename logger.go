@@ -1,3 +1,16 @@
+// Package flexlog provides a flexible, high-performance logging library for Go applications.
+// It supports multiple concurrent destinations, structured logging, log rotation, compression,
+// filtering, sampling, and process-safe file logging using Unix file locks.
+//
+// Example:
+//
+//	logger, err := flexlog.NewFlexLog()
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer logger.Close()
+//
+//	logger.Info("Application started", "version", "1.0.0")
 package flexlog
 
 import (
@@ -13,7 +26,8 @@ import (
 // initialized from environment variable FLEXLOG_CHANNEL_SIZE or defaults to 100
 var defaultChannelSize = getDefaultChannelSize()
 
-// Filter is a function that determines if a message should be logged
+// Filter is a function that determines if a message should be logged.
+// It receives the log level, message, and fields, and returns true if the message should be logged.
 type Filter func(level int, message string, fields map[string]interface{}) bool
 
 // getDefaultChannelSize retrieves the default channel size from an environment variable or uses the default value
@@ -26,14 +40,38 @@ func getDefaultChannelSize() int {
 	return 100 // Default to 100 if not specified in environment
 }
 
-// New creates a new file logger
+// New creates a new file logger with default settings.
+// The logger uses file locking (flock) for process-safe concurrent writes.
+//
+// Parameters:
+//   - path: The file path where logs will be written
+//
+// Returns:
+//   - *FlexLog: The logger instance
+//   - error: Any error encountered during creation
+//
+// Example:
+//
+//	logger, err := flexlog.New("/var/log/app.log")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer logger.Close()
 func New(path string) (*FlexLog, error) {
 	// For backward compatibility, we treat this as a file-based logger
 	// with flock backend by default
 	return NewWithOptions(path, BackendFlock)
 }
 
-// NewWithOptions creates a new logger with specific options
+// NewWithOptions creates a new logger with specific backend type.
+//
+// Parameters:
+//   - uri: The destination URI (file path for file backend, syslog address for syslog backend)
+//   - backendType: The backend type (BackendFlock or BackendSyslog)
+//
+// Returns:
+//   - *FlexLog: The logger instance
+//   - error: Any error encountered during creation
 func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 	// Get the channel size from environment or use default
 	channelSize := getDefaultChannelSize()

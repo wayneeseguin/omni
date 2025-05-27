@@ -7,14 +7,33 @@ import (
 	"time"
 )
 
-// SetLevel sets the minimum log level
+// SetLevel sets the minimum log level for the logger.
+// Messages below this level will be filtered out and not logged.
+//
+// Parameters:
+//   - level: The minimum log level (LevelDebug, LevelInfo, LevelWarn, or LevelError)
+//
+// Example:
+//
+//	logger.SetLevel(flexlog.LevelWarn) // Only log warnings and errors
 func (f *FlexLog) SetLevel(level int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.level = level
 }
 
-// GetLevel returns the current log level (thread-safe)
+// GetLevel returns the current minimum log level.
+// This method is thread-safe.
+//
+// Returns:
+//   - int: The current log level (LevelDebug, LevelInfo, LevelWarn, or LevelError)
+//
+// Example:
+//
+//	currentLevel := logger.GetLevel()
+//	if currentLevel <= flexlog.LevelDebug {
+//	    fmt.Println("Debug logging is enabled")
+//	}
 func (f *FlexLog) GetLevel() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -233,56 +252,140 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 	}
 }
 
-// Debug logs a debug message
+// Debug logs a message at DEBUG level.
+// The message is constructed by concatenating the arguments, similar to fmt.Sprint.
+// Debug messages are typically used for detailed diagnostic information.
+//
+// Parameters:
+//   - args: Values to be logged
+//
+// Example:
+//
+//	logger.Debug("Processing user ID: ", userID)
+//	logger.Debug("Cache hit ratio: ", hitCount, "/", totalCount)
 func (f *FlexLog) Debug(args ...interface{}) {
 	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, "%s", args...)
 	}
 }
 
-// Debugf logs a formatted debug message
+// Debugf logs a formatted message at DEBUG level.
+// The message is constructed using fmt.Sprintf with the provided format string.
+// Debug messages are typically used for detailed diagnostic information.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
+//
+// Example:
+//
+//	logger.Debugf("Processing user ID: %d with options: %+v", userID, options)
+//	logger.Debugf("Cache hit ratio: %.2f%%", (hitCount/totalCount)*100)
 func (f *FlexLog) Debugf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, format, args...)
 	}
 }
 
-// Info logs an info message
+// Info logs a message at INFO level.
+// The message is constructed by concatenating the arguments, similar to fmt.Sprint.
+// Info messages are typically used for general informational messages about application flow.
+//
+// Parameters:
+//   - args: Values to be logged
+//
+// Example:
+//
+//	logger.Info("Server started on port ", port)
+//	logger.Info("Connected to database: ", dbName)
 func (f *FlexLog) Info(args ...interface{}) {
 	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, "%s", args...)
 	}
 }
 
-// Infof logs a formatted info message
+// Infof logs a formatted message at INFO level.
+// The message is constructed using fmt.Sprintf with the provided format string.
+// Info messages are typically used for general informational messages about application flow.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
+//
+// Example:
+//
+//	logger.Infof("Server started on port %d", port)
+//	logger.Infof("Connected to database %s with %d connections", dbName, poolSize)
 func (f *FlexLog) Infof(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, format, args...)
 	}
 }
 
-// Warn logs a warning message
+// Warn logs a message at WARN level.
+// The message is constructed by concatenating the arguments, similar to fmt.Sprint.
+// Warning messages indicate potentially harmful situations that should be investigated.
+//
+// Parameters:
+//   - args: Values to be logged
+//
+// Example:
+//
+//	logger.Warn("Connection pool usage at ", percentage, "% capacity")
+//	logger.Warn("Deprecated API endpoint used: ", endpoint)
 func (f *FlexLog) Warn(args ...interface{}) {
 	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, "%s", args...)
 	}
 }
 
-// Warnf logs a formatted warning message
+// Warnf logs a formatted message at WARN level.
+// The message is constructed using fmt.Sprintf with the provided format string.
+// Warning messages indicate potentially harmful situations that should be investigated.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
+//
+// Example:
+//
+//	logger.Warnf("Connection pool usage at %d%% capacity", percentage)
+//	logger.Warnf("Request took %dms, exceeding threshold of %dms", elapsed, threshold)
 func (f *FlexLog) Warnf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, format, args...)
 	}
 }
 
-// Error logs an error message
+// Error logs a message at ERROR level.
+// The message is constructed by concatenating the arguments, similar to fmt.Sprint.
+// Error messages indicate serious problems that require immediate attention.
+//
+// Parameters:
+//   - args: Values to be logged
+//
+// Example:
+//
+//	logger.Error("Failed to connect to database: ", err)
+//	logger.Error("Panic recovered in handler: ", r)
 func (f *FlexLog) Error(args ...interface{}) {
 	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, "%s", fmt.Sprint(args...))
 	}
 }
 
-// Errorf logs a formatted error message
+// Errorf logs a formatted message at ERROR level.
+// The message is constructed using fmt.Sprintf with the provided format string.
+// Error messages indicate serious problems that require immediate attention.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
+//
+// Example:
+//
+//	logger.Errorf("Failed to connect to database: %v", err)
+//	logger.Errorf("Request failed after %d retries: %s", retries, err.Error())
 func (f *FlexLog) Errorf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, format, args...)

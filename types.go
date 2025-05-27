@@ -11,19 +11,26 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// ErrorLevel represents additional error severity levels
+// ErrorLevel represents additional error severity levels beyond the standard log levels.
+// These can be used to categorize errors by their impact on the system.
 type ErrorLevel int
 
-// CompressionType defines the compression algorithm used
+// CompressionType defines the compression algorithm used for rotated log files.
+// Currently supports gzip compression or no compression.
 type CompressionType int
 
-// FilterFunc is a function that determines if a log entry should be logged
+// FilterFunc is a function that determines if a log entry should be logged.
+// It receives the log level, message, and structured fields.
+// Returns true if the message should be logged, false to filter it out.
 type FilterFunc func(level int, message string, fields map[string]interface{}) bool
 
-// SamplingStrategy defines how log sampling is performed
+// SamplingStrategy defines how log sampling is performed to reduce log volume.
+// Supports interval-based, random, and consistent hash-based sampling.
 type SamplingStrategy int
 
-// LogEntry represents a structured log entry
+// LogEntry represents a structured log entry with all associated metadata.
+// This is the internal representation of a log message that can be formatted
+// as JSON or text output.
 type LogEntry struct {
 	Fields     map[string]interface{} `json:"fields,omitempty"`
 	File       string                 `json:"file,omitempty"`
@@ -34,7 +41,8 @@ type LogEntry struct {
 	Timestamp  string                 `json:"timestamp"`
 }
 
-// LogFormat defines the format for log output
+// LogFormat defines the format for log output.
+// Supports JSON for structured logging and Text for human-readable output.
 type LogFormat int
 
 // FormatOption defines formatting options for log outputs
@@ -43,7 +51,8 @@ type FormatOption int
 // LevelFormat defines level format options
 type LevelFormat int
 
-// LogDestination represents a destination for logs
+// LogDestination represents a destination for logs.
+// Each destination can be independently enabled/disabled and has its own writer.
 type LogDestination struct {
 	// Writer is the io.Writer to write logs to
 	Writer io.Writer
@@ -55,7 +64,8 @@ type LogDestination struct {
 	Enabled bool
 }
 
-// LogMessage represents a message to be logged by a background worker
+// LogMessage represents a message to be logged by a background worker.
+// This is the internal message type passed through channels for async logging.
 type LogMessage struct {
 	Level     int
 	Format    string
@@ -65,7 +75,9 @@ type LogMessage struct {
 	Raw       []byte
 }
 
-// Destination represents a log destination with its own worker goroutine
+// Destination represents a log destination with its own worker goroutine.
+// Each destination runs independently with its own configuration, formatting,
+// and output handling. Supports file-based and syslog backends.
 type Destination struct {
 	URI        string   // URI for the destination (file path or syslog address)
 	Name       string   // Unique identifier for this destination
@@ -108,7 +120,17 @@ type FormatOptions struct {
 	TimeZone        *time.Location
 }
 
-// FlexLog is the main logger struct
+// FlexLog is the main logger struct that manages logging to multiple destinations.
+// It provides a non-blocking, thread-safe logging interface with support for:
+//   - Multiple concurrent output destinations
+//   - Structured logging with key-value pairs
+//   - Log rotation and compression
+//   - Filtering and sampling
+//   - Process-safe file locking
+//   - Configurable formatting
+//
+// FlexLog uses a background worker pattern with channels to ensure logging
+// doesn't block the main application flow.
 type FlexLog struct {
 	mu            sync.Mutex
 	file          *os.File

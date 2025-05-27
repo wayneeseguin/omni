@@ -228,13 +228,43 @@ func getLevelString(level int, format LevelFormat) string {
 	}
 }
 
-// AddDestination adds a new log destination
+// AddDestination adds a new log destination with default file backend.
+// This is a convenience method that creates a file-based destination.
+//
+// Parameters:
+//   - uri: The file path for the log destination
+//
+// Returns:
+//   - error: Any error encountered while adding the destination
+//
+// Example:
+//
+//	err := logger.AddDestination("/var/log/app-errors.log")
+//	if err != nil {
+//	    log.Fatal("Failed to add error log destination:", err)
+//	}
 func (f *FlexLog) AddDestination(uri string) error {
 	// Default to file backend for simplicity
 	return f.AddDestinationWithBackend(uri, BackendFlock)
 }
 
-// AddDestinationWithBackend adds a new log destination with specified backend
+// AddDestinationWithBackend adds a new log destination with specified backend type.
+// This method allows you to create destinations with different backend implementations.
+//
+// Parameters:
+//   - uri: The destination URI (file path for BackendFlock, syslog address for BackendSyslog)
+//   - backendType: The backend type (BackendFlock or BackendSyslog)
+//
+// Returns:
+//   - error: Any error encountered while adding the destination
+//
+// Example:
+//
+//	// Add a file-based destination
+//	err := logger.AddDestinationWithBackend("/var/log/app.log", flexlog.BackendFlock)
+//	
+//	// Add a syslog destination
+//	err := logger.AddDestinationWithBackend("localhost:514", flexlog.BackendSyslog)
 func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -269,7 +299,21 @@ func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
 	return nil
 }
 
-// RemoveDestination removes a log destination by URI
+// RemoveDestination removes a log destination by URI.
+// The destination is flushed and properly closed before removal.
+//
+// Parameters:
+//   - uri: The URI of the destination to remove
+//
+// Returns:
+//   - error: Any error encountered during removal
+//
+// Example:
+//
+//	err := logger.RemoveDestination("/var/log/app-debug.log")
+//	if err != nil {
+//	    log.Printf("Failed to remove debug log: %v", err)
+//	}
 func (f *FlexLog) RemoveDestination(uri string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -328,7 +372,20 @@ func (f *FlexLog) RemoveDestination(uri string) error {
 	return lastErr
 }
 
-// EnableDestination enables a destination by name
+// EnableDestination enables a previously disabled destination by name.
+// Enabled destinations will receive log messages.
+//
+// Parameters:
+//   - name: The name of the destination to enable
+//
+// Returns:
+//   - bool: true if the destination was found and enabled, false otherwise
+//
+// Example:
+//
+//	if logger.EnableDestination("error-log") {
+//	    fmt.Println("Error logging re-enabled")
+//	}
 func (f *FlexLog) EnableDestination(name string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -345,7 +402,21 @@ func (f *FlexLog) EnableDestination(name string) bool {
 	return false
 }
 
-// DisableDestination disables a destination by name
+// DisableDestination disables a destination by name.
+// Disabled destinations will not receive log messages but remain configured.
+//
+// Parameters:
+//   - name: The name of the destination to disable
+//
+// Returns:
+//   - bool: true if the destination was found and disabled, false otherwise
+//
+// Example:
+//
+//	// Temporarily disable debug logging
+//	if logger.DisableDestination("debug-log") {
+//	    fmt.Println("Debug logging temporarily disabled")
+//	}
 func (f *FlexLog) DisableDestination(name string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -362,7 +433,21 @@ func (f *FlexLog) DisableDestination(name string) bool {
 	return false
 }
 
-// CloseDestination closes and removes a specific destination by name
+// CloseDestination closes and removes a specific destination by name.
+// The destination is flushed before closing to ensure no messages are lost.
+//
+// Parameters:
+//   - name: The name of the destination to close
+//
+// Returns:
+//   - error: Any error encountered during closing, or if destination not found
+//
+// Example:
+//
+//	err := logger.CloseDestination("temporary-debug-log")
+//	if err != nil {
+//	    log.Printf("Error closing debug log: %v", err)
+//	}
 func (f *FlexLog) CloseDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -442,7 +527,18 @@ func (f *FlexLog) ListDestinations() []*Destination {
 	return destsCopy
 }
 
-// FlushAll flushes all destination buffers
+// FlushAll flushes all destination buffers to ensure all pending messages are written.
+// This is useful when you need to ensure all log messages are persisted immediately.
+//
+// Returns:
+//   - error: The last error encountered during flushing, if any
+//
+// Example:
+//
+//	// Ensure all logs are written before shutdown
+//	if err := logger.FlushAll(); err != nil {
+//	    log.Printf("Warning: failed to flush all logs: %v", err)
+//	}
 func (f *FlexLog) FlushAll() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -478,12 +574,41 @@ func (f *FlexLog) Sync() error {
 	return f.FlushAll()
 }
 
-// Close closes the logger (alias for CloseAll for backward compatibility)
+// Close closes the logger and all its destinations.
+// This method ensures all pending messages are written before closing.
+// It is an alias for CloseAll for backward compatibility.
+//
+// Returns:
+//   - error: Any error encountered during closing
+//
+// Example:
+//
+//	defer func() {
+//	    if err := logger.Close(); err != nil {
+//	        log.Printf("Error closing logger: %v", err)
+//	    }
+//	}()
 func (f *FlexLog) Close() error {
 	return f.CloseAll()
 }
 
-// CloseAll closes all destinations and shuts down the logger
+// CloseAll closes all destinations and shuts down the logger completely.
+// This method:
+//   - Stops accepting new messages
+//   - Waits for all pending messages to be processed
+//   - Flushes all buffers
+//   - Closes all destinations
+//   - Stops background workers (compression, cleanup)
+//
+// Returns:
+//   - error: The last error encountered during shutdown, if any
+//
+// Example:
+//
+//	// Graceful shutdown
+//	if err := logger.CloseAll(); err != nil {
+//	    log.Printf("Error during logger shutdown: %v", err)
+//	}
 func (f *FlexLog) CloseAll() error {
 	f.mu.Lock()
 	if f.closed {

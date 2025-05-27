@@ -8,6 +8,12 @@ A Go library for flexibly logging with multiple destination backends as an optio
 
 The primary use case is to allow for background logging to a single log from multiple processes without blocking or corrupting log entries.
 
+## Documentation
+
+- 📖 **[API Documentation](docs/API.md)** - Complete API reference and usage guide
+- 🚀 **[Examples](examples/)** - Ready-to-run example programs
+- 🔄 **[Migration Guide](docs/MIGRATION.md)** - Migrate from other logging libraries
+
 ## Installation
 
 To install `flexlog`, use the following command:
