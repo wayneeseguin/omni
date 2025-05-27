@@ -1,7 +1,6 @@
 package flexlog
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,55 +215,44 @@ func TestLevelFiltering(t *testing.T) {
 	}
 }
 func TestChannelFullFallback(t *testing.T) {
-	t.Skip("Skipping flaky test - needs better synchronization")
-	testDir := t.TempDir()
-	logFile := filepath.Join(testDir, "test.log")
-
-	// Override defaultChannelSize for this test
-	oldSize := defaultChannelSize
-	defaultChannelSize = 1
-	defer func() { defaultChannelSize = oldSize }()
-
-	logger, err := New(logFile)
-	if err != nil {
-		t.Fatalf("Failed to create logger: %v", err)
+	// Test the behavior when the message channel is full
+	// We'll create a scenario where the channel cannot accept messages
+	
+	// Create a minimal logger without starting it
+	logger := &FlexLog{
+		level:           LevelDebug,
+		msgChan:         make(chan LogMessage, 1), // Small channel
+		closed:          false,
+		messagesByLevel: make(map[int]uint64),
+		errorsBySource:  make(map[string]uint64),
+		errorHandler:    StderrErrorHandler,
 	}
 	
-	// Close immediately to stop workers from draining the channel
-	logger.CloseAll()
-	
-	// Recreate channel and mark as not closed to allow sending
-	logger.msgChan = make(chan LogMessage, 1)
-	logger.msgChan <- LogMessage{Format: "blocking message"}
-	logger.closed = false
-
-	// Capture stderr
-	originalStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// Trigger fallback log (since channel is full)
-	logger.Info("This should go to stderr")
-
-	// Make sure fallback has time to execute
-	time.Sleep(20 * time.Millisecond)
-
-	// Close pipe writer to flush
-	w.Close()
-
-	// Restore stderr
-	os.Stderr = originalStderr
-
-	// Read captured stderr output
-	data, _ := io.ReadAll(r)
-	output := string(data)
-
-	// The exact message format in levels.go for Info level when channel is full
-	expectedMsg := "Warning: message channel full, writing Info message to STDERR directly."
-	if !strings.Contains(output, expectedMsg) {
-		t.Errorf("Expected stderr to mention full channel with message '%s', got: %s", expectedMsg, output)
+	// Fill the channel
+	select {
+	case logger.msgChan <- LogMessage{Format: "blocking message"}:
+		// Channel now has 1 message
+	default:
+		t.Fatal("Failed to send blocking message")
 	}
-
-	// Cleanup
-	logger.CloseAll()
+	
+	// Now try to send another message - it should fail and trigger fallback
+	// Since no worker is processing messages, the channel stays full
+	logger.Debug("this should be dropped")
+	
+	// Check that the message was dropped
+	dropped := logger.messagesDropped
+	if dropped == 0 {
+		t.Error("Expected message to be dropped when channel is full")
+	}
+	
+	// Also verify through metrics
+	metrics := logger.GetMetrics()
+	t.Logf("Messages dropped: %d", metrics.MessagesDropped)
+	t.Logf("Queue depth: %d", metrics.QueueDepth)
+	t.Logf("Queue capacity: %d", metrics.QueueCapacity)
+	
+	if metrics.MessagesDropped == 0 {
+		t.Error("Expected message to be dropped in metrics when channel is full")
+	}
 }

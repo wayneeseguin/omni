@@ -193,7 +193,6 @@ func TestSetChannelSize(t *testing.T) {
 
 // TestStructuredLogging tests structured logging
 func TestStructuredLogging(t *testing.T) {
-	t.Skip("Structured logging needs implementation fixes")
 	
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
