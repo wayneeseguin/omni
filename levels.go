@@ -50,8 +50,9 @@ func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Debug to STDERR directly.\n")
+		// Channel is full
+		f.trackMessageDropped()
+		f.logError("channel", "", "Message channel full, dropping DEBUG message", nil, ErrorLevelMedium)
 	}
 }
 
@@ -84,8 +85,9 @@ func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Info message to STDERR directly.\n")
+		// Channel is full
+		f.trackMessageDropped()
+		f.logError("channel", "", "Message channel full, dropping INFO message", nil, ErrorLevelMedium)
 	}
 }
 
@@ -118,9 +120,9 @@ func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Warn message to STDERR directly.\n")
-		fmt.Fprintf(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
+		// Channel is full
+		f.trackMessageDropped()
+		f.logError("channel", "", "Message channel full, dropping WARN message", nil, ErrorLevelMedium)
 	}
 }
 
@@ -153,7 +155,10 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr and also attempt to log directly
+		// Channel is full
+		f.trackMessageDropped()
+		f.logError("channel", "", "Message channel full, dropping ERROR message", nil, ErrorLevelHigh)
+		// Still write to stderr for backward compatibility
 		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Error message to STDERR directly\n")
 		fmt.Fprintf(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
 	}
@@ -205,7 +210,8 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr
+		// Channel is full
+		f.trackMessageDropped()
 		var levelName string
 		switch level {
 		case LevelDebug:
@@ -220,7 +226,8 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 			levelName = "UNKNOWN"
 		}
 
-		// DO NOT DROP THE MESSAGE, LOG IT TO STDERR
+		f.logError("channel", "", fmt.Sprintf("Message channel full, dropping %s message", levelName), nil, ErrorLevelHigh)
+		// Still write to stderr for backward compatibility
 		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly.\n", strings.Title(strings.ToLower(levelName)))
 		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
 	}

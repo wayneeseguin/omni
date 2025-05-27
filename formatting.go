@@ -165,10 +165,12 @@ func defaultFormatOptions() FormatOptions {
 
 // formatJSONEntry formats a LogEntry as JSON
 func formatJSONEntry(entry *LogEntry) (string, error) {
-	// Implementation would format the entry as JSON
-	// Using a placeholder for now
-	return fmt.Sprintf("{\"timestamp\":\"%s\",\"level\":\"%s\",\"message\":\"%s\"}\n",
-		entry.Timestamp, entry.Level, entry.Message), nil
+	// Use the formatJSON function to properly marshal the entire entry
+	jsonStr, err := formatJSON(entry, false)
+	if err != nil {
+		return "", err
+	}
+	return jsonStr + "\n", nil
 }
 
 // formatJSON formats an object as JSON with optional indentation

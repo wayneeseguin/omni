@@ -89,6 +89,17 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 		f.size = dest.Size
 	}
 
+	// Set default error handler
+	f.errorHandler = StderrErrorHandler
+	
+	// Initialize metrics
+	f.messagesByLevel = make(map[int]uint64)
+	f.messagesByLevel[LevelDebug] = 0
+	f.messagesByLevel[LevelInfo] = 0
+	f.messagesByLevel[LevelWarn] = 0
+	f.messagesByLevel[LevelError] = 0
+	f.errorsBySource = make(map[string]uint64)
+	
 	// Start the single message dispatcher (only for the first destination)
 	if len(f.Destinations) == 1 {
 		f.workerWg.Add(1)
@@ -103,6 +114,26 @@ func (f *FlexLog) messageDispatcher() {
 	defer f.workerWg.Done()
 
 	for msg := range f.msgChan {
+		// Track that we've successfully received a message
+		if msg.Entry != nil {
+			// Convert level string to int
+			levelInt := LevelInfo // default
+			switch msg.Entry.Level {
+			case "DEBUG":
+				levelInt = LevelDebug
+			case "INFO":
+				levelInt = LevelInfo
+			case "WARN":
+				levelInt = LevelWarn
+			case "ERROR":
+				levelInt = LevelError
+			}
+			f.trackMessageLogged(levelInt)
+		} else {
+			// For non-structured messages, use the level from LogMessage
+			f.trackMessageLogged(msg.Level)
+		}
+		
 		// Send to all enabled destinations
 		f.mu.Lock()
 		destinations := make([]*Destination, len(f.Destinations))
@@ -111,7 +142,10 @@ func (f *FlexLog) messageDispatcher() {
 
 		for _, dest := range destinations {
 			// Skip disabled destinations
-			if !dest.Enabled {
+			dest.mu.Lock()
+			enabled := dest.Enabled
+			dest.mu.Unlock()
+			if !enabled {
 				continue
 			}
 

@@ -151,3 +151,51 @@ func isSensitiveKey(key string) bool {
 	}
 	return false
 }
+
+// Redactor handles pattern-based redaction
+type Redactor struct {
+	patterns []*regexp.Regexp
+	replace  string
+}
+
+// NewRedactor creates a new redactor with custom patterns
+func NewRedactor(patterns []string, replace string) (*Redactor, error) {
+	compiled := make([]*regexp.Regexp, 0, len(patterns))
+	for _, pattern := range patterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
+		compiled = append(compiled, re)
+	}
+	
+	return &Redactor{
+		patterns: compiled,
+		replace:  replace,
+	}, nil
+}
+
+// Redact applies redaction patterns to a string
+func (r *Redactor) Redact(input string) string {
+	result := input
+	for _, pattern := range r.patterns {
+		result = pattern.ReplaceAllString(result, r.replace)
+	}
+	return result
+}
+
+// SetRedaction sets custom redaction patterns for the logger
+func (f *FlexLog) SetRedaction(patterns []string, replace string) error {
+	redactor, err := NewRedactor(patterns, replace)
+	if err != nil {
+		return err
+	}
+	
+	f.mu.Lock()
+	f.redactor = redactor
+	f.redactionPatterns = patterns
+	f.redactionReplace = replace
+	f.mu.Unlock()
+	
+	return nil
+}

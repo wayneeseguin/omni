@@ -58,10 +58,12 @@ func (f *FlexLog) startCompressionWorkers() {
 
 	// Start worker goroutines
 	for i := 0; i < f.compressWorkers; i++ {
+		f.compressWg.Add(1)
 		go func() {
+			defer f.compressWg.Done()
 			for path := range f.compressCh {
 				if err := f.compressFile(path); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to compress file %s: %v\n", path, err)
+					f.logError("compress", "", fmt.Sprintf("Failed to compress file %s", path), err, ErrorLevelMedium)
 				}
 			}
 		}()
@@ -72,6 +74,7 @@ func (f *FlexLog) startCompressionWorkers() {
 func (f *FlexLog) stopCompressionWorkers() {
 	if f.compressCh != nil {
 		close(f.compressCh)
+		f.compressWg.Wait()
 		f.compressCh = nil
 	}
 }
@@ -157,6 +160,9 @@ func (f *FlexLog) compressFileGzip(path string) error {
 		os.Remove(compressedPath)
 		return fmt.Errorf("removing original file after compression: %w", err)
 	}
+	
+	// Track compression metric
+	f.trackCompression()
 
 	return nil
 }
@@ -169,7 +175,7 @@ func (f *FlexLog) queueForCompression(path string) {
 			// Successfully queued
 		default:
 			// Queue full, log to stderr
-			fmt.Fprintf(os.Stderr, "Compression queue full, skipping compression for %s\n", path)
+			f.logError("compress", "", fmt.Sprintf("Compression queue full, skipping compression for %s", path), nil, ErrorLevelLow)
 		}
 	}
 }

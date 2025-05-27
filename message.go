@@ -28,7 +28,7 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 		f.processCustomMessage(msg, dest)
 
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown backend type: %d\n", dest.Backend)
+		f.logError("process", dest.Name, fmt.Sprintf("Unknown backend type: %d", dest.Backend), nil, ErrorLevelHigh)
 		return
 	}
 }
@@ -73,6 +73,13 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 		// Regular text format
 		message := fmt.Sprintf(msg.Format, msg.Args...)
 		
+		// Apply redaction if configured
+		f.mu.Lock()
+		if f.redactor != nil {
+			message = f.redactor.Redact(message)
+		}
+		f.mu.Unlock()
+		
 		// Format based on level
 		var levelStr string
 		switch msg.Level {
@@ -95,27 +102,33 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 			levelStr = string(levelStr[0])
 		}
 		
+		// Use buffer pool for formatting
+		buf := GetBuffer()
+		defer PutBuffer(buf)
+		
 		// Format the entry based on options
-		if formatOpts.IncludeLevel && formatOpts.IncludeTime {
-			entry = fmt.Sprintf("[%s] [%s] %s\n",
-				msg.Timestamp.Format(formatOpts.TimestampFormat),
-				levelStr,
-				message)
-		} else if formatOpts.IncludeTime {
-			entry = fmt.Sprintf("[%s] %s\n",
-				msg.Timestamp.Format(formatOpts.TimestampFormat),
-				message)
-		} else if formatOpts.IncludeLevel {
-			entry = fmt.Sprintf("[%s] %s\n", levelStr, message)
-		} else {
-			entry = fmt.Sprintf("%s\n", message)
+		if formatOpts.IncludeTime {
+			buf.WriteString("[")
+			buf.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
+			buf.WriteString("] ")
 		}
+		if formatOpts.IncludeLevel {
+			buf.WriteString("[")
+			buf.WriteString(levelStr)
+			buf.WriteString("] ")
+		}
+		buf.WriteString(message)
+		buf.WriteString("\n")
+		
+		entry = buf.String()
 	}
 
 	// Write to the custom writer
 	if dest.Writer != nil {
+		dest.mu.Lock()
 		dest.Writer.WriteString(entry)
 		dest.Writer.Flush()
+		dest.mu.Unlock()
 	}
 }
 
@@ -128,7 +141,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 	
 	// File backend with flock locking
 	if err := dest.Lock.Lock(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to acquire file lock: %v\n", err)
+		f.logError("lock", dest.Name, "Failed to acquire file lock", err, ErrorLevelHigh)
 		return
 	}
 	defer dest.Lock.Unlock()
@@ -144,21 +157,33 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Check if rotation needed
 		if dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to rotate log file: %v\n", err)
+				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
 			}
 		}
 
 		// Write the bytes
+		dest.mu.Lock()
+		writeStart := time.Now()
 		if _, err := dest.Writer.Write(msg.Raw); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
 			return
 		}
 		if err := dest.Writer.Flush(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
+		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
+		dest.mu.Unlock()
+		
+		// Track write metrics
+		dest.trackWrite(entrySize, writeDuration)
+		f.trackWrite(entrySize, writeDuration)
 	} else if msg.Entry != nil {
 		// Structured entry
 		var entryData string
@@ -166,7 +191,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			// Process the JSON entry
 			data, err := formatJSONEntry(msg.Entry)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to format JSON entry: %v\n", err)
+				f.logError("format", dest.Name, "Failed to format JSON entry", err, ErrorLevelMedium)
 				return
 			}
 			entryData = data
@@ -191,29 +216,49 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			entryData += "\n"
 		}
 		
+		entry = entryData
 		entrySize = int64(len(entryData))
 
 		// Check if rotation needed
 		if dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to rotate log file: %v\n", err)
+				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
 			}
 		}
 
 		// Write the entry
+		dest.mu.Lock()
+		writeStart := time.Now()
 		if _, err := dest.Writer.Write([]byte(entryData)); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
 			return
 		}
 		if err := dest.Writer.Flush(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
+		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
+		dest.mu.Unlock()
+		
+		// Track write metrics
+		dest.trackWrite(entrySize, writeDuration)
+		f.trackWrite(entrySize, writeDuration)
 	} else {
 		// Regular text format
 		message := fmt.Sprintf(msg.Format, msg.Args...)
+		
+		// Apply redaction if configured
+		f.mu.Lock()
+		if f.redactor != nil {
+			message = f.redactor.Redact(message)
+		}
+		f.mu.Unlock()
 
 		// Format based on level
 		var levelStr string
@@ -238,21 +283,25 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			levelStr = string(levelStr[0])
 		}
 
+		// Use buffer pool for formatting
+		buf := GetBuffer()
+		defer PutBuffer(buf)
+		
 		// Format the entry based on the logger's options
-		if formatOpts.IncludeLevel && formatOpts.IncludeTime {
-			entry = fmt.Sprintf("[%s] [%s] %s\n",
-				msg.Timestamp.Format(formatOpts.TimestampFormat),
-				levelStr,
-				message)
-		} else if formatOpts.IncludeTime {
-			entry = fmt.Sprintf("[%s] %s\n",
-				msg.Timestamp.Format(formatOpts.TimestampFormat),
-				message)
-		} else if formatOpts.IncludeLevel {
-			entry = fmt.Sprintf("[%s] %s\n", levelStr, message)
-		} else {
-			entry = fmt.Sprintf("%s\n", message)
+		if formatOpts.IncludeTime {
+			buf.WriteString("[")
+			buf.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
+			buf.WriteString("] ")
 		}
+		if formatOpts.IncludeLevel {
+			buf.WriteString("[")
+			buf.WriteString(levelStr)
+			buf.WriteString("] ")
+		}
+		buf.WriteString(message)
+		buf.WriteString("\n")
+		
+		entry = buf.String()
 
 		// Assign the formatted entry to the entryPtr immediately after formatting
 		// This ensures it's available even if we return early due to errors later
@@ -263,23 +312,39 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Check if rotation needed
 		if dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
+				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
+				// Try to log to the file as well for visibility
+				dest.mu.Lock()
 				fmt.Fprintf(dest.Writer, "[%s] ERROR: Failed to rotate log file: %v\n",
 					msg.Timestamp.Format(formatOpts.TimestampFormat), err)
 				dest.Writer.Flush()
+				dest.mu.Unlock()
 				return
 			}
 		}
 
 		// Write the entry
+		dest.mu.Lock()
+		writeStart := time.Now()
 		if _, err := dest.Writer.WriteString(entry); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
 			return
 		}
 		if err := dest.Writer.Flush(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
+		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
+		dest.mu.Unlock()
+		
+		// Track write metrics
+		dest.trackWrite(entrySize, writeDuration)
+		f.trackWrite(entrySize, writeDuration)
 	}
 
 	// Always set the return values before returning from the function
@@ -291,7 +356,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 // processSyslogMessage processes a message for a syslog backend
 func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 	if dest.SyslogConn == nil {
-		fmt.Fprintf(os.Stderr, "Syslog connection not initialized\n")
+		f.logError("syslog", dest.Name, "Syslog connection not initialized", nil, ErrorLevelHigh)
 		return
 	}
 
@@ -322,7 +387,7 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 		// JSON entry
 		jsonData, err := formatJSONEntry(msg.Entry)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to format JSON entry for syslog: %v\n", err)
+			f.logError("format", dest.Name, "Failed to format JSON entry for syslog", err, ErrorLevelMedium)
 			return
 		}
 		content = jsonData
@@ -346,13 +411,16 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 		content)
 
 	// Write to syslog connection
+	dest.mu.Lock()
 	if _, err := dest.Writer.WriteString(syslogMsg); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write to syslog: %v\n", err)
+		dest.mu.Unlock()
+		f.logError("write", dest.Name, "Failed to write to syslog", err, ErrorLevelMedium)
 		return
 	}
 
 	// Flush the writer
 	if err := dest.Writer.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to flush syslog writer: %v\n", err)
+		f.logError("flush", dest.Name, "Failed to flush syslog writer", err, ErrorLevelLow)
 	}
+	dest.mu.Unlock()
 }

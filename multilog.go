@@ -3,6 +3,7 @@ package flexlog
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -165,7 +166,9 @@ func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 	}
 
 	// Write to destination
+	dest.mu.Lock()
 	_, err = dest.Writer.Write(bytes)
+	dest.mu.Unlock()
 	if err != nil {
 		// Not much we can do if writing fails in the background worker
 		// Consider adding error reporting channel in future
@@ -296,9 +299,11 @@ func (f *FlexLog) RemoveDestination(uri string) error {
 	if dest.File != nil {
 		// Flush and close file
 		if dest.Writer != nil {
+			dest.mu.Lock()
 			if err := dest.Writer.Flush(); err != nil {
 				lastErr = fmt.Errorf("flushing writer: %w", err)
 			}
+			dest.mu.Unlock()
 		}
 		if err := dest.File.Close(); err != nil && lastErr == nil {
 			lastErr = fmt.Errorf("closing file: %w", err)
@@ -330,7 +335,9 @@ func (f *FlexLog) EnableDestination(name string) bool {
 
 	for _, dest := range f.Destinations {
 		if dest.Name == name {
+			dest.mu.Lock()
 			dest.Enabled = true
+			dest.mu.Unlock()
 			return true
 		}
 	}
@@ -345,12 +352,82 @@ func (f *FlexLog) DisableDestination(name string) bool {
 
 	for _, dest := range f.Destinations {
 		if dest.Name == name {
+			dest.mu.Lock()
 			dest.Enabled = false
+			dest.mu.Unlock()
 			return true
 		}
 	}
 
 	return false
+}
+
+// CloseDestination closes and removes a specific destination by name
+func (f *FlexLog) CloseDestination(name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for i, dest := range f.Destinations {
+		if dest.Name == name {
+			// Close the destination
+			if err := f.closeDestination(dest); err != nil {
+				return err
+			}
+
+			// Remove from the list
+			f.Destinations = append(f.Destinations[:i], f.Destinations[i+1:]...)
+			
+			// If this was the default destination, clear it
+			if f.defaultDest == dest {
+				f.defaultDest = nil
+			}
+			
+			return nil
+		}
+	}
+
+	return fmt.Errorf("destination not found: %s", name)
+}
+
+// closeDestination closes a single destination
+func (f *FlexLog) closeDestination(dest *Destination) error {
+	dest.mu.Lock()
+	defer dest.mu.Unlock()
+
+	// Flush the buffer
+	if dest.Writer != nil {
+		if err := dest.Writer.Flush(); err != nil {
+			f.logError("flush", dest.Name, "Failed to flush destination", err, ErrorLevelMedium)
+		}
+	}
+
+	// Close based on backend type
+	switch dest.Backend {
+	case BackendFlock:
+		// Close the file
+		if dest.File != nil {
+			if err := dest.File.Close(); err != nil {
+				return fmt.Errorf("closing file: %w", err)
+			}
+		}
+		// Unlock the file
+		if dest.Lock != nil {
+			if err := dest.Lock.Unlock(); err != nil {
+				return fmt.Errorf("unlocking file: %w", err)
+			}
+		}
+	case BackendSyslog:
+		// Close syslog connection
+		if dest.SyslogConn != nil && dest.SyslogConn.conn != nil {
+			if closer, ok := dest.SyslogConn.conn.(io.Closer); ok {
+				if err := closer.Close(); err != nil {
+					return fmt.Errorf("closing syslog connection: %w", err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // ListDestinations returns a list of all destinations
@@ -373,11 +450,13 @@ func (f *FlexLog) FlushAll() error {
 	var lastErr error
 
 	for _, dest := range f.Destinations {
+		dest.mu.Lock()
 		if dest.Writer != nil {
 			if err := dest.Writer.Flush(); err != nil {
 				lastErr = err
 			}
 		}
+		dest.mu.Unlock()
 	}
 
 	return lastErr
@@ -432,36 +511,13 @@ func (f *FlexLog) CloseAll() error {
 	// Stop compression workers if running
 	f.mu.Lock()
 	f.stopCompressionWorkers()
+	f.stopCleanupRoutine()
 	f.mu.Unlock()
 	
 	// Clean up destination resources
 	for _, dest := range destinations {
-		// Flush buffer
-		if dest.Writer != nil {
-			if err := dest.Writer.Flush(); err != nil {
-				lastErr = err
-			}
-		}
-
-		// Close file if needed
-		if dest.File != nil {
-			if err := dest.File.Close(); err != nil {
-				lastErr = err
-			}
-		}
-
-		// Close syslog connection if needed
-		if dest.SyslogConn != nil && dest.SyslogConn.conn != nil {
-			if err := dest.SyslogConn.conn.Close(); err != nil {
-				lastErr = err
-			}
-		}
-
-		// Release flock if needed
-		if dest.Lock != nil {
-			if err := dest.Lock.Unlock(); err != nil {
-				lastErr = err
-			}
+		if err := f.closeDestination(dest); err != nil {
+			lastErr = err
 		}
 	}
 
@@ -523,14 +579,20 @@ func (f *FlexLog) SetDestinationEnabled(index int, enabled bool) error {
 		return fmt.Errorf("destination index out of range")
 	}
 
-	f.Destinations[index].Enabled = enabled
+	dest := f.Destinations[index]
+	dest.mu.Lock()
+	dest.Enabled = enabled
+	dest.mu.Unlock()
 	return nil
 }
 
 // FlushDestination flushes a specific destination's buffer (for testing)
 func (f *FlexLog) FlushDestination(dest *Destination) error {
 	if dest.Writer != nil {
-		return dest.Writer.Flush()
+		dest.mu.Lock()
+		err := dest.Writer.Flush()
+		dest.mu.Unlock()
+		return err
 	}
 	return nil
 }
@@ -570,9 +632,12 @@ func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
 
 	// Flush and close current file
 	if dest.Writer != nil {
+		dest.mu.Lock()
 		if err := dest.Writer.Flush(); err != nil {
+			dest.mu.Unlock()
 			return fmt.Errorf("flushing current log: %w", err)
 		}
+		dest.mu.Unlock()
 	}
 
 	if dest.File != nil {
@@ -624,10 +689,12 @@ func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
 	}
 
 	// Update destination
+	dest.mu.Lock()
 	dest.URI = newPath
 	dest.File = file
 	dest.Writer = bufio.NewWriterSize(file, defaultBufferSize)
 	dest.Size = info.Size()
+	dest.mu.Unlock()
 
 	// Update logger-level references for backward compatibility
 	f.path = newPath

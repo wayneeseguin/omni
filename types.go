@@ -77,6 +77,15 @@ type Destination struct {
 	Done       chan struct{}
 	SyslogConn *syslogConn // Connection for syslog backend
 	Enabled    bool        // Whether this destination is enabled
+	mu         sync.Mutex  // Protects concurrent access to Writer
+	
+	// Metrics
+	bytesWritten uint64
+	rotations    uint64
+	errors       uint64
+	writeCount   uint64
+	totalLatency int64
+	lastWrite    time.Time
 }
 
 // syslogConn represents a connection to a syslog server
@@ -120,6 +129,7 @@ type FlexLog struct {
 	compressMinAge  int
 	compressWorkers int
 	compressCh      chan string
+	compressWg      sync.WaitGroup
 	maxAge          time.Duration
 	cleanupInterval time.Duration
 	cleanupTicker   *time.Ticker
@@ -148,5 +158,32 @@ type FlexLog struct {
 	// Formatting
 	format     int
 	formatOpts FormatOptions
+	
+	// Error handling
+	errorHandler ErrorHandler
+	errorChan    chan LogError
+	errorCount   uint64
+	errorsBySource map[string]uint64
+	lastError    *LogError
+	lastErrorTime *time.Time
+	
+	// Metrics
+	messagesByLevel  map[int]uint64
+	messagesDropped  uint64
+	rotationCount    uint64
+	compressionCount uint64
+	bytesWritten     uint64
+	writeCount       uint64
+	totalWriteTime   int64
+	maxWriteTime     int64
+	
+	// Redaction
+	redactor         *Redactor
+	redactionPatterns []string
+	redactionReplace  string
+	
+	// Performance
+	lazyFormatting   bool
+	
 	closed     bool
 }

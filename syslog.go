@@ -61,8 +61,10 @@ func (f *FlexLog) reconnectSyslog(dest *Destination) error {
 	}
 
 	// Update connection and writer
+	dest.mu.Lock()
 	dest.SyslogConn.conn = conn
 	dest.Writer = bufio.NewWriterSize(conn, defaultBufferSize)
+	dest.mu.Unlock()
 
 	return nil
 }

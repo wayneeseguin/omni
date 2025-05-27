@@ -57,7 +57,7 @@ func (f *FlexLog) rotate() error {
 	if f.maxFiles > 0 {
 		if err := f.cleanupOldFiles(); err != nil {
 			// Log error but don't fail rotation
-			fmt.Fprintf(os.Stderr, "Warning: failed to cleanup old files: %v\n", err)
+			f.logError("cleanup", "", "Failed to cleanup old files", err, ErrorLevelLow)
 		}
 	}
 
@@ -112,11 +112,17 @@ func (f *FlexLog) startCleanupRoutine() {
 	f.cleanupDone = make(chan struct{})
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				f.logError("cleanup", "", "Panic in cleanup routine", fmt.Errorf("%v", r), ErrorLevelHigh)
+			}
+		}()
+		
 		for {
 			select {
 			case <-f.cleanupTicker.C:
 				if err := f.cleanupOldLogs(); err != nil {
-					fmt.Fprintf(os.Stderr, "Error cleaning up old logs: %v\n", err)
+					f.logError("cleanup", "", "Error cleaning up old logs", err, ErrorLevelMedium)
 				}
 			case <-f.cleanupDone:
 				return
@@ -132,7 +138,9 @@ func (f *FlexLog) stopCleanupRoutine() {
 	}
 
 	f.cleanupTicker.Stop()
-	close(f.cleanupDone)
+	if f.cleanupDone != nil {
+		close(f.cleanupDone)
+	}
 	f.cleanupTicker = nil
 	f.cleanupDone = nil
 }
@@ -197,7 +205,7 @@ func (f *FlexLog) cleanupOldLogs() error {
 		// Parse timestamp from filename
 		fileTime, err := time.Parse(RotationTimeFormat, matches[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing timestamp from %s: %v\n", file.Name(), err)
+			f.logError("cleanup", "", fmt.Sprintf("Error parsing timestamp from %s", file.Name()), err, ErrorLevelLow)
 			continue
 		}
 
@@ -205,7 +213,7 @@ func (f *FlexLog) cleanupOldLogs() error {
 		if fileTime.Before(cutoff) {
 			// Remove the file
 			if err := os.Remove(filePath); err != nil {
-				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", filePath, err)
+				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", filePath), err, ErrorLevelLow)
 			} else {
 				fmt.Fprintf(os.Stderr, "Removed old log file: %s (age: %v)\n",
 					filePath, time.Since(fileTime))
@@ -270,7 +278,7 @@ func (f *FlexLog) cleanupOldFiles() error {
 	if len(logFiles) > f.maxFiles {
 		for i := f.maxFiles; i < len(logFiles); i++ {
 			if err := os.Remove(logFiles[i].path); err != nil {
-				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", logFiles[i].path, err)
+				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", logFiles[i].path), err, ErrorLevelLow)
 			} else {
 				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
 			}
@@ -294,9 +302,12 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	}
 
 	// Flush the current file
+	dest.mu.Lock()
 	if err := dest.Writer.Flush(); err != nil {
+		dest.mu.Unlock()
 		return fmt.Errorf("flushing log: %w", err)
 	}
+	dest.mu.Unlock()
 
 	// Close the file
 	if err := dest.File.Close(); err != nil {
@@ -319,9 +330,15 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	}
 
 	// Update destination fields
+	dest.mu.Lock()
 	dest.File = newFile
 	dest.Writer = bufio.NewWriterSize(newFile, defaultBufferSize)
 	dest.Size = 0
+	dest.mu.Unlock()
+	
+	// Track rotation metrics
+	dest.trackRotation()
+	f.trackRotation()
 
 	// Queue for compression if configured
 	if f.compression != CompressionNone && f.compressCh != nil {
@@ -330,8 +347,10 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 			// Successfully queued for compression
 		default:
 			// Compression queue full, just log and continue
+			dest.mu.Lock()
 			fmt.Fprintf(dest.Writer, "[%s] WARNING: Compression queue full, skipping compression for %s\n",
 				time.Now().Format("2006-01-02 15:04:05.000"), rotatedPath)
+			dest.mu.Unlock()
 		}
 	}
 
@@ -400,7 +419,7 @@ func (f *FlexLog) cleanupOldFilesForDestination(path string) error {
 	if len(logFiles) > f.maxFiles {
 		for i := f.maxFiles; i < len(logFiles); i++ {
 			if err := os.Remove(logFiles[i].path); err != nil {
-				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", logFiles[i].path, err)
+				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", logFiles[i].path), err, ErrorLevelLow)
 			} else {
 				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
 			}
