@@ -97,10 +97,9 @@ func TestAddDestination(t *testing.T) {
 	// Log a message
 	logger.Info("Test message to multiple destinations")
 
-	// Flush and wait
-	for i := 0; i < 3; i++ { // Try multiple flushes
-		logger.FlushAll()
-		time.Sleep(100 * time.Millisecond)
+	// Sync to ensure message is written
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync: %v", err)
 	}
 
 	// Verify both files have the message
@@ -146,10 +145,11 @@ func TestAddDestinationWithBackend(t *testing.T) {
 
 	// Log a message
 	logger.Info("Test message to custom destination")
-	logger.FlushAll()
-
-	// Give the log worker a little time to process
-	time.Sleep(50 * time.Millisecond)
+	
+	// Sync to ensure message is written
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync: %v", err)
+	}
 
 	// Verify the message went to the custom writer
 	customDest.Writer.Flush()
@@ -227,7 +227,11 @@ func TestEnableDisableDestination(t *testing.T) {
 
 	// Log a message
 	logger.Info("This should only go to primary")
-	logger.FlushAll()
+	
+	// Sync to ensure message is written
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync: %v", err)
+	}
 
 	// Check that message is only in primary log
 	primaryContent, err := os.ReadFile(primaryLogPath)
@@ -238,8 +242,7 @@ func TestEnableDisableDestination(t *testing.T) {
 		t.Errorf("Expected message not found in primary log")
 	}
 
-	// Wait a moment to ensure processing is complete
-	time.Sleep(50 * time.Millisecond)
+	// No need to wait after sync
 
 	// Check if the second file is empty or doesn't contain our message
 	secondExists := true
@@ -264,7 +267,11 @@ func TestEnableDisableDestination(t *testing.T) {
 
 	// Log another message
 	logger.Info("This should go to both")
-	logger.FlushAll()
+	
+	// Sync to ensure message is written
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync: %v", err)
+	}
 
 	// Check both files
 	primaryContent, _ = os.ReadFile(primaryLogPath)
@@ -364,9 +371,9 @@ func TestFlushAll(t *testing.T) {
 		secondEmpty = false
 	}
 
-	// Flush all destinations
-	if err := logger.FlushAll(); err != nil {
-		t.Fatalf("Failed to flush destinations: %v", err)
+	// Sync to ensure messages are written
+	if err := logger.Sync(); err != nil {
+		t.Fatalf("Failed to sync destinations: %v", err)
 	}
 
 	// Now both files should have content
@@ -507,7 +514,7 @@ func TestSetLogPath(t *testing.T) {
 
 	// Log an initial message
 	logger.Info("Initial message")
-	logger.FlushAll()
+	logger.Sync() // Use Sync instead of FlushAll to ensure message is processed
 
 	// Verify the message was written to the initial file
 	initialContent, err := os.ReadFile(initialPath)
@@ -526,7 +533,7 @@ func TestSetLogPath(t *testing.T) {
 
 	// Log a new message
 	logger.Info("New message")
-	logger.FlushAll()
+	logger.Sync() // Use Sync to ensure message is processed
 
 	// Verify both files have the expected content
 	newContent, err := os.ReadFile(newPath)
@@ -534,7 +541,11 @@ func TestSetLogPath(t *testing.T) {
 		t.Fatalf("Failed to read new log: %v", err)
 	}
 
-	// Initial file should still exist with initial message
+	// Re-read initial file to ensure it hasn't changed
+	initialContent, err = os.ReadFile(initialPath)
+	if err != nil {
+		t.Fatalf("Failed to re-read initial log: %v", err)
+	}
 	if !strings.Contains(string(initialContent), "Initial message") {
 		t.Errorf("Expected initial message not found in initial log")
 	}
@@ -559,7 +570,7 @@ func TestSetLogPath(t *testing.T) {
 	
 	// Write another message to the current log
 	logger.Info("Another message")
-	logger.FlushAll()
+	logger.Sync() // Ensure message is written before moving
 	
 	// Change the path with move=true
 	if err := logger.SetLogPath(thirdPath, true); err != nil {
@@ -568,7 +579,7 @@ func TestSetLogPath(t *testing.T) {
 	
 	// Write to the new location
 	logger.Info("After move message")
-	logger.FlushAll()
+	logger.Sync() // Use Sync to ensure message is processed
 	
 	// Check that new file location has both messages
 	thirdContent, err := os.ReadFile(thirdPath)

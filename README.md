@@ -44,13 +44,13 @@ import (
 )
 
 func main() {
-    logger, err := flexlog.Newflexlog("app.log")
+    logger, err := flexlog.New("app.log")
     if err != nil {
         panic(err)
     }
     defer logger.Close()
 
-    logger.log("Hello, %s!", "world")
+    logger.Info("Hello, %s!", "world")
 }
 ```
 

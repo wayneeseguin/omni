@@ -14,9 +14,21 @@ func (f *FlexLog) SetLevel(level int) {
 	f.level = level
 }
 
+// GetLevel returns the current log level (thread-safe)
+func (f *FlexLog) GetLevel() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.level
+}
+
 // DebugWithFormat logs a debug message with formatting
 func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
-	if f.level > LevelDebug {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > LevelDebug {
 		return
 	}
 
@@ -45,7 +57,12 @@ func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 
 // InfoWithFormat logs an info message with formatting
 func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
-	if f.level > LevelInfo {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > LevelInfo {
 		return
 	}
 
@@ -74,7 +91,12 @@ func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 
 // WarnWithFormat logs a warning message with formatting
 func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
-	if f.level > LevelWarn {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > LevelWarn {
 		return
 	}
 
@@ -104,7 +126,12 @@ func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 
 // ErrorWithFormat logs an error message with formatting
 func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
-	if f.level > LevelError {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > LevelError {
 		return
 	}
 
@@ -149,12 +176,19 @@ func (f *FlexLog) log(level int, message string) {
 }
 
 func (f *FlexLog) logf(level int, format string, args ...interface{}) {
-	if f.level > level {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > level {
 		return
 	}
 
-	// Check if we should log this based on sampling
-	if !f.shouldLog(level, format, nil) {
+	// Check if we should log this based on filters and sampling
+	// Format the message for filter evaluation
+	message := fmt.Sprintf(format, args...)
+	if !f.shouldLog(level, message, nil) {
 		return
 	}
 
@@ -194,56 +228,56 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 
 // Debug logs a debug message
 func (f *FlexLog) Debug(args ...interface{}) {
-	if f.level <= LevelDebug {
+	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, "%s", args...)
 	}
 }
 
 // Debugf logs a formatted debug message
 func (f *FlexLog) Debugf(format string, args ...interface{}) {
-	if f.level <= LevelDebug {
+	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, format, args...)
 	}
 }
 
 // Info logs an info message
 func (f *FlexLog) Info(args ...interface{}) {
-	if f.level <= LevelInfo {
+	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, "%s", args...)
 	}
 }
 
 // Infof logs a formatted info message
 func (f *FlexLog) Infof(format string, args ...interface{}) {
-	if f.level <= LevelInfo {
+	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, format, args...)
 	}
 }
 
 // Warn logs a warning message
 func (f *FlexLog) Warn(args ...interface{}) {
-	if f.level <= LevelWarn {
+	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, "%s", args...)
 	}
 }
 
 // Warnf logs a formatted warning message
 func (f *FlexLog) Warnf(format string, args ...interface{}) {
-	if f.level <= LevelWarn {
+	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, format, args...)
 	}
 }
 
 // Error logs an error message
 func (f *FlexLog) Error(args ...interface{}) {
-	if f.level <= LevelError {
+	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, "%s", fmt.Sprint(args...))
 	}
 }
 
 // Errorf logs a formatted error message
 func (f *FlexLog) Errorf(format string, args ...interface{}) {
-	if f.level <= LevelError {
+	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, format, args...)
 	}
 }

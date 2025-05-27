@@ -54,16 +54,9 @@ func (f *FlexLog) shouldLog(level int, message string, fields map[string]interfa
 		return false
 	}
 
-	// Apply filters
-	if len(f.filters) > 0 {
-		pass := false
-		for _, filter := range f.filters {
-			if filter(level, message, fields) {
-				pass = true
-				break
-			}
-		}
-		if !pass {
+	// Apply filters - all filters must pass (AND logic)
+	for _, filter := range f.filters {
+		if !filter(level, message, fields) {
 			return false
 		}
 	}

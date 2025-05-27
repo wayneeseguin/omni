@@ -89,32 +89,43 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 		f.size = dest.Size
 	}
 
-	// Start background worker goroutine for the destination
-	f.workerWg.Add(1)
-	go f.logWorker(dest)
+	// Start the single message dispatcher (only for the first destination)
+	if len(f.Destinations) == 1 {
+		f.workerWg.Add(1)
+		go f.messageDispatcher()
+	}
 
 	return f, nil
 }
 
-// logWorker is a background goroutine that processes log messages
-func (f *FlexLog) logWorker(dest *Destination) {
+// messageDispatcher is the single background goroutine that processes all messages
+func (f *FlexLog) messageDispatcher() {
 	defer f.workerWg.Done()
 
-	for {
-		select {
-		case msg, ok := <-f.msgChan:
-			if !ok {
-				// Channel closed, exit
-				return
+	for msg := range f.msgChan {
+		// Send to all enabled destinations
+		f.mu.Lock()
+		destinations := make([]*Destination, len(f.Destinations))
+		copy(destinations, f.Destinations)
+		f.mu.Unlock()
+
+		for _, dest := range destinations {
+			// Skip disabled destinations
+			if !dest.Enabled {
+				continue
 			}
 
-			// Process the message using the central message dispatcher
+			// Process the message for this destination
 			f.processMessage(msg, dest)
-		case <-dest.Done:
-			// Destination closed, exit
-			return
 		}
 	}
+}
+
+// IsClosed returns true if the logger has been closed
+func (f *FlexLog) IsClosed() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.closed
 }
 
 // SetMaxSize sets the maximum log file size
@@ -122,6 +133,13 @@ func (f *FlexLog) SetMaxSize(size int64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.maxSize = size
+}
+
+// GetMaxSize returns the maximum log file size (thread-safe)
+func (f *FlexLog) GetMaxSize() int64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.maxSize
 }
 
 // SetMaxFiles sets the maximum number of log files

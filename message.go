@@ -1,6 +1,7 @@
 package flexlog
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -22,16 +23,111 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 		// Syslog backend (no locking needed)
 		f.processSyslogMessage(msg, dest)
 
+	case -1:
+		// Custom backend (for testing) - treat like a simple writer
+		f.processCustomMessage(msg, dest)
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown backend type: %d\n", dest.Backend)
 		return
 	}
 }
 
+// processCustomMessage processes a message for a custom backend (used in testing)
+func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
+	formatOpts := f.GetFormatOptions()
+	format := f.GetFormat()
+	
+	var entry string
+	
+	if msg.Raw != nil {
+		// Raw bytes
+		entry = string(msg.Raw)
+	} else if msg.Entry != nil {
+		// For structured entries
+		if format == FormatJSON {
+			// Use JSON format
+			data, _ := json.Marshal(msg.Entry)
+			entry = string(data) + "\n"
+		} else {
+			// Use text format for structured entries
+			if formatOpts.IncludeTime {
+				entry = fmt.Sprintf("[%s] ", msg.Entry.Timestamp)
+			}
+			if formatOpts.IncludeLevel {
+				entry += fmt.Sprintf("[%s] ", msg.Entry.Level)
+			}
+			entry += msg.Entry.Message
+			if len(msg.Entry.Fields) > 0 {
+				entry += " "
+				for k, v := range msg.Entry.Fields {
+					entry += fmt.Sprintf("%s=%v ", k, v)
+				}
+			}
+			if msg.Entry.StackTrace != "" {
+				entry += fmt.Sprintf("stack_trace=%s ", msg.Entry.StackTrace)
+			}
+			entry += "\n"
+		}
+	} else {
+		// Regular text format
+		message := fmt.Sprintf(msg.Format, msg.Args...)
+		
+		// Format based on level
+		var levelStr string
+		switch msg.Level {
+		case LevelDebug:
+			levelStr = "DEBUG"
+		case LevelInfo:
+			levelStr = "INFO"
+		case LevelWarn:
+			levelStr = "WARN"
+		case LevelError:
+			levelStr = "ERROR"
+		default:
+			levelStr = "LOG"
+		}
+		
+		// Format level based on format options
+		if formatOpts.LevelFormat == LevelFormatNameLower {
+			levelStr = strings.ToLower(levelStr)
+		} else if formatOpts.LevelFormat == LevelFormatSymbol {
+			levelStr = string(levelStr[0])
+		}
+		
+		// Format the entry based on options
+		if formatOpts.IncludeLevel && formatOpts.IncludeTime {
+			entry = fmt.Sprintf("[%s] [%s] %s\n",
+				msg.Timestamp.Format(formatOpts.TimestampFormat),
+				levelStr,
+				message)
+		} else if formatOpts.IncludeTime {
+			entry = fmt.Sprintf("[%s] %s\n",
+				msg.Timestamp.Format(formatOpts.TimestampFormat),
+				message)
+		} else if formatOpts.IncludeLevel {
+			entry = fmt.Sprintf("[%s] %s\n", levelStr, message)
+		} else {
+			entry = fmt.Sprintf("%s\n", message)
+		}
+	}
+
+	// Write to the custom writer
+	if dest.Writer != nil {
+		dest.Writer.WriteString(entry)
+		dest.Writer.Flush()
+	}
+}
+
 // processFileMessage processes a message for a file backend
 func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr *string, entrySizePtr *int64) {
+	// Get all needed values before acquiring file lock to avoid deadlock
+	formatOpts := f.GetFormatOptions()
+	format := f.GetFormat()
+	maxSize := f.GetMaxSize()
+	
 	// File backend with flock locking
-	if err := dest.Lock.RLock(); err != nil {
+	if err := dest.Lock.Lock(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to acquire file lock: %v\n", err)
 		return
 	}
@@ -46,7 +142,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		entrySize = int64(len(msg.Raw))
 
 		// Check if rotation needed
-		if dest.Size+entrySize > f.maxSize {
+		if dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to rotate log file: %v\n", err)
 				return
@@ -64,35 +160,57 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		}
 		dest.Size += entrySize
 	} else if msg.Entry != nil {
-		// JSON format with structured entry
-		if f.format == FormatJSON {
+		// Structured entry
+		var entryData string
+		if format == FormatJSON {
 			// Process the JSON entry
-			entryData, err := formatJSONEntry(msg.Entry)
+			data, err := formatJSONEntry(msg.Entry)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to format JSON entry: %v\n", err)
 				return
 			}
-			entrySize = int64(len(entryData))
-
-			// Check if rotation needed
-			if dest.Size+entrySize > f.maxSize {
-				if err := f.rotateDestination(dest); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to rotate log file: %v\n", err)
-					return
+			entryData = data
+		} else {
+			// Use text format for structured entries
+			if formatOpts.IncludeTime {
+				entryData = fmt.Sprintf("[%s] ", msg.Entry.Timestamp)
+			}
+			if formatOpts.IncludeLevel {
+				entryData += fmt.Sprintf("[%s] ", msg.Entry.Level)
+			}
+			entryData += msg.Entry.Message
+			if len(msg.Entry.Fields) > 0 {
+				entryData += " "
+				for k, v := range msg.Entry.Fields {
+					entryData += fmt.Sprintf("%s=%v ", k, v)
 				}
 			}
-
-			// Write the JSON entry
-			if _, err := dest.Writer.Write([]byte(entryData)); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
-				return
+			if msg.Entry.StackTrace != "" {
+				entryData += fmt.Sprintf("stack_trace=%s ", msg.Entry.StackTrace)
 			}
-			if err := dest.Writer.Flush(); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
-				return
-			}
-			dest.Size += entrySize
+			entryData += "\n"
 		}
+		
+		entrySize = int64(len(entryData))
+
+		// Check if rotation needed
+		if dest.Size+entrySize > maxSize {
+			if err := f.rotateDestination(dest); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to rotate log file: %v\n", err)
+				return
+			}
+		}
+
+		// Write the entry
+		if _, err := dest.Writer.Write([]byte(entryData)); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write to log file: %v\n", err)
+			return
+		}
+		if err := dest.Writer.Flush(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to flush log file: %v\n", err)
+			return
+		}
+		dest.Size += entrySize
 	} else {
 		// Regular text format
 		message := fmt.Sprintf(msg.Format, msg.Args...)
@@ -113,24 +231,24 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		}
 
 		// Format level based on format options
-		if f.formatOptions.LevelFormat == LevelFormatNameLower {
+		if formatOpts.LevelFormat == LevelFormatNameLower {
 			levelStr = strings.ToLower(levelStr)
-		} else if f.formatOptions.LevelFormat == LevelFormatSymbol {
+		} else if formatOpts.LevelFormat == LevelFormatSymbol {
 			// Use just the first letter for symbol format
 			levelStr = string(levelStr[0])
 		}
 
 		// Format the entry based on the logger's options
-		if f.formatOptions.IncludeLevel && f.formatOptions.IncludeTime {
+		if formatOpts.IncludeLevel && formatOpts.IncludeTime {
 			entry = fmt.Sprintf("[%s] [%s] %s\n",
-				msg.Timestamp.Format(f.formatOptions.TimestampFormat),
+				msg.Timestamp.Format(formatOpts.TimestampFormat),
 				levelStr,
 				message)
-		} else if f.formatOptions.IncludeTime {
+		} else if formatOpts.IncludeTime {
 			entry = fmt.Sprintf("[%s] %s\n",
-				msg.Timestamp.Format(f.formatOptions.TimestampFormat),
+				msg.Timestamp.Format(formatOpts.TimestampFormat),
 				message)
-		} else if f.formatOptions.IncludeLevel {
+		} else if formatOpts.IncludeLevel {
 			entry = fmt.Sprintf("[%s] %s\n", levelStr, message)
 		} else {
 			entry = fmt.Sprintf("%s\n", message)
@@ -143,10 +261,10 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		entrySize = int64(len(entry))
 
 		// Check if rotation needed
-		if dest.Size+entrySize > f.maxSize {
+		if dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
 				fmt.Fprintf(dest.Writer, "[%s] ERROR: Failed to rotate log file: %v\n",
-					msg.Timestamp.Format(f.formatOptions.TimestampFormat), err)
+					msg.Timestamp.Format(formatOpts.TimestampFormat), err)
 				dest.Writer.Flush()
 				return
 			}

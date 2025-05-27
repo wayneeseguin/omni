@@ -105,32 +105,56 @@ func (f *FlexLog) compressFileGzip(path string) error {
 	if err != nil {
 		return fmt.Errorf("opening source file for compression: %w", err)
 	}
-	defer src.Close()
+	defer func() {
+		if closeErr := src.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("closing source file: %w", closeErr)
+		}
+	}()
 
 	// Create destination file
 	dst, err := os.OpenFile(compressedPath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("creating compressed file: %w", err)
 	}
+	
+	// Ensure cleanup on error
+	cleanupDst := true
+	defer func() {
+		if cleanupDst {
+			if closeErr := dst.Close(); closeErr != nil && err == nil {
+				err = fmt.Errorf("closing destination file: %w", closeErr)
+			}
+			// Remove partially written file on error
+			if err != nil {
+				os.Remove(compressedPath)
+			}
+		}
+	}()
 
 	// Create gzip writer
 	gw := gzip.NewWriter(dst)
-	defer gw.Close()
 
 	// Copy data from source to compressed destination
 	_, err = io.Copy(gw, src)
 	if err != nil {
-		dst.Close()
 		return fmt.Errorf("compressing file: %w", err)
 	}
 
-	// Close both files explicitly before removing the original
-	gw.Close()
-	dst.Close()
-	src.Close()
+	// Close gzip writer and check error
+	if err = gw.Close(); err != nil {
+		return fmt.Errorf("closing gzip writer: %w", err)
+	}
+	
+	// Close destination file and check error
+	if err = dst.Close(); err != nil {
+		return fmt.Errorf("closing compressed file: %w", err)
+	}
+	cleanupDst = false // Prevent deferred cleanup since we closed successfully
 
 	// Remove the original file
 	if err := os.Remove(path); err != nil {
+		// Try to restore by removing the compressed file
+		os.Remove(compressedPath)
 		return fmt.Errorf("removing original file after compression: %w", err)
 	}
 

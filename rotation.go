@@ -6,10 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 )
 
-// rotate rotates log files
+// RotationTimeFormat is the timestamp format used for rotated log files
+// Format is sortable and includes millisecond precision
+const RotationTimeFormat = "20060102-150405.000"
+
+// rotate rotates log files using timestamp-based naming
 func (f *FlexLog) rotate() error {
 	// Lock already acquired in flocklogf
 
@@ -23,74 +28,18 @@ func (f *FlexLog) rotate() error {
 		return fmt.Errorf("closing current log: %w", err)
 	}
 
-	// Rotate existing files
-	for i := f.maxFiles - 1; i > 0; i-- {
-		oldPath := fmt.Sprintf("%s.%d", f.path, i)
-		newPath := fmt.Sprintf("%s.%d", f.path, i+1)
+	// Generate timestamp for rotation
+	timestamp := time.Now().Format(RotationTimeFormat)
+	rotatedPath := fmt.Sprintf("%s.%s", f.path, timestamp)
 
-		// Remove oldest file if it exists
-		if i == f.maxFiles-1 {
-			// Check if we need to remove a compressed version
-			compressedPath := newPath + ".gz"
-			if _, err := os.Stat(compressedPath); err == nil {
-				os.Remove(compressedPath)
-			} else {
-				os.Remove(newPath) // Remove uncompressed version if it exists
-			}
-
-			// Move the previous one up
-			if _, err := os.Stat(oldPath); err == nil {
-				if err := os.Rename(oldPath, newPath); err != nil {
-					return fmt.Errorf("rotating log file: %w", err)
-				}
-
-				// Queue for compression if it's old enough
-				if i+1 >= f.compressMinAge && f.compression != CompressionNone {
-					f.queueForCompression(newPath)
-				}
-			} else {
-				// Check if we have a compressed version to rotate
-				compressedOldPath := oldPath + ".gz"
-				if _, err := os.Stat(compressedOldPath); err == nil {
-					compressedNewPath := newPath + ".gz"
-					if err := os.Rename(compressedOldPath, compressedNewPath); err != nil {
-						return fmt.Errorf("rotating compressed log file: %w", err)
-					}
-				}
-			}
-			continue
-		}
-
-		// Handle both compressed and uncompressed files
-		if _, err := os.Stat(oldPath); err == nil {
-			if err := os.Rename(oldPath, newPath); err != nil {
-				return fmt.Errorf("rotating log file: %w", err)
-			}
-
-			// Queue for compression if it's old enough
-			if i+1 >= f.compressMinAge && f.compression != CompressionNone {
-				f.queueForCompression(newPath)
-			}
-		} else {
-			// Check for compressed version
-			compressedOldPath := oldPath + ".gz"
-			if _, err := os.Stat(compressedOldPath); err == nil {
-				compressedNewPath := newPath + ".gz"
-				if err := os.Rename(compressedOldPath, compressedNewPath); err != nil {
-					return fmt.Errorf("rotating compressed log file: %w", err)
-				}
-			}
-		}
-	}
-
-	// Rename current file
-	if err := os.Rename(f.path, fmt.Sprintf("%s.1", f.path)); err != nil {
+	// Rename current file to timestamped name
+	if err := os.Rename(f.path, rotatedPath); err != nil {
 		return fmt.Errorf("rotating current log: %w", err)
 	}
 
-	// Queue the just-rotated file for compression if needed
-	if f.compressMinAge <= 1 && f.compression != CompressionNone {
-		f.queueForCompression(fmt.Sprintf("%s.1", f.path))
+	// Queue for compression if enabled
+	if f.compression != CompressionNone {
+		f.queueForCompression(rotatedPath)
 	}
 
 	// Open new file
@@ -103,6 +52,14 @@ func (f *FlexLog) rotate() error {
 	f.file = file
 	f.writer = bufio.NewWriterSize(file, defaultBufferSize)
 	f.currentSize = 0
+
+	// Clean up old files if needed
+	if f.maxFiles > 0 {
+		if err := f.cleanupOldFiles(); err != nil {
+			// Log error but don't fail rotation
+			fmt.Fprintf(os.Stderr, "Warning: failed to cleanup old files: %v\n", err)
+		}
+	}
 
 	return nil
 }
@@ -214,8 +171,9 @@ func (f *FlexLog) cleanupOldLogs() error {
 		return fmt.Errorf("reading log directory: %w", err)
 	}
 
-	// Match patterns for both normal and compressed log files
-	pattern := regexp.MustCompile(fmt.Sprintf(`^%s(\.\d+)?(?:\.gz)?$`, regexp.QuoteMeta(base)))
+	// Match patterns for timestamp-based log files
+	// Pattern: base.YYYYMMDD-HHMMSS.sss or base.YYYYMMDD-HHMMSS.sss.gz
+	pattern := regexp.MustCompile(fmt.Sprintf(`^%s\.(\d{8}-\d{6}\.\d{3})(?:\.gz)?$`, regexp.QuoteMeta(base)))
 
 	for _, file := range files {
 		// Skip directories
@@ -224,7 +182,8 @@ func (f *FlexLog) cleanupOldLogs() error {
 		}
 
 		// Check if this file matches our pattern
-		if !pattern.MatchString(file.Name()) {
+		matches := pattern.FindStringSubmatch(file.Name())
+		if len(matches) != 2 {
 			continue
 		}
 
@@ -235,21 +194,85 @@ func (f *FlexLog) cleanupOldLogs() error {
 
 		filePath := filepath.Join(dir, file.Name())
 
-		// Get file info for timestamp
-		info, err := file.Info()
+		// Parse timestamp from filename
+		fileTime, err := time.Parse(RotationTimeFormat, matches[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting file info for %s: %v\n", filePath, err)
+			fmt.Fprintf(os.Stderr, "Error parsing timestamp from %s: %v\n", file.Name(), err)
 			continue
 		}
 
 		// Check if file is older than cutoff
-		if info.ModTime().Before(cutoff) {
+		if fileTime.Before(cutoff) {
 			// Remove the file
 			if err := os.Remove(filePath); err != nil {
 				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", filePath, err)
 			} else {
 				fmt.Fprintf(os.Stderr, "Removed old log file: %s (age: %v)\n",
-					filePath, time.Since(info.ModTime()))
+					filePath, time.Since(fileTime))
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanupOldFiles removes old rotated files based on maxFiles count
+func (f *FlexLog) cleanupOldFiles() error {
+	if f.maxFiles <= 0 {
+		return nil // No file count limit
+	}
+
+	// Get the directory and base name
+	dir := filepath.Dir(f.path)
+	base := filepath.Base(f.path)
+
+	// List directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("reading log directory: %w", err)
+	}
+
+	// Match patterns for timestamp-based log files
+	// Pattern: base.YYYYMMDD-HHMMSS.sss or base.YYYYMMDD-HHMMSS.sss.gz
+	pattern := regexp.MustCompile(fmt.Sprintf(`^%s\.(\d{8}-\d{6}\.\d{3})(?:\.gz)?$`, regexp.QuoteMeta(base)))
+
+	// Collect matching files with their timestamps
+	type logFile struct {
+		path      string
+		timestamp string
+	}
+	var logFiles []logFile
+
+	for _, file := range files {
+		// Skip directories
+		if file.IsDir() {
+			continue
+		}
+
+		// Check if this file matches our pattern
+		matches := pattern.FindStringSubmatch(file.Name())
+		if len(matches) != 2 {
+			continue
+		}
+
+		logFiles = append(logFiles, logFile{
+			path:      filepath.Join(dir, file.Name()),
+			timestamp: matches[1],
+		})
+	}
+
+	// Sort by timestamp (newest first)
+	sort.Slice(logFiles, func(i, j int) bool {
+		return logFiles[i].timestamp > logFiles[j].timestamp
+	})
+
+	// Remove files beyond maxFiles limit
+	if len(logFiles) > f.maxFiles {
+		for i := f.maxFiles; i < len(logFiles); i++ {
+			if err := os.Remove(logFiles[i].path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", logFiles[i].path, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
 			}
 		}
 	}
@@ -259,8 +282,7 @@ func (f *FlexLog) cleanupOldLogs() error {
 
 // RunCleanup immediately runs the cleanup process for old log files
 func (f *FlexLog) RunCleanup() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	// Don't call cleanupOldLogs with lock held, as it tries to acquire lock itself
 	return f.cleanupOldLogs()
 }
 
@@ -282,7 +304,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	}
 
 	// Generate timestamp for rotation
-	timestamp := time.Now().Format("20060102-150405.000")
+	timestamp := time.Now().Format(RotationTimeFormat)
 	rotatedPath := fmt.Sprintf("%s.%s", dest.URI, timestamp)
 
 	// Rename the current file
@@ -301,7 +323,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	dest.Writer = bufio.NewWriterSize(newFile, defaultBufferSize)
 	dest.Size = 0
 
-	// Attempt compression if configured at the logger level
+	// Queue for compression if configured
 	if f.compression != CompressionNone && f.compressCh != nil {
 		select {
 		case f.compressCh <- rotatedPath:
@@ -310,6 +332,78 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 			// Compression queue full, just log and continue
 			fmt.Fprintf(dest.Writer, "[%s] WARNING: Compression queue full, skipping compression for %s\n",
 				time.Now().Format("2006-01-02 15:04:05.000"), rotatedPath)
+		}
+	}
+
+	// Clean up old files if needed
+	if f.maxFiles > 0 {
+		if err := f.cleanupOldFilesForDestination(dest.URI); err != nil {
+			// Log error but don't fail rotation
+			fmt.Fprintf(os.Stderr, "Warning: failed to cleanup old files for destination: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// cleanupOldFilesForDestination removes old rotated files for a specific destination
+func (f *FlexLog) cleanupOldFilesForDestination(path string) error {
+	if f.maxFiles <= 0 {
+		return nil // No file count limit
+	}
+
+	// Get the directory and base name
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+
+	// List directory
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("reading log directory: %w", err)
+	}
+
+	// Match patterns for timestamp-based log files
+	// Pattern: base.YYYYMMDD-HHMMSS.sss or base.YYYYMMDD-HHMMSS.sss.gz
+	pattern := regexp.MustCompile(fmt.Sprintf(`^%s\.(\d{8}-\d{6}\.\d{3})(?:\.gz)?$`, regexp.QuoteMeta(base)))
+
+	// Collect matching files with their timestamps
+	type logFile struct {
+		path      string
+		timestamp string
+	}
+	var logFiles []logFile
+
+	for _, file := range files {
+		// Skip directories
+		if file.IsDir() {
+			continue
+		}
+
+		// Check if this file matches our pattern
+		matches := pattern.FindStringSubmatch(file.Name())
+		if len(matches) != 2 {
+			continue
+		}
+
+		logFiles = append(logFiles, logFile{
+			path:      filepath.Join(dir, file.Name()),
+			timestamp: matches[1],
+		})
+	}
+
+	// Sort by timestamp (newest first)
+	sort.Slice(logFiles, func(i, j int) bool {
+		return logFiles[i].timestamp > logFiles[j].timestamp
+	})
+
+	// Remove files beyond maxFiles limit
+	if len(logFiles) > f.maxFiles {
+		for i := f.maxFiles; i < len(logFiles); i++ {
+			if err := os.Remove(logFiles[i].path); err != nil {
+				fmt.Fprintf(os.Stderr, "Error removing old log file %s: %v\n", logFiles[i].path, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
+			}
 		}
 	}
 

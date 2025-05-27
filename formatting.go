@@ -14,6 +14,13 @@ func (f *FlexLog) SetFormat(format LogFormat) {
 	f.format = int(format)
 }
 
+// GetFormat returns the current output format (thread-safe)
+func (f *FlexLog) GetFormat() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.format
+}
+
 // SetFormatOption sets a format option
 func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error {
 	f.mu.Lock()
@@ -95,16 +102,23 @@ func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
 	}
 }
 
+// GetFormatOptions returns a copy of all format options (thread-safe)
+func (f *FlexLog) GetFormatOptions() FormatOptions {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.formatOptions
+}
+
 // formatTimestamp formats a timestamp according to the current options
 func (f *FlexLog) formatTimestamp(t time.Time) string {
-	format := f.formatOptions.TimestampFormat
-	tz := f.formatOptions.TimeZone
-	return t.In(tz).Format(format)
+	opts := f.GetFormatOptions()
+	return t.In(opts.TimeZone).Format(opts.TimestampFormat)
 }
 
 // formatLevel formats a level string according to the current options
 func (f *FlexLog) formatLevel(level int) string {
-	if !f.formatOptions.IncludeLevel {
+	opts := f.GetFormatOptions()
+	if !opts.IncludeLevel {
 		return ""
 	}
 
@@ -122,7 +136,7 @@ func (f *FlexLog) formatLevel(level int) string {
 		levelStr = "LOG"
 	}
 
-	switch f.formatOptions.LevelFormat {
+	switch opts.LevelFormat {
 	case LevelFormatNameUpper:
 		return levelStr
 	case LevelFormatNameLower:
