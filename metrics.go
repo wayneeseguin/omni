@@ -60,6 +60,7 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 	lastError := f.lastError
 	lastErrorTime := f.lastErrorTime
 	f.mu.RUnlock()
+	// Note: f.mu is released before acquiring any dest.mu locks to prevent deadlock
 
 	metrics := LoggerMetrics{
 		MessagesLogged:   make(map[int]uint64),
@@ -82,16 +83,36 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 	// Copy message counts by level
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
 		level := key.(int)
-		count := value.(uint64)
-		metrics.MessagesLogged[level] = count
+		// Handle both old uint64 values and new *atomic.Uint64 values for compatibility
+		switch v := value.(type) {
+		case *atomic.Uint64:
+			count := v.Load()
+			if count > 0 { // Only include non-zero counts
+				metrics.MessagesLogged[level] = count
+			}
+		case uint64:
+			if v > 0 { // Only include non-zero counts
+				metrics.MessagesLogged[level] = v
+			}
+		}
 		return true
 	})
 
 	// Copy error counts by source
 	f.errorsBySource.Range(func(key, value interface{}) bool {
 		source := key.(string)
-		count := value.(uint64)
-		metrics.ErrorsBySource[source] = count
+		// Handle both old uint64 values and new *atomic.Uint64 values for compatibility
+		switch v := value.(type) {
+		case *atomic.Uint64:
+			count := v.Load()
+			if count > 0 { // Only include non-zero counts
+				metrics.ErrorsBySource[source] = count
+			}
+		case uint64:
+			if v > 0 { // Only include non-zero counts
+				metrics.ErrorsBySource[source] = v
+			}
+		}
 		return true
 	})
 
@@ -153,7 +174,8 @@ func (f *FlexLog) ResetMetrics() {
 
 	// Reset message counts
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
-		f.messagesByLevel.Store(key, uint64(0))
+		counter := value.(*atomic.Uint64)
+		counter.Store(0)
 		return true
 	})
 
@@ -169,7 +191,8 @@ func (f *FlexLog) ResetMetrics() {
 
 	// Reset error counts by source
 	f.errorsBySource.Range(func(key, value interface{}) bool {
-		f.errorsBySource.Store(key, uint64(0))
+		counter := value.(*atomic.Uint64)
+		counter.Store(0)
 		return true
 	})
 
@@ -187,18 +210,10 @@ func (f *FlexLog) ResetMetrics() {
 
 // trackMessageLogged increments the message counter for a level
 func (f *FlexLog) trackMessageLogged(level int) {
-	// Load current value or initialize to 0
-	val, _ := f.messagesByLevel.LoadOrStore(level, uint64(0))
-	current := val.(uint64)
-	// Increment atomically
-	for {
-		if f.messagesByLevel.CompareAndSwap(level, current, current+1) {
-			break
-		}
-		// Reload and retry if another goroutine changed the value
-		val, _ := f.messagesByLevel.Load(level)
-		current = val.(uint64)
-	}
+	// Use LoadOrStore to ensure the counter exists
+	val, _ := f.messagesByLevel.LoadOrStore(level, &atomic.Uint64{})
+	counter := val.(*atomic.Uint64)
+	counter.Add(1)
 }
 
 // trackMessageDropped increments the dropped message counter

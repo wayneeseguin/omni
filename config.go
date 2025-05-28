@@ -168,11 +168,7 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
-	// Initialize message level counters
-	f.messagesByLevel.Store(LevelDebug, uint64(0))
-	f.messagesByLevel.Store(LevelInfo, uint64(0))
-	f.messagesByLevel.Store(LevelWarn, uint64(0))
-	f.messagesByLevel.Store(LevelError, uint64(0))
+	// Message level counters will be lazily initialized on first use
 
 	// Add primary destination if path provided
 	if config.Path != "" {

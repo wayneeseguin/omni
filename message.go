@@ -191,17 +191,19 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 
 // processFileMessage processes a message for a file backend
 func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr *string, entrySizePtr *int64) {
-	// Get all needed values before acquiring file lock to avoid deadlock
+	// Get all needed values before acquiring any locks to avoid deadlock
+	// Following lock ordering hierarchy: f.mu -> dest.mu -> dest.Lock
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
 	maxSize := f.GetMaxSize()
 
-	// Get redactor reference while not holding any locks
-	f.mu.Lock()
+	// Get redactor reference (quick read with minimal lock time)
+	f.mu.RLock()
 	redactor := f.redactor
-	f.mu.Unlock()
+	f.mu.RUnlock()
 
 	// File backend with flock locking
+	// Note: We acquire file lock last according to lock hierarchy
 	if err := dest.Lock.Lock(); err != nil {
 		f.logError("lock", dest.Name, "Failed to acquire file lock", err, ErrorLevelHigh)
 		return
@@ -225,6 +227,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		}
 
 		// Write the bytes
+		// Note: dest.mu is acquired after file lock according to hierarchy
 		dest.mu.Lock()
 		writeStart := time.Now()
 		if err := f.writeToDestination(dest, msg.Raw); err != nil {

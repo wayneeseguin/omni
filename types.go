@@ -11,6 +11,13 @@ import (
 	"github.com/gofrs/flock"
 )
 
+// Lock Ordering Hierarchy:
+// To prevent deadlocks, always acquire locks in this order:
+// 1. f.mu (FlexLog main mutex) - acquire first
+// 2. dest.mu (Destination mutex) - acquire second
+// 3. dest.Lock (File lock) - acquire last
+// Never acquire a higher-level lock while holding a lower-level lock.
+
 // ErrorLevel represents additional error severity levels beyond the standard log levels.
 // These can be used to categorize errors by their impact on the system.
 type ErrorLevel int

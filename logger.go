@@ -106,6 +106,8 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 		messageQueue:     make(chan *LogMessage, channelSize),
 	}
 
+	// Message level counters will be lazily initialized on first use
+
 	// Add the destination based on backend type
 	dest, err := f.createDestination(uri, backendType)
 	if err != nil {
@@ -130,11 +132,7 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 	// Set default error handler
 	f.errorHandler = StderrErrorHandler
 
-	// Initialize metrics (sync.Map fields don't need explicit initialization)
-	f.messagesByLevel.Store(LevelDebug, uint64(0))
-	f.messagesByLevel.Store(LevelInfo, uint64(0))
-	f.messagesByLevel.Store(LevelWarn, uint64(0))
-	f.messagesByLevel.Store(LevelError, uint64(0))
+	// Metrics sync.Map fields will be lazily initialized on first use
 
 	// Start the single message dispatcher
 	f.workerWg.Add(1)

@@ -71,17 +71,10 @@ func (f *FlexLog) logError(source string, destination string, message string, er
 	// Increment error count
 	atomic.AddUint64(&f.errorCount, 1)
 
-	// Track errors by source using thread-safe sync.Map
-	val, _ := f.errorsBySource.LoadOrStore(source, uint64(0))
-	current := val.(uint64)
-	for {
-		if f.errorsBySource.CompareAndSwap(source, current, current+1) {
-			break
-		}
-		// Reload and retry if another goroutine changed the value
-		val, _ := f.errorsBySource.Load(source)
-		current = val.(uint64)
-	}
+	// Track errors by source using thread-safe sync.Map with atomic counters
+	val, _ := f.errorsBySource.LoadOrStore(source, &atomic.Uint64{})
+	counter := val.(*atomic.Uint64)
+	counter.Add(1)
 
 	logErr := LogError{
 		Time:        time.Now(),

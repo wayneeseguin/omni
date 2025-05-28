@@ -165,24 +165,27 @@ func (f *FlexLog) cleanupOldLogs() error {
 	}
 
 	// Try to acquire lock with timeout
-	done := make(chan struct{})
+	lockAcquired := make(chan bool)
 	timeout := time.NewTimer(5 * time.Second)
 	defer timeout.Stop()
 
 	go func() {
 		f.mu.Lock()
-		close(done)
+		select {
+		case lockAcquired <- true:
+			// Successfully sent signal that lock was acquired
+		default:
+			// Channel closed or timeout occurred, release the lock
+			f.mu.Unlock()
+		}
 	}()
 
 	// Wait for lock with timeout
 	select {
-	case <-done:
+	case <-lockAcquired:
 		defer f.mu.Unlock()
 	case <-timeout.C:
-		// If we timeout, we still need to wait for the goroutine to finish
-		// to avoid a goroutine leak
-		<-done
-		f.mu.Unlock()
+		close(lockAcquired) // Signal the goroutine to release the lock if it acquires it
 		return fmt.Errorf("timed out waiting for lock in cleanupOldLogs")
 	}
 

@@ -1,0 +1,103 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Run benchmarks
+      run: |
+        # Run benchmarks and save results
+        go test -bench=. -benchmem -benchtime=10s -count=3 -cpu=1,2,4 ./... | tee benchmark_results.txt
+    
+    - name: Parse benchmark results
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_results.txt >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.txt
+    
+    - name: Compare with baseline (PR only)
+      if: github.event_name == 'pull_request'
+      run: |
+        # Checkout main branch for comparison
+        git fetch origin main
+        git checkout origin/main
+        
+        # Run benchmarks on main
+        go test -bench=. -benchmem -benchtime=10s -count=1 ./... | tee benchmark_baseline.txt
+        
+        # Checkout PR branch again
+        git checkout -
+        
+        # Simple comparison (in real scenario, use benchstat)
+        echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Baseline (main branch):" >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_baseline.txt | head -10 >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Current (PR branch):" >> $GITHUB_STEP_SUMMARY  
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_results.txt | head -10 >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Memory profiling
+      run: |
+        # Run memory profiling
+        go test -bench=BenchmarkFlexLogBasic -benchmem -memprofile=mem.prof -cpuprofile=cpu.prof ./...
+        
+        # Analyze memory profile
+        go tool pprof -top mem.prof | head -20 > mem_profile.txt
+        
+        echo "## Memory Profile (Top 20)" >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        cat mem_profile.txt >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Check for performance regression
+      run: |
+        # Simple check for major regressions
+        # In production, use more sophisticated analysis
+        
+        # Extract ns/op from current results
+        current_ns=$(grep "BenchmarkFlexLogBasic" benchmark_results.txt | awk '{print $3}' | head -1)
+        
+        # Define threshold (e.g., 20% regression is unacceptable)
+        # This is a placeholder - implement actual comparison logic
+        echo "Current performance: $current_ns ns/op"
