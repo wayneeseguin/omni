@@ -37,7 +37,16 @@ func NewBufferPoolWithCapacity(capacity int) *BufferPool {
 // Get retrieves a buffer from the pool or creates a new one if the pool is empty.
 // The caller is responsible for returning the buffer to the pool using Put().
 func (bp *BufferPool) Get() *bytes.Buffer {
-	buf := bp.pool.Get().(*bytes.Buffer)
+	v := bp.pool.Get()
+	if v == nil {
+		// This should never happen with our New function, but be defensive
+		return &bytes.Buffer{}
+	}
+	buf, ok := v.(*bytes.Buffer)
+	if !ok {
+		// This should never happen, but be defensive
+		return &bytes.Buffer{}
+	}
 	buf.Reset() // Ensure the buffer is clean
 	return buf
 }

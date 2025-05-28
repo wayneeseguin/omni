@@ -55,7 +55,8 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	// Ensure directory exists
 	dir := filepath.Dir(dest.URI)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("creating log directory: %w", err)
+		return NewFlexLogError(ErrCodeFileOpen, "mkdir", dir, err).
+			WithDestination(dest.Name)
 	}
 
 	// Create lock file using flock
@@ -64,7 +65,8 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 
 	// Temporarily lock while we're setting up the file
 	if err := dest.Lock.Lock(); err != nil {
-		return fmt.Errorf("acquiring file lock: %w", err)
+		return NewFlexLogError(ErrCodeFileLock, "lock", lockPath, err).
+			WithDestination(dest.Name)
 	}
 
 	// Open log file
@@ -760,7 +762,17 @@ func (f *FlexLog) performShutdown() error {
 	// Stop background workers
 	f.stopCompressionWorkers()
 	f.stopCleanupRoutine()
+	
+	// Close recovery manager if present
+	recoveryManager := f.recoveryManager
 	f.mu.Unlock()
+
+	// Close recovery manager to release fallback file descriptor
+	if recoveryManager != nil {
+		if err := recoveryManager.Close(); err != nil {
+			f.logError("shutdown", "", "Failed to close recovery manager", err, ErrorLevelLow)
+		}
+	}
 
 	// Stop all flush timers
 	f.stopFlushTimers()
@@ -868,6 +880,9 @@ func (f *FlexLog) SetDestinationEnabled(index int, enabled bool) error {
 
 // FlushDestination flushes a specific destination's buffer (for testing)
 func (f *FlexLog) FlushDestination(dest *Destination) error {
+	if dest == nil {
+		return fmt.Errorf("destination is nil")
+	}
 	if dest.Writer != nil {
 		dest.mu.Lock()
 		err := dest.Writer.Flush()

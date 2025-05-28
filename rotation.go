@@ -368,6 +368,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 
 	// Create new writer - ensure we close file if this somehow fails
 	newWriter := bufio.NewWriterSize(newFile, defaultBufferSize)
+	// Note: bufio.NewWriterSize cannot fail, it just returns a writer
 
 	// Close old file handle if it exists
 	dest.mu.Lock()

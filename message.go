@@ -50,6 +50,12 @@ func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error
 
 // processMessage processes a single log message
 func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
+	// Defensive check - should never happen in normal operation
+	if dest == nil {
+		f.logError("process", "", "Attempted to process message for nil destination", nil, ErrorLevelHigh)
+		return
+	}
+	
 	var entry string
 	var entrySize int64
 
