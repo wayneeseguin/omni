@@ -3,6 +3,7 @@ package flexlog
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -25,6 +26,9 @@ func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, 
 		Done:    make(chan struct{}),
 		Enabled: true,
 	}
+
+	// Initialize batching configuration
+	initializeDestinationBatching(dest)
 
 	var err error
 
@@ -166,15 +170,19 @@ func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 		}
 	}
 
-	// Write to destination
+	// Write to destination with batching support
 	dest.mu.Lock()
 	_, err = dest.Writer.Write(bytes)
-	dest.mu.Unlock()
 	if err != nil {
+		dest.mu.Unlock()
 		// Not much we can do if writing fails in the background worker
 		// Consider adding error reporting channel in future
 		return
 	}
+	
+	// Check if we should flush based on buffer size
+	f.checkFlushSize(dest)
+	dest.mu.Unlock()
 
 	// For file destination, update size tracking
 	if dest.Backend == BackendFlock && dest.File != nil {
@@ -187,20 +195,61 @@ func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 
 // formatMessage formats a log message based on the logger configuration
 func (f *FlexLog) formatMessage(level int, format string, args ...interface{}) ([]byte, error) {
-	// Simple implementation for now
-	msg := fmt.Sprintf(format, args...)
-	levelStr := getLevelString(level, f.formatOpts.LevelFormat)
+	// Get a buffer from the pool
+	buf := GetBuffer()
+	defer PutBuffer(buf)
+	
+	// Format timestamp
 	timestamp := time.Now().Format(f.formatOpts.TimestampFormat)
-
-	fullMsg := fmt.Sprintf("%s %s: %s\n", timestamp, levelStr, msg)
-	return []byte(fullMsg), nil
+	buf.WriteString(timestamp)
+	buf.WriteByte(' ')
+	
+	// Format level
+	levelStr := getLevelString(level, f.formatOpts.LevelFormat)
+	buf.WriteString(levelStr)
+	buf.WriteString(": ")
+	
+	// Format message
+	fmt.Fprintf(buf, format, args...)
+	buf.WriteByte('\n')
+	
+	// Return a copy of the bytes (the buffer will be reused)
+	result := make([]byte, buf.Len())
+	copy(result, buf.Bytes())
+	return result, nil
 }
 
 // formatEntry formats a structured log entry
 func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
-	// Simple implementation for now
-	fullMsg := fmt.Sprintf("%s %s: %s\n", entry.Timestamp, entry.Level, entry.Message)
-	return []byte(fullMsg), nil
+	// Get a buffer from the pool
+	buf := GetBuffer()
+	defer PutBuffer(buf)
+	
+	// Check format type
+	f.mu.Lock()
+	format := f.format
+	f.mu.Unlock()
+	
+	if format == FormatJSON {
+		// JSON formatting
+		encoder := json.NewEncoder(buf)
+		if err := encoder.Encode(entry); err != nil {
+			return nil, err
+		}
+	} else {
+		// Text formatting
+		buf.WriteString(entry.Timestamp)
+		buf.WriteByte(' ')
+		buf.WriteString(entry.Level)
+		buf.WriteString(": ")
+		buf.WriteString(entry.Message)
+		buf.WriteByte('\n')
+	}
+	
+	// Return a copy of the bytes
+	result := make([]byte, buf.Len())
+	copy(result, buf.Bytes())
+	return result, nil
 }
 
 // getLevelString converts a numeric level to a string representation
@@ -296,6 +345,13 @@ func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
 
 	// Add to destinations list
 	f.Destinations = append(f.Destinations, dest)
+
+	// Start flush timer if configured
+	if dest.flushInterval > 0 {
+		dest.flushTimer = time.AfterFunc(dest.flushInterval, func() {
+			f.flushDestination(dest)
+		})
+	}
 
 	// No need to start a new worker - the single dispatcher handles all destinations
 
@@ -481,6 +537,12 @@ func (f *FlexLog) CloseDestination(name string) error {
 func (f *FlexLog) closeDestination(dest *Destination) error {
 	dest.mu.Lock()
 	defer dest.mu.Unlock()
+
+	// Stop flush timer if active
+	if dest.flushTimer != nil {
+		dest.flushTimer.Stop()
+		dest.flushTimer = nil
+	}
 
 	// Flush the buffer
 	if dest.Writer != nil {
@@ -682,6 +744,9 @@ func (f *FlexLog) performShutdown() error {
 	f.stopCompressionWorkers()
 	f.stopCleanupRoutine()
 	f.mu.Unlock()
+	
+	// Stop all flush timers
+	f.stopFlushTimers()
 	
 	var lastErr error
 	

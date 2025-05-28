@@ -38,6 +38,11 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
 	
+	// Get redactor reference while not holding any locks
+	f.mu.Lock()
+	redactor := f.redactor
+	f.mu.Unlock()
+	
 	var entry string
 	
 	if msg.Raw != nil {
@@ -74,11 +79,9 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 		message := fmt.Sprintf(msg.Format, msg.Args...)
 		
 		// Apply redaction if configured
-		f.mu.Lock()
-		if f.redactor != nil {
-			message = f.redactor.Redact(message)
+		if redactor != nil {
+			message = redactor.Redact(message)
 		}
-		f.mu.Unlock()
 		
 		// Format based on level
 		var levelStr string
@@ -140,6 +143,11 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
 	maxSize := f.GetMaxSize()
+	
+	// Get redactor reference while not holding any locks
+	f.mu.Lock()
+	redactor := f.redactor
+	f.mu.Unlock()
 	
 	// File backend with flock locking
 	if err := dest.Lock.Lock(); err != nil {
@@ -262,11 +270,9 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		message := fmt.Sprintf(msg.Format, msg.Args...)
 		
 		// Apply redaction if configured
-		f.mu.Lock()
-		if f.redactor != nil {
-			message = f.redactor.Redact(message)
+		if redactor != nil {
+			message = redactor.Redact(message)
 		}
-		f.mu.Unlock()
 
 		// Format based on level
 		var levelStr string

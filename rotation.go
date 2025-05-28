@@ -161,24 +161,25 @@ func (f *FlexLog) cleanupOldLogs() error {
 		return nil // Age-based cleanup disabled
 	}
 
-	// Try to acquire lock with timeout using a simple approach
-	lockAcquired := make(chan bool, 1)
+	// Try to acquire lock with timeout
+	done := make(chan struct{})
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	
 	go func() {
 		f.mu.Lock()
-		lockAcquired <- true
+		close(done)
 	}()
 	
 	// Wait for lock with timeout
 	select {
-	case <-lockAcquired:
+	case <-done:
 		defer f.mu.Unlock()
-	case <-time.After(5 * time.Second):
-		// If we timeout, the goroutine will eventually acquire the lock
-		// and we need to ensure it gets unlocked
-		go func() {
-			<-lockAcquired // Wait for the lock to be acquired
-			f.mu.Unlock()   // Then unlock it
-		}()
+	case <-timeout.C:
+		// If we timeout, we still need to wait for the goroutine to finish
+		// to avoid a goroutine leak
+		<-done
+		f.mu.Unlock()
 		return fmt.Errorf("timed out waiting for lock in cleanupOldLogs")
 	}
 

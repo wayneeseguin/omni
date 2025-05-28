@@ -91,6 +91,11 @@ type Destination struct {
 	Enabled    bool        // Whether this destination is enabled
 	mu         sync.Mutex  // Protects concurrent access to Writer
 	
+	// Batching configuration
+	flushInterval time.Duration // How often to flush the buffer
+	flushTimer    *time.Timer   // Timer for periodic flushing
+	flushSize     int           // Flush when buffer reaches this size
+	
 	// Metrics
 	bytesWritten uint64
 	rotations    uint64
