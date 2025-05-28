@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/wayneeseguin/flexlog"
 )
 
@@ -64,11 +64,11 @@ func TestAddFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temp file
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			
+
 			// Initialize logger
 			logger, _ := flexlog.New(tempFile)
 			logger.AddFilter(tt.filter)
-			
+
 			// Log message
 			switch tt.logLevel {
 			case flexlog.LevelDebug:
@@ -80,17 +80,17 @@ func TestAddFilter(t *testing.T) {
 			case flexlog.LevelError:
 				logger.Error(tt.logMessage)
 			}
-			
+
 			// Wait for processing
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Check if message was logged
 			content, err := os.ReadFile(tempFile)
 			if err != nil {
 				t.Fatalf("Failed to read log file: %v", err)
 			}
-			
+
 			hasContent := len(content) > 0
 			if hasContent != tt.shouldLog {
 				t.Errorf("Expected shouldLog=%v, but hasContent=%v", tt.shouldLog, hasContent)
@@ -101,31 +101,31 @@ func TestAddFilter(t *testing.T) {
 
 func TestClearFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	
+
 	logger, _ := flexlog.New(tempFile)
-	
+
 	// Add a restrictive filter
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return false // Block all messages
 	})
-	
+
 	// Try to log - should be blocked
 	logger.Info("blocked message")
 	logger.Sync()
-	
+
 	content, _ := os.ReadFile(tempFile)
 	if len(content) > 0 {
 		t.Error("Message should have been blocked by filter")
 	}
-	
+
 	// Clear filters
 	logger.ClearFilters()
-	
+
 	// Try to log again - should succeed
 	logger.Info("allowed message")
 	logger.Sync()
 	logger.CloseAll()
-	
+
 	content, _ = os.ReadFile(tempFile)
 	if !strings.Contains(string(content), "allowed message") {
 		t.Error("Message should have been logged after clearing filters")
@@ -187,21 +187,21 @@ func TestSetFieldFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			
+
 			logger, _ := flexlog.New(tempFile)
 			logger.SetFieldFilter(tt.filterField, tt.filterValues...)
-			
+
 			// Log with fields
 			logger.StructuredLog(flexlog.LevelInfo, "test message", tt.logFields)
-			
+
 			// Wait and close
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Check result
 			content, _ := os.ReadFile(tempFile)
 			hasContent := len(content) > 0
-			
+
 			if hasContent != tt.shouldLog {
 				t.Errorf("Expected shouldLog=%v, but hasContent=%v", tt.shouldLog, hasContent)
 			}
@@ -211,13 +211,13 @@ func TestSetFieldFilter(t *testing.T) {
 
 func TestSetLevelFieldFilter(t *testing.T) {
 	tests := []struct {
-		name         string
-		filterLevel  int
-		filterField  string
-		filterValue  interface{}
-		logLevel     int
-		logFields    map[string]interface{}
-		shouldLog    bool
+		name        string
+		filterLevel int
+		filterField string
+		filterValue interface{}
+		logLevel    int
+		logFields   map[string]interface{}
+		shouldLog   bool
 	}{
 		{
 			name:        "matches level and field",
@@ -269,21 +269,21 @@ func TestSetLevelFieldFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			
+
 			logger, _ := flexlog.New(tempFile)
 			logger.SetLevelFieldFilter(tt.filterLevel, tt.filterField, tt.filterValue)
-			
+
 			// Log with appropriate level and fields
 			logger.StructuredLog(tt.logLevel, "test message", tt.logFields)
-			
+
 			// Wait and close
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Check result
 			content, _ := os.ReadFile(tempFile)
 			hasContent := len(content) > 0
-			
+
 			if hasContent != tt.shouldLog {
 				t.Errorf("Expected shouldLog=%v, but hasContent=%v", tt.shouldLog, hasContent)
 			}
@@ -333,26 +333,26 @@ func TestSetRegexFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			
+
 			logger, _ := flexlog.New(tempFile)
-			
+
 			pattern, err := regexp.Compile(tt.pattern)
 			if err != nil {
 				t.Fatalf("Failed to compile regex: %v", err)
 			}
 			logger.SetRegexFilter(pattern)
-			
+
 			// Log message
 			logger.Info(tt.message)
-			
+
 			// Wait and close
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Check result
 			content, _ := os.ReadFile(tempFile)
 			hasContent := strings.Contains(string(content), tt.message)
-			
+
 			if hasContent != tt.shouldLog {
 				t.Errorf("Expected shouldLog=%v, but hasContent=%v", tt.shouldLog, hasContent)
 			}
@@ -396,26 +396,26 @@ func TestSetExcludeRegexFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			
+
 			logger, _ := flexlog.New(tempFile)
-			
+
 			pattern, err := regexp.Compile(tt.pattern)
 			if err != nil {
 				t.Fatalf("Failed to compile regex: %v", err)
 			}
 			logger.SetExcludeRegexFilter(pattern)
-			
+
 			// Log message
 			logger.Info(tt.message)
-			
+
 			// Wait and close
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Check result
 			content, _ := os.ReadFile(tempFile)
 			hasContent := strings.Contains(string(content), tt.message)
-			
+
 			if hasContent != tt.shouldLog {
 				t.Errorf("Expected shouldLog=%v, but hasContent=%v", tt.shouldLog, hasContent)
 			}
@@ -425,22 +425,22 @@ func TestSetExcludeRegexFilter(t *testing.T) {
 
 func TestMultipleFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	
+
 	logger, _ := flexlog.New(tempFile)
-	
+
 	// Add multiple filters - all must pass
 	// 1. Level must be INFO or higher
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return level >= flexlog.LevelInfo
 	})
-	
+
 	// 2. Message must not contain "ignore"
 	ignorePattern, _ := regexp.Compile(`ignore`)
 	logger.SetExcludeRegexFilter(ignorePattern)
-	
+
 	// 3. Must have a specific field
 	logger.SetFieldFilter("component", "api", "web")
-	
+
 	// Test various combinations
 	testCases := []struct {
 		level     int
@@ -473,25 +473,25 @@ func TestMultipleFilters(t *testing.T) {
 			shouldLog: false, // Field filter fails
 		},
 	}
-	
+
 	for i, tc := range testCases {
 		// Clear file
 		os.Truncate(tempFile, 0)
-		
+
 		// Log based on level
 		logger.StructuredLog(tc.level, tc.message, tc.fields)
-		
+
 		// Check result
 		logger.Sync()
 		content, _ := os.ReadFile(tempFile)
 		hasContent := len(content) > 0
-		
+
 		if hasContent != tc.shouldLog {
-			t.Errorf("Test case %d: Expected shouldLog=%v, but hasContent=%v", 
+			t.Errorf("Test case %d: Expected shouldLog=%v, but hasContent=%v",
 				i, tc.shouldLog, hasContent)
 		}
 	}
-	
+
 	logger.CloseAll()
 }
 
@@ -506,15 +506,15 @@ func TestFilterPerformance(t *testing.T) {
 			os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
 		}
 	}()
-	
+
 	// Create a memory destination for performance testing
 	var buf bytes.Buffer
 	writer := bufio.NewWriter(&buf)
-	
+
 	tempFile := filepath.Join(t.TempDir(), "test.log")
 	logger, _ := flexlog.New(tempFile)
 	logger.AddCustomDestination("memory", writer) // Custom backend
-	
+
 	// Add a complex filter
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		// Simulate complex filtering logic
@@ -528,11 +528,11 @@ func TestFilterPerformance(t *testing.T) {
 		}
 		return !strings.Contains(message, "exclude")
 	})
-	
+
 	// Measure filtering performance
 	start := time.Now()
 	iterations := 10000
-	
+
 	for i := 0; i < iterations; i++ {
 		if i%2 == 0 {
 			logger.Debug("This should be filtered by level")
@@ -544,40 +544,40 @@ func TestFilterPerformance(t *testing.T) {
 			logger.Info("This message passes all filters")
 		}
 	}
-	
+
 	logger.Sync()
 	elapsed := time.Since(start)
-	
+
 	// Check that filtering is reasonably fast
 	perMessage := elapsed / time.Duration(iterations)
 	if perMessage > time.Microsecond*100 {
 		t.Logf("Warning: Filtering is slow: %v per message", perMessage)
 	}
-	
+
 	logger.CloseAll()
 }
 
 func TestFilterIntegration(t *testing.T) {
 	// Test filters work correctly with multiple destinations
 	file1 := filepath.Join(t.TempDir(), "filtered.log")
-	
+
 	logger, _ := flexlog.New(file1)
-	
+
 	// Add filter to logger (affects all destinations)
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return level >= flexlog.LevelWarn
 	})
-	
+
 	// Log at various levels
 	logger.Debug("debug message")
 	logger.Info("info message")
 	logger.Warn("warning message")
 	logger.Error("error message")
-	
+
 	// Wait and check
 	logger.Sync()
 	logger.CloseAll()
-	
+
 	// Check filtered destination
 	content1, _ := os.ReadFile(file1)
 	if strings.Contains(string(content1), "debug message") {

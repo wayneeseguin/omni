@@ -14,7 +14,7 @@ type LazyMessage struct {
 	Timestamp time.Time
 	Entry     *LogEntry
 	Raw       []byte
-	
+
 	// Lazy evaluation fields
 	formatted     string
 	formattedOnce sync.Once

@@ -65,7 +65,7 @@ func TestProcessMessage(t *testing.T) {
 			IncludeTime:     true,
 			LevelFormat:     LevelFormatNameUpper,
 		},
-		errorHandler:    StderrErrorHandler,
+		errorHandler: StderrErrorHandler,
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
@@ -360,8 +360,8 @@ func TestProcessFileMessage(t *testing.T) {
 				// For JSON output, check that it contains the expected fields rather than exact match
 				if tt.name == "json structured entry" {
 					if !strings.Contains(output, "\"timestamp\":\"2025-04-10 12:00:00\"") ||
-					   !strings.Contains(output, "\"level\":\"INFO\"") ||
-					   !strings.Contains(output, "\"message\":\"Structured entry\"") {
+						!strings.Contains(output, "\"level\":\"INFO\"") ||
+						!strings.Contains(output, "\"message\":\"Structured entry\"") {
 						t.Errorf("Expected JSON to contain timestamp, level, and message fields, got %q", output)
 					}
 				} else {
@@ -398,7 +398,7 @@ func TestProcessSyslogMessage(t *testing.T) {
 			IncludeLevel:    true,
 			IncludeTime:     true,
 		},
-		errorHandler:    StderrErrorHandler,
+		errorHandler: StderrErrorHandler,
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
@@ -581,7 +581,7 @@ func TestMessageFormatting(t *testing.T) {
 			IncludeTime:     true,
 			LevelFormat:     LevelFormatNameUpper,
 		},
-		errorHandler:    StderrErrorHandler,
+		errorHandler: StderrErrorHandler,
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 

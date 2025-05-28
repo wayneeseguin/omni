@@ -62,7 +62,7 @@ func (f *FlexLog) LogWithContext(ctx context.Context, level int, format string, 
 		// Channel is full, try with a short timeout
 		timer := time.NewTimer(10 * time.Millisecond)
 		defer timer.Stop()
-		
+
 		select {
 		case f.msgChan <- msg:
 			return nil
@@ -162,7 +162,7 @@ func (f *FlexLog) StructuredLogWithContext(ctx context.Context, level int, messa
 		// Channel is full, try with a short timeout
 		timer := time.NewTimer(10 * time.Millisecond)
 		defer timer.Stop()
-		
+
 		select {
 		case f.msgChan <- msg:
 			return nil

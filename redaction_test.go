@@ -215,10 +215,10 @@ func TestLogRequest(t *testing.T) {
 			if err := logger.FlushAll(); err != nil {
 				t.Logf("Warning: flush error: %v", err)
 			}
-			
+
 			// Close the logger to stop the worker goroutine
 			close(logger.msgChan)
-			
+
 			// Add a small delay to ensure flush completes
 			time.Sleep(10 * time.Millisecond)
 
@@ -357,10 +357,10 @@ func TestLogResponse(t *testing.T) {
 			if err := logger.FlushAll(); err != nil {
 				t.Logf("Warning: flush error: %v", err)
 			}
-			
+
 			// Close the logger to stop the worker goroutine
 			close(logger.msgChan)
-			
+
 			// Add a small delay to ensure flush completes
 			time.Sleep(10 * time.Millisecond)
 

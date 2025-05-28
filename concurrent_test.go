@@ -12,19 +12,19 @@ func TestConcurrentOperations(t *testing.T) {
 	t.Run("multiple goroutines logging", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 10
 		const messagesPerGoroutine = 100
-		
+
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines)
-		
+
 		// Start multiple goroutines logging concurrently
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -34,45 +34,45 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
-		
+
 		// Verify metrics
 		metrics := logger.GetMetrics()
 		expectedMessages := numGoroutines * messagesPerGoroutine
-		
+
 		// Should have logged all messages (allowing for some dropped if channel was full)
 		totalLogged := uint64(0)
 		for _, count := range metrics.MessagesLogged {
 			totalLogged += count
 		}
-		
+
 		if totalLogged == 0 {
 			t.Error("No messages were logged")
 		}
-		
-		t.Logf("Logged %d/%d messages, dropped %d", 
+
+		t.Logf("Logged %d/%d messages, dropped %d",
 			totalLogged, expectedMessages, metrics.MessagesDropped)
 	})
 
 	t.Run("concurrent destination operations", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numOperations = 50
 		var wg sync.WaitGroup
 		wg.Add(numOperations * 3) // Add, enable/disable, remove operations
-		
+
 		// Concurrent destination additions
 		for i := 0; i < numOperations; i++ {
 			go func(id int) {
@@ -84,7 +84,7 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent enable/disable operations
 		for i := 0; i < numOperations; i++ {
 			go func(id int) {
@@ -96,7 +96,7 @@ func TestConcurrentOperations(t *testing.T) {
 				logger.EnableDestination(destFile)
 			}(i)
 		}
-		
+
 		// Concurrent logging during destination changes
 		for i := 0; i < numOperations; i++ {
 			go func(id int) {
@@ -107,9 +107,9 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
@@ -118,16 +118,16 @@ func TestConcurrentOperations(t *testing.T) {
 	t.Run("concurrent shutdown", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
-		
+
 		const numShutdowns = 10
 		var wg sync.WaitGroup
 		wg.Add(numShutdowns + 1) // shutdowns + logging goroutine
-		
+
 		// Start logging in background
 		go func() {
 			defer wg.Done()
@@ -136,7 +136,7 @@ func TestConcurrentOperations(t *testing.T) {
 				time.Sleep(1 * time.Millisecond)
 			}
 		}()
-		
+
 		// Multiple concurrent shutdown attempts
 		for i := 0; i < numShutdowns; i++ {
 			go func() {
@@ -145,9 +145,9 @@ func TestConcurrentOperations(t *testing.T) {
 				logger.Close()
 			}()
 		}
-		
+
 		wg.Wait()
-		
+
 		// Should not panic and should be properly closed
 		if !logger.IsClosed() {
 			t.Error("Logger should be closed")
@@ -157,17 +157,17 @@ func TestConcurrentOperations(t *testing.T) {
 	t.Run("concurrent metrics access", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 20
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines * 3) // logging, metrics reading, metrics resetting
-		
+
 		// Concurrent logging
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -177,7 +177,7 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent metrics reading
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -188,7 +188,7 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		// Concurrent metrics resetting
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -199,9 +199,9 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		wg.Wait()
-		
+
 		// Should not panic
 		metrics := logger.GetMetrics()
 		t.Logf("Final metrics: %+v", metrics)
@@ -210,71 +210,71 @@ func TestConcurrentOperations(t *testing.T) {
 	t.Run("concurrent rotation", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		config := DefaultConfig()
 		config.Path = logFile
 		config.MaxSize = 1024 // Small size to trigger rotation
 		config.MaxFiles = 3
-		
+
 		logger, err := NewWithConfig(config)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 5
 		const messagesPerGoroutine = 200
-		
+
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines)
-		
+
 		// Multiple goroutines writing large messages to trigger rotation
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
 				defer wg.Done()
 				for j := 0; j < messagesPerGoroutine; j++ {
 					// Large message to trigger rotation
-					logger.Info("Goroutine %d large message %d: %s", 
+					logger.Info("Goroutine %d large message %d: %s",
 						id, j, fmt.Sprintf("%0*d", 200, j))
 				}
 			}(i)
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
-		
+
 		// Should have rotated files
 		files, err := filepath.Glob(logFile + "*")
 		if err != nil {
 			t.Fatalf("Failed to glob files: %v", err)
 		}
-		
+
 		if len(files) < 2 {
 			t.Errorf("Expected rotation to create multiple files, got %d", len(files))
 		}
-		
+
 		t.Logf("Created %d files during concurrent rotation", len(files))
 	})
 
 	t.Run("concurrent structured logging", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 15
 		const messagesPerGoroutine = 50
-		
+
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines)
-		
+
 		// Concurrent structured logging with different field types
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -293,41 +293,41 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
-		
+
 		// Verify some messages were logged
 		metrics := logger.GetMetrics()
 		totalLogged := uint64(0)
 		for _, count := range metrics.MessagesLogged {
 			totalLogged += count
 		}
-		
+
 		if totalLogged == 0 {
 			t.Error("No structured messages were logged")
 		}
-		
+
 		t.Logf("Logged %d structured messages", totalLogged)
 	})
 
 	t.Run("concurrent format changes", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 10
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines * 2) // logging + format changing
-		
+
 		// Concurrent logging
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -338,7 +338,7 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent format changes
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -353,9 +353,9 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
@@ -364,23 +364,23 @@ func TestConcurrentOperations(t *testing.T) {
 	t.Run("stress test with channel overflow", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		config := DefaultConfig()
 		config.Path = logFile
 		config.ChannelSize = 10 // Very small channel to force overflow
-		
+
 		logger, err := NewWithConfig(config)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 50
 		const messagesPerGoroutine = 100
-		
+
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines)
-		
+
 		// Flood the logger with messages
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -390,21 +390,21 @@ func TestConcurrentOperations(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		wg.Wait()
-		
+
 		// Give time for processing
 		time.Sleep(500 * time.Millisecond)
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
-		
+
 		// Check metrics for dropped messages
 		metrics := logger.GetMetrics()
-		t.Logf("Stress test results - Dropped: %d, Queue utilization: %.2f", 
+		t.Logf("Stress test results - Dropped: %d, Queue utilization: %.2f",
 			metrics.MessagesDropped, metrics.QueueUtilization)
-		
+
 		// Should have dropped some messages due to small channel
 		if metrics.MessagesDropped == 0 {
 			t.Log("Note: No messages were dropped - consider reducing channel size further for this test")
@@ -421,17 +421,17 @@ func TestRaceConditions(t *testing.T) {
 	t.Run("concurrent map access", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		const numGoroutines = 20
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines * 3)
-		
+
 		// Concurrent logging (writes to metrics maps)
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -450,7 +450,7 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent metrics reading
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -460,7 +460,7 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		// Concurrent metrics resetting
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -471,9 +471,9 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
@@ -482,13 +482,13 @@ func TestRaceConditions(t *testing.T) {
 	t.Run("concurrent destination access", func(t *testing.T) {
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger: %v", err)
 		}
 		defer logger.Close()
-		
+
 		// Add some destinations first
 		for i := 0; i < 5; i++ {
 			destFile := filepath.Join(tempDir, fmt.Sprintf("dest_%d.log", i))
@@ -497,11 +497,11 @@ func TestRaceConditions(t *testing.T) {
 				t.Fatalf("Failed to add destination %s: %v", destFile, err)
 			}
 		}
-		
+
 		const numGoroutines = 10
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines * 3)
-		
+
 		// Concurrent logging to all destinations
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -511,7 +511,7 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent destination enable/disable
 		for i := 0; i < numGoroutines; i++ {
 			go func(id int) {
@@ -527,7 +527,7 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}(i)
 		}
-		
+
 		// Concurrent flush operations
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
@@ -538,9 +538,9 @@ func TestRaceConditions(t *testing.T) {
 				}
 			}()
 		}
-		
+
 		wg.Wait()
-		
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}

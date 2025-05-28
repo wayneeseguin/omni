@@ -8,44 +8,44 @@ import (
 // LoggerMetrics contains runtime metrics for the logger
 type LoggerMetrics struct {
 	// Message counts by level
-	MessagesLogged map[int]uint64 `json:"messages_logged"`
+	MessagesLogged  map[int]uint64 `json:"messages_logged"`
 	MessagesDropped uint64         `json:"messages_dropped"`
-	
+
 	// Queue metrics
-	QueueDepth      int     `json:"queue_depth"`
-	QueueCapacity   int     `json:"queue_capacity"`
+	QueueDepth       int     `json:"queue_depth"`
+	QueueCapacity    int     `json:"queue_capacity"`
 	QueueUtilization float64 `json:"queue_utilization"`
-	
+
 	// File operations
 	RotationCount    uint64 `json:"rotation_count"`
 	CompressionCount uint64 `json:"compression_count"`
 	BytesWritten     uint64 `json:"bytes_written"`
-	
+
 	// Error metrics
-	ErrorCount       uint64            `json:"error_count"`
-	ErrorsBySource   map[string]uint64 `json:"errors_by_source"`
-	LastError        *LogError         `json:"last_error,omitempty"`
-	LastErrorTime    *time.Time        `json:"last_error_time,omitempty"`
-	
+	ErrorCount     uint64            `json:"error_count"`
+	ErrorsBySource map[string]uint64 `json:"errors_by_source"`
+	LastError      *LogError         `json:"last_error,omitempty"`
+	LastErrorTime  *time.Time        `json:"last_error_time,omitempty"`
+
 	// Performance metrics
 	AverageWriteTime time.Duration `json:"average_write_time"`
 	MaxWriteTime     time.Duration `json:"max_write_time"`
-	
+
 	// Destination metrics
-	DestinationCount int                       `json:"destination_count"`
-	Destinations     []DestinationMetrics      `json:"destinations"`
+	DestinationCount int                  `json:"destination_count"`
+	Destinations     []DestinationMetrics `json:"destinations"`
 }
 
 // DestinationMetrics contains metrics for a single destination
 type DestinationMetrics struct {
-	Name         string        `json:"name"`
-	Type         string        `json:"type"`
-	Enabled      bool          `json:"enabled"`
-	BytesWritten uint64        `json:"bytes_written"`
-	CurrentSize  int64         `json:"current_size"`
-	Rotations    uint64        `json:"rotations"`
-	Errors       uint64        `json:"errors"`
-	LastWrite    time.Time     `json:"last_write"`
+	Name           string        `json:"name"`
+	Type           string        `json:"type"`
+	Enabled        bool          `json:"enabled"`
+	BytesWritten   uint64        `json:"bytes_written"`
+	CurrentSize    int64         `json:"current_size"`
+	Rotations      uint64        `json:"rotations"`
+	Errors         uint64        `json:"errors"`
+	LastWrite      time.Time     `json:"last_write"`
 	AverageLatency time.Duration `json:"average_latency"`
 }
 
@@ -60,7 +60,7 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 	lastError := f.lastError
 	lastErrorTime := f.lastErrorTime
 	f.mu.Unlock()
-	
+
 	metrics := LoggerMetrics{
 		MessagesLogged:   make(map[int]uint64),
 		MessagesDropped:  atomic.LoadUint64(&f.messagesDropped),
@@ -73,12 +73,12 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 		ErrorsBySource:   make(map[string]uint64),
 		DestinationCount: len(destinations),
 	}
-	
+
 	// Calculate queue utilization
 	if metrics.QueueCapacity > 0 {
 		metrics.QueueUtilization = float64(metrics.QueueDepth) / float64(metrics.QueueCapacity)
 	}
-	
+
 	// Copy message counts by level
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
 		level := key.(int)
@@ -86,7 +86,7 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 		metrics.MessagesLogged[level] = count
 		return true
 	})
-	
+
 	// Copy error counts by source
 	f.errorsBySource.Range(func(key, value interface{}) bool {
 		source := key.(string)
@@ -94,18 +94,18 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 		metrics.ErrorsBySource[source] = count
 		return true
 	})
-	
+
 	// Get last error info
 	if lastError != nil {
 		metrics.LastError = lastError
 		metrics.LastErrorTime = lastErrorTime
 	}
-	
+
 	// Get performance metrics
-	metrics.AverageWriteTime = time.Duration(atomic.LoadInt64(&f.totalWriteTime)) / 
+	metrics.AverageWriteTime = time.Duration(atomic.LoadInt64(&f.totalWriteTime)) /
 		time.Duration(atomic.LoadUint64(&f.writeCount)+1) // +1 to avoid division by zero
 	metrics.MaxWriteTime = time.Duration(atomic.LoadInt64(&f.maxWriteTime))
-	
+
 	// Collect destination metrics (no f.mu lock held)
 	metrics.Destinations = make([]DestinationMetrics, 0, len(destinations))
 	for _, dest := range destinations {
@@ -118,10 +118,10 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 			Rotations:    atomic.LoadUint64(&dest.rotations),
 			Errors:       atomic.LoadUint64(&dest.errors),
 			LastWrite:    dest.lastWrite,
-			AverageLatency: time.Duration(atomic.LoadInt64(&dest.totalLatency)) / 
+			AverageLatency: time.Duration(atomic.LoadInt64(&dest.totalLatency)) /
 				time.Duration(atomic.LoadUint64(&dest.writeCount)+1),
 		}
-		
+
 		// Determine type
 		switch dest.Backend {
 		case BackendFlock:
@@ -131,11 +131,11 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 		default:
 			dm.Type = "custom"
 		}
-		
+
 		dest.mu.Unlock()
 		metrics.Destinations = append(metrics.Destinations, dm)
 	}
-	
+
 	return metrics
 }
 
@@ -145,18 +145,18 @@ func (f *FlexLog) ResetMetrics() {
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
-	
+
 	// Clear last error
 	f.lastError = nil
 	f.lastErrorTime = nil
 	f.mu.Unlock()
-	
+
 	// Reset message counts
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
 		f.messagesByLevel.Store(key, uint64(0))
 		return true
 	})
-	
+
 	// Reset other counters
 	atomic.StoreUint64(&f.messagesDropped, 0)
 	atomic.StoreUint64(&f.rotationCount, 0)
@@ -166,13 +166,13 @@ func (f *FlexLog) ResetMetrics() {
 	atomic.StoreUint64(&f.writeCount, 0)
 	atomic.StoreInt64(&f.totalWriteTime, 0)
 	atomic.StoreInt64(&f.maxWriteTime, 0)
-	
+
 	// Reset error counts by source
 	f.errorsBySource.Range(func(key, value interface{}) bool {
 		f.errorsBySource.Store(key, uint64(0))
 		return true
 	})
-	
+
 	// Reset destination metrics (no f.mu lock held)
 	for _, dest := range destinations {
 		dest.mu.Lock()
@@ -221,7 +221,7 @@ func (f *FlexLog) trackWrite(bytes int64, duration time.Duration) {
 	atomic.AddUint64(&f.bytesWritten, uint64(bytes))
 	atomic.AddUint64(&f.writeCount, 1)
 	atomic.AddInt64(&f.totalWriteTime, int64(duration))
-	
+
 	// Update max write time
 	for {
 		oldMax := atomic.LoadInt64(&f.maxWriteTime)

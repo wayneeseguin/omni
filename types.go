@@ -90,12 +90,12 @@ type Destination struct {
 	SyslogConn *syslogConn // Connection for syslog backend
 	Enabled    bool        // Whether this destination is enabled
 	mu         sync.Mutex  // Protects concurrent access to Writer
-	
+
 	// Batching configuration
 	flushInterval time.Duration // How often to flush the buffer
 	flushTimer    *time.Timer   // Timer for periodic flushing
 	flushSize     int           // Flush when buffer reaches this size
-	
+
 	// Metrics
 	bytesWritten uint64
 	rotations    uint64
@@ -186,15 +186,15 @@ type FlexLog struct {
 	// Formatting
 	format     int
 	formatOpts FormatOptions
-	
+
 	// Error handling
-	errorHandler ErrorHandler
-	errorChan    chan LogError
-	errorCount   uint64
+	errorHandler   ErrorHandler
+	errorChan      chan LogError
+	errorCount     uint64
 	errorsBySource sync.Map // map[string]uint64 - thread-safe map for error counts by source
-	lastError    *LogError
-	lastErrorTime *time.Time
-	
+	lastError      *LogError
+	lastErrorTime  *time.Time
+
 	// Metrics
 	messagesByLevel  sync.Map // map[int]uint64 - thread-safe map for message counts by level
 	messagesDropped  uint64
@@ -204,18 +204,18 @@ type FlexLog struct {
 	writeCount       uint64
 	totalWriteTime   int64
 	maxWriteTime     int64
-	
+
 	// Redaction
-	redactor         *Redactor
+	redactor          *Redactor
 	redactionPatterns []string
 	redactionReplace  string
-	
+
 	// Performance
-	lazyFormatting   bool
-	
+	lazyFormatting bool
+
 	// Recovery
-	recoveryManager  *RecoveryManager
-	
-	closed           bool
-	workerStarted    bool // Track if message dispatcher was started
+	recoveryManager *RecoveryManager
+
+	closed        bool
+	workerStarted bool // Track if message dispatcher was started
 }

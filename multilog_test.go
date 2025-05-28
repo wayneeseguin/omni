@@ -145,7 +145,7 @@ func TestAddDestinationWithBackend(t *testing.T) {
 
 	// Log a message
 	logger.Info("Test message to custom destination")
-	
+
 	// Sync to ensure message is written
 	if err := logger.Sync(); err != nil {
 		t.Errorf("Failed to sync: %v", err)
@@ -227,7 +227,7 @@ func TestEnableDisableDestination(t *testing.T) {
 
 	// Log a message
 	logger.Info("This should only go to primary")
-	
+
 	// Sync to ensure message is written
 	if err := logger.Sync(); err != nil {
 		t.Errorf("Failed to sync: %v", err)
@@ -267,7 +267,7 @@ func TestEnableDisableDestination(t *testing.T) {
 
 	// Log another message
 	logger.Info("This should go to both")
-	
+
 	// Sync to ensure message is written
 	if err := logger.Sync(); err != nil {
 		t.Errorf("Failed to sync: %v", err)
@@ -549,7 +549,7 @@ func TestSetLogPath(t *testing.T) {
 	if !strings.Contains(string(initialContent), "Initial message") {
 		t.Errorf("Expected initial message not found in initial log")
 	}
-	
+
 	// Initial file should not have the new message
 	if strings.Contains(string(initialContent), "New message") {
 		t.Errorf("New message found in initial log when it shouldn't be")
@@ -559,7 +559,7 @@ func TestSetLogPath(t *testing.T) {
 	if !strings.Contains(string(newContent), "New message") {
 		t.Errorf("Expected new message not found in new log")
 	}
-	
+
 	// New file should not have the initial message
 	if strings.Contains(string(newContent), "Initial message") {
 		t.Errorf("Initial message found in new log when it shouldn't be")
@@ -567,30 +567,30 @@ func TestSetLogPath(t *testing.T) {
 
 	// Test with moving the file
 	thirdPath := filepath.Join(tempDir, "moved.log")
-	
+
 	// Write another message to the current log
 	logger.Info("Another message")
 	logger.Sync() // Ensure message is written before moving
-	
+
 	// Change the path with move=true
 	if err := logger.SetLogPath(thirdPath, true); err != nil {
 		t.Fatalf("Failed to change log path with move: %v", err)
 	}
-	
+
 	// Write to the new location
 	logger.Info("After move message")
 	logger.Sync() // Use Sync to ensure message is processed
-	
+
 	// Check that new file location has both messages
 	thirdContent, err := os.ReadFile(thirdPath)
 	if err != nil {
 		t.Fatalf("Failed to read third log: %v", err)
 	}
-	
+
 	if !strings.Contains(string(thirdContent), "Another message") {
 		t.Errorf("Expected 'Another message' not found in moved log")
 	}
-	
+
 	if !strings.Contains(string(thirdContent), "After move message") {
 		t.Errorf("Expected 'After move message' not found in moved log")
 	}

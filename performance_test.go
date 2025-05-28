@@ -10,20 +10,20 @@ import (
 
 func TestBufferPool(t *testing.T) {
 	pool := NewBufferPool()
-	
+
 	// Test getting and putting buffers
 	buf1 := pool.Get()
 	buf1.WriteString("test data")
-	
+
 	// Return buffer to pool
 	pool.Put(buf1)
-	
+
 	// Get another buffer - should be the same one, reset
 	buf2 := pool.Get()
 	if buf2.Len() != 0 {
 		t.Error("Expected buffer to be reset")
 	}
-	
+
 	// Test concurrent access
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
@@ -40,15 +40,15 @@ func TestBufferPool(t *testing.T) {
 
 func TestBufferPoolSizeLimit(t *testing.T) {
 	pool := NewBufferPool()
-	
+
 	// Create a large buffer
 	buf := pool.Get()
 	largeData := make([]byte, 5000) // Larger than 4096 limit
 	buf.Write(largeData)
-	
+
 	// Put it back
 	pool.Put(buf)
-	
+
 	// Get a new buffer - should not be the same one due to size limit
 	buf2 := pool.Get()
 	if buf2.Cap() > 4096 {
@@ -59,23 +59,23 @@ func TestBufferPoolSizeLimit(t *testing.T) {
 func TestLazyFormatting(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
-	
+
 	logger, err := New(logFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-	
+
 	// Enable lazy formatting
 	logger.EnableLazyFormatting()
-	
+
 	if !logger.IsLazyFormattingEnabled() {
 		t.Error("Expected lazy formatting to be enabled")
 	}
-	
+
 	// Disable lazy formatting
 	logger.DisableLazyFormatting()
-	
+
 	if logger.IsLazyFormattingEnabled() {
 		t.Error("Expected lazy formatting to be disabled")
 	}
@@ -112,7 +112,7 @@ func TestLazyMessage(t *testing.T) {
 			want: "Entry message",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// First call should format
@@ -120,7 +120,7 @@ func TestLazyMessage(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)
 			}
-			
+
 			// Second call should return cached value
 			got2 := tt.msg.String()
 			if got2 != got {
@@ -133,45 +133,45 @@ func TestLazyMessage(t *testing.T) {
 func TestPerformanceConfig(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
-	
+
 	config := &Config{
 		Path:             logFile,
 		EnableBufferPool: true,
 		EnableLazyFormat: true,
 	}
-	
+
 	logger, err := NewWithConfig(config)
 	if err != nil {
 		t.Fatalf("Failed to create logger with config: %v", err)
 	}
 	defer logger.Close()
-	
+
 	if !logger.IsLazyFormattingEnabled() {
 		t.Error("Expected lazy formatting to be enabled from config")
 	}
-	
+
 	// Log some messages
 	logger.Info("test message %d", 1)
 	logger.Debug("debug message %s", "test")
-	
+
 	time.Sleep(100 * time.Millisecond)
 }
 
 func BenchmarkWithBufferPool(b *testing.B) {
 	dir := b.TempDir()
 	logFile := filepath.Join(dir, "bench.log")
-	
+
 	config := &Config{
 		Path:             logFile,
 		EnableBufferPool: true,
 	}
-	
+
 	logger, err := NewWithConfig(config)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		logger.Info("benchmark message %d with some extra text", i)
@@ -181,14 +181,14 @@ func BenchmarkWithBufferPool(b *testing.B) {
 func BenchmarkWithoutBufferPool(b *testing.B) {
 	dir := b.TempDir()
 	logFile := filepath.Join(dir, "bench.log")
-	
+
 	// Create logger without buffer pool
 	logger, err := New(logFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		logger.Info("benchmark message %d with some extra text", i)
@@ -206,7 +206,7 @@ func BenchmarkBufferPoolVsBytes(b *testing.B) {
 			pool.Put(buf)
 		}
 	})
-	
+
 	b.Run("WithoutPool", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

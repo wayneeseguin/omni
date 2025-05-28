@@ -116,11 +116,11 @@ func TestNewSyslog(t *testing.T) {
 			// Note: This will fail to connect in most test environments
 			// We're testing the URI parsing and initialization logic
 			logger, err := flexlog.NewSyslog(tt.address, tt.tag)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
-			
+
 			// Clean up if logger was created
 			if logger != nil {
 				logger.CloseAll()
@@ -413,7 +413,7 @@ func TestSyslogWithMultipleDestinations(t *testing.T) {
 
 	// Try to add a syslog destination (may fail if no syslog available)
 	err = logger.AddDestinationWithBackend("syslog://localhost:514", flexlog.BackendSyslog)
-	
+
 	// Log a message regardless of whether syslog was added
 	logger.Info("Test message to multiple destinations")
 	logger.Sync()
@@ -446,7 +446,7 @@ func TestSyslogErrorHandling(t *testing.T) {
 	logger2, err2 := flexlog.NewSyslog("255.255.255.255:514", "test")
 	if logger2 != nil {
 		defer logger2.CloseAll()
-		
+
 		// Should be able to log even if connection fails
 		// (messages might be dropped or queued depending on implementation)
 		logger2.Info("Test message to unreachable syslog")

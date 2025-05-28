@@ -67,7 +67,7 @@ func main() {
 				"item_id":     i,
 				"duration_ms": 150,
 			})
-			
+
 			errorLogger.WarnWithFields("Slow processing detected", map[string]interface{}{
 				"item_id":     i,
 				"duration_ms": 150,
@@ -82,7 +82,7 @@ func main() {
 				"error":         "database timeout",
 				"retry_attempt": 1,
 			})
-			
+
 			errorLogger.ErrorWithFields("Failed to process item", map[string]interface{}{
 				"item_id":       i,
 				"error":         "database timeout",

@@ -55,12 +55,12 @@ func DefaultRecoveryConfig() *RecoveryConfig {
 
 // RecoveryManager handles error recovery for the logger
 type RecoveryManager struct {
-	config    *RecoveryConfig
-	buffer    []LogMessage
-	bufferMu  sync.Mutex
-	fallback  *os.File
-	retryMap  map[string]int // Track retry counts by destination
-	retryMu   sync.Mutex
+	config   *RecoveryConfig
+	buffer   []LogMessage
+	bufferMu sync.Mutex
+	fallback *os.File
+	retryMap map[string]int // Track retry counts by destination
+	retryMu  sync.Mutex
 }
 
 // NewRecoveryManager creates a new recovery manager
@@ -79,7 +79,7 @@ func NewRecoveryManager(config *RecoveryConfig) *RecoveryManager {
 func (rm *RecoveryManager) HandleError(f *FlexLog, err error, msg LogMessage, dest *Destination) {
 	// Determine recovery strategy based on error type
 	strategy := rm.determineStrategy(err)
-	
+
 	switch strategy {
 	case RecoveryRetry:
 		rm.retryOperation(f, err, msg, dest)
@@ -98,12 +98,12 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 	if err == nil {
 		return RecoveryDrop
 	}
-	
+
 	// Check if error is retryable
 	if IsRetryable(err) {
 		return RecoveryRetry
 	}
-	
+
 	// Check for specific error types
 	if flexErr, ok := err.(*FlexLogError); ok {
 		switch flexErr.Code {
@@ -115,7 +115,7 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 			return RecoveryDrop
 		}
 	}
-	
+
 	// Default to configured strategy
 	return rm.config.Strategy
 }
@@ -123,12 +123,12 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 // retryOperation retries an operation with exponential backoff
 func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage, dest *Destination) {
 	destName := dest.Name
-	
+
 	// Get current retry count
 	rm.retryMu.Lock()
 	retryCount := rm.retryMap[destName]
 	rm.retryMu.Unlock()
-	
+
 	if retryCount >= rm.config.MaxRetries {
 		// Max retries exceeded, fallback or drop
 		if rm.config.Strategy == RecoveryFallback {
@@ -136,14 +136,14 @@ func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage,
 		} else {
 			f.trackMessageDropped()
 		}
-		
+
 		// Reset retry count
 		rm.retryMu.Lock()
 		delete(rm.retryMap, destName)
 		rm.retryMu.Unlock()
 		return
 	}
-	
+
 	// Calculate delay with exponential backoff
 	delay := rm.config.RetryDelay
 	for i := 0; i < retryCount; i++ {
@@ -153,14 +153,14 @@ func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage,
 			break
 		}
 	}
-	
+
 	// Schedule retry
 	time.AfterFunc(delay, func() {
 		// Increment retry count
 		rm.retryMu.Lock()
 		rm.retryMap[destName] = retryCount + 1
 		rm.retryMu.Unlock()
-		
+
 		// Retry the operation
 		f.processMessage(msg, dest)
 	})
@@ -177,7 +177,7 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 			f.trackMessageDropped()
 			return
 		}
-		
+
 		// Open fallback file
 		file, err := os.OpenFile(rm.config.FallbackPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
@@ -187,7 +187,7 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 		}
 		rm.fallback = file
 	}
-	
+
 	// Format and write message
 	var entry string
 	if msg.Entry != nil {
@@ -196,11 +196,11 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 	} else {
 		entry = fmt.Sprintf(msg.Format, msg.Args...)
 	}
-	
+
 	// Write to fallback with timestamp
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
 	fallbackEntry := fmt.Sprintf("[%s] [FALLBACK] %s\n", timestamp, entry)
-	
+
 	if _, err := rm.fallback.WriteString(fallbackEntry); err != nil {
 		f.logError("recovery", "", "Failed to write to fallback", err, ErrorLevelHigh)
 		f.trackMessageDropped()
@@ -211,13 +211,13 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 func (rm *RecoveryManager) bufferMessage(msg LogMessage) {
 	rm.bufferMu.Lock()
 	defer rm.bufferMu.Unlock()
-	
+
 	// Check buffer capacity
 	if len(rm.buffer) >= rm.config.BufferSize {
 		// Buffer full, drop oldest message
 		rm.buffer = rm.buffer[1:]
 	}
-	
+
 	rm.buffer = append(rm.buffer, msg)
 }
 
@@ -228,7 +228,7 @@ func (rm *RecoveryManager) FlushBuffer(f *FlexLog) {
 	copy(messages, rm.buffer)
 	rm.buffer = rm.buffer[:0] // Clear buffer
 	rm.bufferMu.Unlock()
-	
+
 	// Try to process buffered messages
 	for _, msg := range messages {
 		select {
@@ -253,12 +253,12 @@ func (rm *RecoveryManager) Close() error {
 func (f *FlexLog) SetRecoveryConfig(config *RecoveryConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Close existing recovery manager if any
 	if f.recoveryManager != nil {
 		f.recoveryManager.Close()
 	}
-	
+
 	f.recoveryManager = NewRecoveryManager(config)
 }
 
@@ -269,7 +269,7 @@ func (f *FlexLog) RecoverFromError(err error, msg LogMessage, dest *Destination)
 		f.trackMessageDropped()
 		return
 	}
-	
+
 	f.recoveryManager.HandleError(f, err, msg, dest)
 }
 

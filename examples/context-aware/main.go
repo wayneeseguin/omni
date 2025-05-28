@@ -35,7 +35,7 @@ func main() {
 func handleRequest(logger *flexlog.FlexLog, requestID string) {
 	// Create context with request ID
 	ctx := context.WithValue(context.Background(), RequestIDKey{}, requestID)
-	
+
 	// Add timeout to context
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -110,7 +110,7 @@ func handleRequest(logger *flexlog.FlexLog, requestID string) {
 
 func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
 	reqID := getRequestID(ctx)
-	
+
 	logger.TraceWithFields("Database query starting", map[string]interface{}{
 		"request_id": reqID,
 		"operation":  "fetchUser",
@@ -120,7 +120,7 @@ func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
 	logger.DebugWithFields("Fetching user from database", map[string]interface{}{
 		"request_id": reqID,
 	})
-	
+
 	// Simulate database query
 	select {
 	case <-time.After(20 * time.Millisecond):
@@ -128,7 +128,7 @@ func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
 			"user_id":    12345,
 			"request_id": reqID,
 		})
-		
+
 		logger.TraceWithFields("Database query completed", map[string]interface{}{
 			"request_id": reqID,
 			"operation":  "fetchUser",
@@ -147,7 +147,7 @@ func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
 
 func validatePermissions(ctx context.Context, logger *flexlog.FlexLog) error {
 	reqID := getRequestID(ctx)
-	
+
 	logger.TraceWithFields("Permission validation starting", map[string]interface{}{
 		"request_id": reqID,
 		"operation":  "validatePermissions",
@@ -156,7 +156,7 @@ func validatePermissions(ctx context.Context, logger *flexlog.FlexLog) error {
 	logger.DebugWithFields("Validating user permissions", map[string]interface{}{
 		"request_id": reqID,
 	})
-	
+
 	// Simulate permission check
 	select {
 	case <-time.After(10 * time.Millisecond):
@@ -164,7 +164,7 @@ func validatePermissions(ctx context.Context, logger *flexlog.FlexLog) error {
 			"role":       "admin",
 			"request_id": reqID,
 		})
-		
+
 		logger.TraceWithFields("Permission validation completed", map[string]interface{}{
 			"request_id": reqID,
 			"operation":  "validatePermissions",

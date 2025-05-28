@@ -30,7 +30,7 @@ func main() {
 	logger.Tracef("Entering authentication flow for user: %s", username)
 	logger.Debugf("Processing login for user: %s", username)
 	logger.Infof("User %s logged in", username)
-	
+
 	// Structured logging with fields
 	logger.TraceWithFields("Function entry", map[string]interface{}{
 		"function": "processLogin",

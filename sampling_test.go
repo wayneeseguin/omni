@@ -84,16 +84,16 @@ func TestSetSamplingRandom(t *testing.T) {
 		t.Errorf("Expected %d-%d messages to be logged, got %d", expectedMin, expectedMax, loggedCount)
 	}
 
-	t.Logf("Random sampling at 50%%: logged %d/%d messages (%.1f%%)", 
+	t.Logf("Random sampling at 50%%: logged %d/%d messages (%.1f%%)",
 		loggedCount, totalMessages, float64(loggedCount)/float64(totalMessages)*100)
 }
 
 func TestSetSamplingRandomBoundaries(t *testing.T) {
 	tests := []struct {
-		name         string
-		rate         float64
-		expectAll    bool
-		expectNone   bool
+		name       string
+		rate       float64
+		expectAll  bool
+		expectNone bool
 	}{
 		{"rate 0", 0.0, false, true},
 		{"rate 1", 1.0, true, false},
@@ -149,7 +149,7 @@ func TestSetSamplingConsistent(t *testing.T) {
 
 	// Log the same messages multiple times
 	messages := []string{"message A", "message B", "message C", "message D", "message E"}
-	
+
 	// First pass - record which messages are logged
 	firstPassLogged := make(map[string]bool)
 	for _, msg := range messages {

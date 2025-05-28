@@ -11,7 +11,7 @@ type ErrorCode int
 const (
 	// ErrCodeUnknown represents an unknown error
 	ErrCodeUnknown ErrorCode = iota
-	
+
 	// File operation errors
 	ErrCodeFileOpen
 	ErrCodeFileClose
@@ -21,29 +21,29 @@ const (
 	ErrCodeFileLock
 	ErrCodeFileUnlock
 	ErrCodeFileStat
-	
+
 	// Destination errors
 	ErrCodeDestinationNotFound
 	ErrCodeDestinationDisabled
 	ErrCodeDestinationNil
-	
+
 	// Channel errors
 	ErrCodeChannelFull
 	ErrCodeChannelClosed
-	
+
 	// Configuration errors
 	ErrCodeInvalidConfig
 	ErrCodeInvalidLevel
 	ErrCodeInvalidFormat
-	
+
 	// Compression errors
 	ErrCodeCompressionFailed
 	ErrCodeCompressionQueueFull
-	
+
 	// Syslog errors
 	ErrCodeSyslogConnection
 	ErrCodeSyslogWrite
-	
+
 	// Shutdown errors
 	ErrCodeShutdownTimeout
 	ErrCodeAlreadyClosed
@@ -52,11 +52,11 @@ const (
 // FlexLogError represents a structured error with context
 type FlexLogError struct {
 	Code        ErrorCode
-	Op          string    // Operation that failed (e.g., "rotate", "write", "compress")
-	Path        string    // File path or destination name
-	Err         error     // Underlying error
-	Time        time.Time // When the error occurred
-	Destination string    // Destination name if applicable
+	Op          string                 // Operation that failed (e.g., "rotate", "write", "compress")
+	Path        string                 // File path or destination name
+	Err         error                  // Underlying error
+	Time        time.Time              // When the error occurred
+	Destination string                 // Destination name if applicable
 	Context     map[string]interface{} // Additional context
 }
 
@@ -87,12 +87,12 @@ func (e *FlexLogError) Is(target error) bool {
 	if target == nil {
 		return false
 	}
-	
+
 	// Check if target is also a FlexLogError
 	if targetErr, ok := target.(*FlexLogError); ok {
 		return e.Code == targetErr.Code
 	}
-	
+
 	// Check underlying error
 	return e.Err != nil && e.Err == target
 }
@@ -146,8 +146,8 @@ func ErrFileRotate(path string, err error) *FlexLogError {
 	return NewFlexLogError(ErrCodeFileRotate, "rotate", path, err)
 }
 
-// ErrChannelFull creates a channel full error
-func ErrChannelFull(op string) *FlexLogError {
+// NewChannelFullError creates a channel full error
+func NewChannelFullError(op string) *FlexLogError {
 	return NewFlexLogError(ErrCodeChannelFull, op, "", fmt.Errorf("message channel full"))
 }
 
@@ -168,29 +168,29 @@ func IsRetryable(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	// Check if it's a FlexLogError
 	if flexErr, ok := err.(*FlexLogError); ok {
 		switch flexErr.Code {
 		case ErrCodeChannelFull,
-		     ErrCodeCompressionQueueFull,
-		     ErrCodeFileLock:
+			ErrCodeCompressionQueueFull,
+			ErrCodeFileLock:
 			return true
 		}
 	}
-	
+
 	// Check for specific error strings that indicate retryable conditions
 	errStr := err.Error()
 	return contains(errStr, "resource temporarily unavailable") ||
-	       contains(errStr, "too many open files") ||
-	       contains(errStr, "no space left on device")
+		contains(errStr, "too many open files") ||
+		contains(errStr, "no space left on device")
 }
 
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-	       (s == substr || len(s) > 0 && len(substr) > 0 && 
-	        containsHelper(s, substr))
+	return len(s) >= len(substr) &&
+		(s == substr || len(s) > 0 && len(substr) > 0 &&
+			containsHelper(s, substr))
 }
 
 // containsHelper is a helper function for case-insensitive contains

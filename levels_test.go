@@ -246,16 +246,16 @@ func TestLevelFiltering(t *testing.T) {
 func TestChannelFullFallback(t *testing.T) {
 	// Test the behavior when the message channel is full
 	// We'll create a scenario where the channel cannot accept messages
-	
+
 	// Create a minimal logger without starting it
 	logger := &FlexLog{
-		level:           LevelDebug,
-		msgChan:         make(chan LogMessage, 1), // Small channel
-		closed:          false,
+		level:   LevelDebug,
+		msgChan: make(chan LogMessage, 1), // Small channel
+		closed:  false,
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
-		errorHandler:    StderrErrorHandler,
+		errorHandler: StderrErrorHandler,
 	}
-	
+
 	// Fill the channel
 	select {
 	case logger.msgChan <- LogMessage{Format: "blocking message"}:
@@ -263,23 +263,23 @@ func TestChannelFullFallback(t *testing.T) {
 	default:
 		t.Fatal("Failed to send blocking message")
 	}
-	
+
 	// Now try to send another message - it should fail and trigger fallback
 	// Since no worker is processing messages, the channel stays full
 	logger.Debug("this should be dropped")
-	
+
 	// Check that the message was dropped
 	dropped := logger.messagesDropped
 	if dropped == 0 {
 		t.Error("Expected message to be dropped when channel is full")
 	}
-	
+
 	// Also verify through metrics
 	metrics := logger.GetMetrics()
 	t.Logf("Messages dropped: %d", metrics.MessagesDropped)
 	t.Logf("Queue depth: %d", metrics.QueueDepth)
 	t.Logf("Queue capacity: %d", metrics.QueueCapacity)
-	
+
 	if metrics.MessagesDropped == 0 {
 		t.Error("Expected message to be dropped in metrics when channel is full")
 	}

@@ -168,7 +168,7 @@ func NewRedactor(patterns []string, replace string) (*Redactor, error) {
 		}
 		compiled = append(compiled, re)
 	}
-	
+
 	return &Redactor{
 		patterns: compiled,
 		replace:  replace,
@@ -190,12 +190,12 @@ func (f *FlexLog) SetRedaction(patterns []string, replace string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	f.mu.Lock()
 	f.redactor = redactor
 	f.redactionPatterns = patterns
 	f.redactionReplace = replace
 	f.mu.Unlock()
-	
+
 	return nil
 }

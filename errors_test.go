@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
 	pkgErrors "github.com/pkg/errors"
+	"github.com/wayneeseguin/flexlog"
 )
 
 func TestSeverityToString(t *testing.T) {
@@ -271,7 +271,7 @@ func TestIsErrorType(t *testing.T) {
 
 	// Create a sentinel error
 	var ErrSentinel = errors.New("sentinel error")
-	
+
 	// Test direct comparison
 	if !logger.IsErrorType(ErrSentinel, ErrSentinel) {
 		t.Error("Should match same error")

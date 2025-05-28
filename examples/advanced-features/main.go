@@ -51,20 +51,20 @@ func main() {
 		if i%100 == 0 {
 			logger.Tracef("Processing batch %d/1000", i/100+1)
 		}
-		
+
 		logger.InfoWithFields("Bulk message to trigger rotation", map[string]interface{}{
 			"index":     i,
 			"timestamp": time.Now().Unix(),
 			"data":      generateRandomString(100),
 		})
-		
+
 		// Add some debug and trace messages
 		if i%50 == 0 {
 			logger.DebugWithFields("Batch checkpoint", map[string]interface{}{
-				"batch_id":    i / 50,
-				"processed":   i,
-				"remaining":   1000 - i,
-				"memory_mb":   rand.Intn(100) + 50,
+				"batch_id":  i / 50,
+				"processed": i,
+				"remaining": 1000 - i,
+				"memory_mb": rand.Intn(100) + 50,
 			})
 		}
 	}
@@ -90,14 +90,14 @@ func processRequest(userID, action string) {
 	logger.SetLevel(flexlog.LevelTrace)
 
 	logger.Tracef("Entering processRequest: user=%s, action=%s", userID, action)
-	
+
 	// Simulate request processing with detailed tracing
 	logger.TraceWithFields("Request validation", map[string]interface{}{
 		"user_id": userID,
 		"action":  action,
 		"step":    "validation",
 	})
-	
+
 	// Simulate validation
 	time.Sleep(10 * time.Millisecond)
 	logger.DebugWithFields("Validation completed", map[string]interface{}{
@@ -105,14 +105,14 @@ func processRequest(userID, action string) {
 		"valid":   true,
 		"took_ms": 10,
 	})
-	
+
 	// Simulate business logic
 	logger.TraceWithFields("Business logic processing", map[string]interface{}{
 		"user_id": userID,
 		"action":  action,
 		"step":    "business_logic",
 	})
-	
+
 	time.Sleep(50 * time.Millisecond)
 	logger.InfoWithFields("Request processed successfully", map[string]interface{}{
 		"user_id":     userID,
@@ -120,7 +120,7 @@ func processRequest(userID, action string) {
 		"duration_ms": 60,
 		"status":      "success",
 	})
-	
+
 	logger.Tracef("Exiting processRequest: user=%s, action=%s", userID, action)
 }
 

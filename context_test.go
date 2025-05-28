@@ -63,19 +63,19 @@ func TestLogWithContextTimeout(t *testing.T) {
 	// Create logger with small channel
 	tmpDir := t.TempDir()
 	logPath := tmpDir + "/test.log"
-	
+
 	// Create logger with channel size 0 to ensure blocking
 	logger := &FlexLog{
 		msgChan:       make(chan LogMessage, 0),
 		formatOptions: defaultFormatOptions(),
 		level:         LevelInfo,
 	}
-	
+
 	// Set up minimal required fields
 	logger.path = logPath
 	logger.Destinations = []*Destination{}
 
-	// Try to log with immediate timeout 
+	// Try to log with immediate timeout
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 

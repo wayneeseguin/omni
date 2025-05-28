@@ -179,7 +179,7 @@ func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 		// Consider adding error reporting channel in future
 		return
 	}
-	
+
 	// Check if we should flush based on buffer size
 	f.checkFlushSize(dest)
 	dest.mu.Unlock()
@@ -198,21 +198,21 @@ func (f *FlexLog) formatMessage(level int, format string, args ...interface{}) (
 	// Get a buffer from the pool
 	buf := GetBuffer()
 	defer PutBuffer(buf)
-	
+
 	// Format timestamp
 	timestamp := time.Now().Format(f.formatOpts.TimestampFormat)
 	buf.WriteString(timestamp)
 	buf.WriteByte(' ')
-	
+
 	// Format level
 	levelStr := getLevelString(level, f.formatOpts.LevelFormat)
 	buf.WriteString(levelStr)
 	buf.WriteString(": ")
-	
+
 	// Format message
 	fmt.Fprintf(buf, format, args...)
 	buf.WriteByte('\n')
-	
+
 	// Return a copy of the bytes (the buffer will be reused)
 	result := make([]byte, buf.Len())
 	copy(result, buf.Bytes())
@@ -224,12 +224,12 @@ func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
 	// Get a buffer from the pool
 	buf := GetBuffer()
 	defer PutBuffer(buf)
-	
+
 	// Check format type
 	f.mu.Lock()
 	format := f.format
 	f.mu.Unlock()
-	
+
 	if format == FormatJSON {
 		// JSON formatting
 		encoder := json.NewEncoder(buf)
@@ -245,7 +245,7 @@ func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
 		buf.WriteString(entry.Message)
 		buf.WriteByte('\n')
 	}
-	
+
 	// Return a copy of the bytes
 	result := make([]byte, buf.Len())
 	copy(result, buf.Bytes())
@@ -314,7 +314,7 @@ func (f *FlexLog) AddDestination(uri string) error {
 //
 //	// Add a file-based destination
 //	err := logger.AddDestinationWithBackend("/var/log/app.log", flexlog.BackendFlock)
-//	
+//
 //	// Add a syslog destination
 //	err := logger.AddDestinationWithBackend("localhost:514", flexlog.BackendSyslog)
 func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
@@ -398,7 +398,7 @@ func (f *FlexLog) RemoveDestination(uri string) error {
 
 	// Clean up resources
 	var lastErr error
-	
+
 	if dest.File != nil {
 		// Flush and close file
 		if dest.Writer != nil {
@@ -520,12 +520,12 @@ func (f *FlexLog) CloseDestination(name string) error {
 
 			// Remove from the list
 			f.Destinations = append(f.Destinations[:i], f.Destinations[i+1:]...)
-			
+
 			// If this was the default destination, clear it
 			if f.defaultDest == dest {
 				f.defaultDest = nil
 			}
-			
+
 			return nil
 		}
 	}
@@ -630,11 +630,11 @@ func (f *FlexLog) Sync() error {
 	if f.IsClosed() {
 		return nil
 	}
-	
+
 	// Wait a bit for messages to be processed
 	// This is a simple implementation - a more robust one would use channels
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Now flush all destinations
 	return f.FlushAll()
 }
@@ -661,11 +661,11 @@ func (f *FlexLog) Close() error {
 // This method ensures all pending messages are processed before closing.
 //
 // The shutdown process:
-//   1. Stops accepting new messages (non-blocking sends will fail)
-//   2. Drains and processes all messages in the channel
-//   3. Flushes all destination buffers
-//   4. Closes all file handles and connections
-//   5. Stops background workers (compression, cleanup)
+//  1. Stops accepting new messages (non-blocking sends will fail)
+//  2. Drains and processes all messages in the channel
+//  3. Flushes all destination buffers
+//  4. Closes all file handles and connections
+//  5. Stops background workers (compression, cleanup)
 //
 // If the context expires before shutdown completes, resources are still
 // cleaned up in the background to prevent leaks.
@@ -689,38 +689,44 @@ func (f *FlexLog) Shutdown(ctx context.Context) error {
 		f.mu.Unlock()
 		return nil // Already closed
 	}
-	
+
 	// Mark as closing to reject new messages
 	f.closed = true
-	
+
 	// Create a done channel for shutdown completion
 	done := make(chan error, 1)
-	
-	// Get channel reference before closing
+
+	// Get channel reference and count pending messages before closing
 	msgChan := f.msgChan
+	pendingMessages := len(msgChan)
 	f.mu.Unlock()
-	
+
+	// Log shutdown initiated with pending message count
+	if pendingMessages > 0 {
+		f.logError("shutdown", "", fmt.Sprintf("Shutting down with %d pending messages", pendingMessages), nil, ErrorLevelLow)
+	}
+
 	// Start shutdown in background
 	go func() {
 		// Close the channel to stop accepting new messages
 		if msgChan != nil {
 			close(msgChan)
 		}
-		
+
 		// Wait for workers to finish processing remaining messages
 		// Only wait if the worker was actually started
 		f.mu.Lock()
 		workerStarted := f.workerStarted
 		f.mu.Unlock()
-		
+
 		if workerStarted {
 			f.workerWg.Wait()
 		}
-		
+
 		// Now perform cleanup
 		done <- f.performShutdown()
 	}()
-	
+
 	// Wait for shutdown or context timeout
 	select {
 	case err := <-done:
@@ -728,9 +734,12 @@ func (f *FlexLog) Shutdown(ctx context.Context) error {
 	case <-ctx.Done():
 		// Context expired, but ensure cleanup happens in background
 		go func() {
-			<-done // Wait for shutdown to complete
+			if err := <-done; err != nil {
+				// Log that shutdown completed after timeout
+				f.logError("shutdown", "", "Shutdown completed after context timeout", err, ErrorLevelLow)
+			}
 		}()
-		return ctx.Err()
+		return fmt.Errorf("shutdown timeout after processing %d messages: %w", pendingMessages, ctx.Err())
 	}
 }
 
@@ -739,30 +748,30 @@ func (f *FlexLog) performShutdown() error {
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
-	
+
 	// Stop background workers
 	f.stopCompressionWorkers()
 	f.stopCleanupRoutine()
 	f.mu.Unlock()
-	
+
 	// Stop all flush timers
 	f.stopFlushTimers()
-	
+
 	var lastErr error
-	
+
 	// Close all destinations
 	for _, dest := range destinations {
 		if err := f.closeDestination(dest); err != nil {
 			lastErr = err
 		}
 	}
-	
+
 	// Clear the destinations list
 	f.mu.Lock()
 	f.Destinations = nil
 	f.defaultDest = nil
 	f.mu.Unlock()
-	
+
 	return lastErr
 }
 

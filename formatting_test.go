@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/wayneeseguin/flexlog"
 )
 
@@ -18,18 +18,18 @@ func TestSetGetFormat(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
-	
+
 	// Test initial format (should be text by default)
 	if format := logger.GetFormat(); format != flexlog.FormatText {
 		t.Errorf("Expected default format %d, got %d", flexlog.FormatText, format)
 	}
-	
+
 	// Test setting JSON format
 	logger.SetFormat(flexlog.FormatJSON)
 	if format := logger.GetFormat(); format != flexlog.FormatJSON {
 		t.Errorf("Expected format %d, got %d", flexlog.FormatJSON, format)
 	}
-	
+
 	// Test setting back to text format
 	logger.SetFormat(flexlog.FormatText)
 	if format := logger.GetFormat(); format != flexlog.FormatText {
@@ -44,7 +44,7 @@ func TestSetFormatOption(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
-	
+
 	tests := []struct {
 		name        string
 		option      flexlog.FormatOption
@@ -151,11 +151,11 @@ func TestSetFormatOption(t *testing.T) {
 			errorMsg:    "unknown format option",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := logger.SetFormatOption(tt.option, tt.value)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -178,7 +178,7 @@ func TestGetFormatOption(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
-	
+
 	// Set some options
 	customFormat := "15:04:05"
 	logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, customFormat)
@@ -188,36 +188,36 @@ func TestGetFormatOption(t *testing.T) {
 	logger.SetFormatOption(flexlog.FormatOptionFieldSeparator, " | ")
 	logger.SetFormatOption(flexlog.FormatOptionTimeZone, time.UTC)
 	logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
-	
+
 	// Test getting options
 	if val := logger.GetFormatOption(flexlog.FormatOptionTimestampFormat); val != customFormat {
 		t.Errorf("Expected timestamp format %q, got %v", customFormat, val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionIncludeLevel); val != false {
 		t.Errorf("Expected include level false, got %v", val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionLevelFormat); val != flexlog.LevelFormatSymbol {
 		t.Errorf("Expected level format %v, got %v", flexlog.LevelFormatSymbol, val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionIndentJSON); val != true {
 		t.Errorf("Expected indent JSON true, got %v", val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionFieldSeparator); val != " | " {
 		t.Errorf("Expected field separator %q, got %v", " | ", val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionTimeZone); val != time.UTC {
 		t.Errorf("Expected time zone UTC, got %v", val)
 	}
-	
+
 	if val := logger.GetFormatOption(flexlog.FormatOptionIncludeTime); val != false {
 		t.Errorf("Expected include time false, got %v", val)
 	}
-	
+
 	// Test unknown option
 	if val := logger.GetFormatOption(flexlog.FormatOption(9999)); val != nil {
 		t.Errorf("Expected nil for unknown option, got %v", val)
@@ -289,7 +289,7 @@ func TestFormatOptionEffects(t *testing.T) {
 			expectPattern: `^\[\d{2}:\d{2}:\d{2}\] test message\n$`,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
@@ -297,21 +297,21 @@ func TestFormatOptionEffects(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create logger: %v", err)
 			}
-			
+
 			// Apply setup
 			tt.setupFunc(logger)
-			
+
 			// Log message
 			logger.Info(tt.logMessage)
 			logger.Sync()
 			logger.CloseAll()
-			
+
 			// Read and check
 			content, err := readFile(tempFile)
 			if err != nil {
 				t.Fatalf("Failed to read log file: %v", err)
 			}
-			
+
 			if !matchesPattern(content, tt.expectPattern) {
 				t.Errorf("Log output %q does not match expected pattern %q", content, tt.expectPattern)
 			}
@@ -325,31 +325,31 @@ func TestJSONFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	
+
 	// Set JSON format
 	logger.SetFormat(flexlog.FormatJSON)
-	
+
 	// Log a structured entry
 	logger.StructuredLog(flexlog.LevelInfo, "test message", map[string]interface{}{
 		"user":   "admin",
 		"action": "login",
 		"status": 200,
 	})
-	
+
 	logger.Sync()
 	logger.CloseAll()
-	
+
 	// Read and check
 	content, err := readFile(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to read log file: %v", err)
 	}
-	
+
 	// Should contain JSON with the message
 	if !strings.Contains(content, "test message") {
 		t.Errorf("JSON output should contain the message, got: %s", content)
 	}
-	
+
 	// Should be valid JSON structure
 	if !strings.HasPrefix(content, "{") || !strings.Contains(content, "}") {
 		t.Errorf("Output should be JSON format, got: %s", content)
@@ -362,43 +362,43 @@ func TestTimeZoneFormatting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	
+
 	// Load NYC timezone
 	nyc, err := time.LoadLocation("America/New_York")
 	if err != nil {
 		t.Skip("Could not load NYC timezone")
 	}
-	
+
 	// Set UTC timezone first
 	logger.SetFormatOption(flexlog.FormatOptionTimeZone, time.UTC)
 	logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, "15:04:05 MST")
 	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
-	
+
 	logger.Info("UTC message")
 	logger.Sync()
-	
+
 	// Switch to NYC timezone
 	logger.SetFormatOption(flexlog.FormatOptionTimeZone, nyc)
 	logger.Info("NYC message")
 	logger.Sync()
 	logger.CloseAll()
-	
+
 	// Read and check
 	content, err := readFile(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to read log file: %v", err)
 	}
-	
+
 	lines := strings.Split(strings.TrimSpace(content), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("Expected 2 log lines, got %d", len(lines))
 	}
-	
+
 	// First line should have UTC
 	if !strings.Contains(lines[0], "UTC") {
 		t.Errorf("First line should contain UTC timezone, got: %s", lines[0])
 	}
-	
+
 	// Second line should have EST or EDT
 	if !strings.Contains(lines[1], "EST") && !strings.Contains(lines[1], "EDT") {
 		t.Errorf("Second line should contain NYC timezone, got: %s", lines[1])
@@ -412,50 +412,50 @@ func TestGetFormatOptions(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
-	
+
 	// Get default options
 	opts := logger.GetFormatOptions()
-	
+
 	// Check defaults
 	if opts.TimestampFormat != "2006-01-02 15:04:05.000" {
 		t.Errorf("Default timestamp format incorrect: %s", opts.TimestampFormat)
 	}
-	
+
 	if !opts.IncludeLevel {
 		t.Error("Default should include level")
 	}
-	
+
 	if !opts.IncludeTime {
 		t.Error("Default should include time")
 	}
-	
+
 	if opts.LevelFormat != flexlog.LevelFormatNameUpper {
 		t.Errorf("Default level format should be upper case, got %v", opts.LevelFormat)
 	}
-	
+
 	if opts.IndentJSON {
 		t.Error("Default should not indent JSON")
 	}
-	
+
 	if opts.FieldSeparator != " " {
 		t.Errorf("Default field separator should be space, got %q", opts.FieldSeparator)
 	}
-	
+
 	if opts.TimeZone != time.Local {
 		t.Error("Default timezone should be Local")
 	}
-	
+
 	// Modify options
 	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
 	logger.SetFormatOption(flexlog.FormatOptionIndentJSON, true)
-	
+
 	// Get options again
 	opts2 := logger.GetFormatOptions()
-	
+
 	if opts2.IncludeLevel {
 		t.Error("Include level should be false after setting")
 	}
-	
+
 	if !opts2.IndentJSON {
 		t.Error("Indent JSON should be true after setting")
 	}
@@ -467,7 +467,7 @@ func TestStructuredLogFormatting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
-	
+
 	// Test text format with fields
 	logger.SetFormat(flexlog.FormatText)
 	logger.StructuredLog(flexlog.LevelInfo, "user action", map[string]interface{}{
@@ -475,30 +475,30 @@ func TestStructuredLogFormatting(t *testing.T) {
 		"action": "login",
 		"ip":     "192.168.1.1",
 	})
-	
+
 	logger.Sync()
 	logger.CloseAll()
-	
+
 	// Read and check
 	content, err := readFile(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to read log file: %v", err)
 	}
-	
+
 	// Should contain the message and fields
 	if !strings.Contains(content, "user action") {
 		t.Errorf("Should contain message, got: %s", content)
 	}
-	
+
 	// Should contain all fields
 	if !strings.Contains(content, "user=alice") {
 		t.Errorf("Should contain user field, got: %s", content)
 	}
-	
+
 	if !strings.Contains(content, "action=login") {
 		t.Errorf("Should contain action field, got: %s", content)
 	}
-	
+
 	if !strings.Contains(content, "ip=192.168.1.1") {
 		t.Errorf("Should contain ip field, got: %s", content)
 	}

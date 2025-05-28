@@ -119,7 +119,7 @@ func (f *FlexLog) compressFileGzip(path string) error {
 	if err != nil {
 		return fmt.Errorf("creating compressed file: %w", err)
 	}
-	
+
 	// Ensure cleanup on error
 	cleanupDst := true
 	defer func() {
@@ -147,7 +147,7 @@ func (f *FlexLog) compressFileGzip(path string) error {
 	if err = gw.Close(); err != nil {
 		return fmt.Errorf("closing gzip writer: %w", err)
 	}
-	
+
 	// Close destination file and check error
 	if err = dst.Close(); err != nil {
 		return fmt.Errorf("closing compressed file: %w", err)
@@ -160,7 +160,7 @@ func (f *FlexLog) compressFileGzip(path string) error {
 		os.Remove(compressedPath)
 		return fmt.Errorf("removing original file after compression: %w", err)
 	}
-	
+
 	// Track compression metric
 	f.trackCompression()
 

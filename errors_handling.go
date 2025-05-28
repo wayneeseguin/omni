@@ -31,12 +31,12 @@ const (
 // Error returns the string representation of the LogError
 func (le LogError) Error() string {
 	if le.Destination != "" {
-		return fmt.Sprintf("[%s] %s error in %s: %s - %v", 
-			le.Time.Format("2006-01-02 15:04:05"), 
+		return fmt.Sprintf("[%s] %s error in %s: %s - %v",
+			le.Time.Format("2006-01-02 15:04:05"),
 			le.Source, le.Destination, le.Message, le.Err)
 	}
-	return fmt.Sprintf("[%s] %s error: %s - %v", 
-		le.Time.Format("2006-01-02 15:04:05"), 
+	return fmt.Sprintf("[%s] %s error: %s - %v",
+		le.Time.Format("2006-01-02 15:04:05"),
 		le.Source, le.Message, le.Err)
 }
 
@@ -57,12 +57,12 @@ func (f *FlexLog) GetErrorCount() uint64 {
 func (f *FlexLog) GetErrors() <-chan LogError {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Create error channel if it doesn't exist
 	if f.errorChan == nil {
 		f.errorChan = make(chan LogError, 100)
 	}
-	
+
 	return f.errorChan
 }
 
@@ -70,7 +70,7 @@ func (f *FlexLog) GetErrors() <-chan LogError {
 func (f *FlexLog) logError(source string, destination string, message string, err error, level ErrorLevel) {
 	// Increment error count
 	atomic.AddUint64(&f.errorCount, 1)
-	
+
 	// Track errors by source using thread-safe sync.Map
 	val, _ := f.errorsBySource.LoadOrStore(source, uint64(0))
 	current := val.(uint64)
@@ -82,7 +82,7 @@ func (f *FlexLog) logError(source string, destination string, message string, er
 		val, _ := f.errorsBySource.Load(source)
 		current = val.(uint64)
 	}
-	
+
 	logErr := LogError{
 		Time:        time.Now(),
 		Level:       level,
@@ -91,25 +91,25 @@ func (f *FlexLog) logError(source string, destination string, message string, er
 		Err:         err,
 		Destination: destination,
 	}
-	
+
 	// Store last error
 	f.mu.Lock()
 	f.lastError = &logErr
 	now := time.Now()
 	f.lastErrorTime = &now
 	f.mu.Unlock()
-	
+
 	// Get the error handler
 	f.mu.Lock()
 	handler := f.errorHandler
 	errorChan := f.errorChan
 	f.mu.Unlock()
-	
+
 	// Call the error handler if set
 	if handler != nil {
 		handler(logErr)
 	}
-	
+
 	// Send to error channel if available (non-blocking)
 	if errorChan != nil {
 		select {

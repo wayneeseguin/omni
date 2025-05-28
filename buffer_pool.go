@@ -39,13 +39,13 @@ func (bp *BufferPool) Put(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	
+
 	// Don't pool extremely large buffers to prevent memory bloat
 	// Buffers larger than 32KB are discarded
 	if buf.Cap() > 32*1024 {
 		return
 	}
-	
+
 	buf.Reset()
 	bp.pool.Put(buf)
 }

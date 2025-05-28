@@ -46,7 +46,7 @@ func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > LevelTrace {
 		return
 	}
@@ -81,7 +81,7 @@ func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > LevelDebug {
 		return
 	}
@@ -116,7 +116,7 @@ func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > LevelInfo {
 		return
 	}
@@ -151,7 +151,7 @@ func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > LevelWarn {
 		return
 	}
@@ -186,7 +186,7 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > LevelError {
 		return
 	}
@@ -239,7 +239,7 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 	if f.IsClosed() {
 		return
 	}
-	
+
 	if f.GetLevel() > level {
 		return
 	}

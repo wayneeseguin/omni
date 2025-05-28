@@ -229,7 +229,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrChannelFull",
-			fn:       func() *FlexLogError { return ErrChannelFull("write") },
+			fn:       func() *FlexLogError { return NewChannelFullError("write") },
 			code:     ErrCodeChannelFull,
 			op:       "write",
 			path:     "",
@@ -248,7 +248,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.fn()
-			
+
 			if err.Code != tt.code {
 				t.Errorf("Code = %v, want %v", err.Code, tt.code)
 			}

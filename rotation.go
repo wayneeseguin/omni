@@ -49,12 +49,15 @@ func (f *FlexLog) rotate() error {
 	// Open new file
 	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("creating new log file: %w", err)
+		return &FileError{Op: "open", Path: f.path, Err: err}
 	}
 
-	// Update FlexLog state
+	// Create new writer - if this fails, we need to close the file
+	newWriter := bufio.NewWriterSize(file, defaultBufferSize)
+
+	// Update FlexLog state atomically
 	f.file = file
-	f.writer = bufio.NewWriterSize(file, defaultBufferSize)
+	f.writer = newWriter
 	f.currentSize = 0
 
 	// Clean up old files if needed
@@ -123,7 +126,7 @@ func (f *FlexLog) startCleanupRoutine() {
 				f.logError("cleanup", "", "Panic in cleanup routine", fmt.Errorf("%v", r), ErrorLevelHigh)
 			}
 		}()
-		
+
 		for {
 			select {
 			case <-f.cleanupTicker.C:
@@ -147,10 +150,10 @@ func (f *FlexLog) stopCleanupRoutine() {
 	if f.cleanupDone != nil {
 		close(f.cleanupDone)
 	}
-	
+
 	// Wait for the cleanup goroutine to finish
 	f.cleanupWg.Wait()
-	
+
 	f.cleanupTicker = nil
 	f.cleanupDone = nil
 }
@@ -165,12 +168,12 @@ func (f *FlexLog) cleanupOldLogs() error {
 	done := make(chan struct{})
 	timeout := time.NewTimer(5 * time.Second)
 	defer timeout.Stop()
-	
+
 	go func() {
 		f.mu.Lock()
 		close(done)
 	}()
-	
+
 	// Wait for lock with timeout
 	select {
 	case <-done:
@@ -346,7 +349,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 
 	// Rename the current file
 	if err := os.Rename(dest.URI, rotatedPath); err != nil {
-		return fmt.Errorf("renaming log file: %w", err)
+		return &FileError{Op: "rename", Path: dest.URI, Err: err}
 	}
 
 	// Open a new file
@@ -354,24 +357,31 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	if err != nil {
 		// Try to restore the original file
 		if restoreErr := os.Rename(rotatedPath, dest.URI); restoreErr != nil {
-			return fmt.Errorf("opening new log file: %w (failed to restore original: %v)", err, restoreErr)
+			return &FileError{Op: "open", Path: dest.URI,
+				Err: fmt.Errorf("%w (failed to restore original: %v)", err, restoreErr)}
 		}
-		return fmt.Errorf("opening new log file: %w", err)
+		return &FileError{Op: "open", Path: dest.URI, Err: err}
 	}
+
+	// Create new writer - ensure we close file if this somehow fails
+	newWriter := bufio.NewWriterSize(newFile, defaultBufferSize)
 
 	// Close old file handle if it exists
 	dest.mu.Lock()
 	oldFile := dest.File
 	dest.File = newFile
-	dest.Writer = bufio.NewWriterSize(newFile, defaultBufferSize)
+	dest.Writer = newWriter
 	dest.Size = 0
 	dest.mu.Unlock()
-	
+
 	// Close old file after updating references
 	if oldFile != nil {
-		oldFile.Close()
+		if err := oldFile.Close(); err != nil {
+			// Log the error but continue
+			f.logError("rotate", dest.Name, "Failed to close old file", err, ErrorLevelLow)
+		}
 	}
-	
+
 	// Track rotation metrics
 	dest.trackRotation()
 	f.trackRotation()

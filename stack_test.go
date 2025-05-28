@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wayneeseguin/flexlog"
 	pkgErrors "github.com/pkg/errors"
+	"github.com/wayneeseguin/flexlog"
 )
 
 func TestEnableStackTraces(t *testing.T) {
@@ -20,7 +20,7 @@ func TestEnableStackTraces(t *testing.T) {
 
 	// Test with stack traces disabled (default behavior)
 	logger.EnableStackTraces(false)
-	
+
 	// Create an error with stack trace capability
 	stackErr := pkgErrors.New("error with stack")
 	logger.ErrorWithError("test without stack", stackErr)
@@ -59,7 +59,7 @@ func TestEnableStackTracesWithStructuredLog(t *testing.T) {
 
 	// Test that structured logs at ERROR level include stack traces when enabled
 	logger.EnableStackTraces(true)
-	
+
 	logger.StructuredLog(flexlog.LevelError, "error message", map[string]interface{}{
 		"component": "test",
 	})
@@ -129,7 +129,7 @@ func TestSetStackSize(t *testing.T) {
 	// Clear and test with larger stack size
 	os.Truncate(tempFile, 0)
 	logger.SetStackSize(8192)
-	
+
 	logger.ErrorWithError("test with large stack", stackErr)
 	logger.Sync()
 

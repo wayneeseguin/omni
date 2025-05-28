@@ -139,7 +139,7 @@ func TestThresholdErrorHandler(t *testing.T) {
 
 	// Test low severity error (should not be captured)
 	logger.logError("test", "", "Low severity error", nil, ErrorLevelLow)
-	
+
 	// Test high severity error (should be captured)
 	logger.logError("test", "", "High severity error", nil, ErrorLevelHigh)
 

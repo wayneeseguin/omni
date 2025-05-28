@@ -37,14 +37,14 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
-	
+
 	// Get redactor reference while not holding any locks
 	f.mu.Lock()
 	redactor := f.redactor
 	f.mu.Unlock()
-	
+
 	var entry string
-	
+
 	if msg.Raw != nil {
 		// Raw bytes
 		entry = string(msg.Raw)
@@ -77,12 +77,12 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	} else {
 		// Regular text format
 		message := fmt.Sprintf(msg.Format, msg.Args...)
-		
+
 		// Apply redaction if configured
 		if redactor != nil {
 			message = redactor.Redact(message)
 		}
-		
+
 		// Format based on level
 		var levelStr string
 		switch msg.Level {
@@ -99,18 +99,18 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 		default:
 			levelStr = "LOG"
 		}
-		
+
 		// Format level based on format options
 		if formatOpts.LevelFormat == LevelFormatNameLower {
 			levelStr = strings.ToLower(levelStr)
-		} else if formatOpts.LevelFormat == LevelFormatSymbol {
+		} else if formatOpts.LevelFormat == LevelFormatSymbol && len(levelStr) > 0 {
 			levelStr = string(levelStr[0])
 		}
-		
+
 		// Use buffer pool for formatting
 		buf := GetBuffer()
 		defer PutBuffer(buf)
-		
+
 		// Format the entry based on options
 		if formatOpts.IncludeTime {
 			buf.WriteString("[")
@@ -124,15 +124,22 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 		}
 		buf.WriteString(message)
 		buf.WriteString("\n")
-		
+
 		entry = buf.String()
 	}
 
 	// Write to the custom writer
 	if dest.Writer != nil {
 		dest.mu.Lock()
-		dest.Writer.WriteString(entry)
-		dest.Writer.Flush()
+		if dest.Writer != nil { // Double-check after acquiring lock
+			if _, err := dest.Writer.WriteString(entry); err != nil {
+				dest.trackError()
+				f.logError("write", dest.Name, "Failed to write to custom backend", err, ErrorLevelMedium)
+			} else if err := dest.Writer.Flush(); err != nil {
+				dest.trackError()
+				f.logError("flush", dest.Name, "Failed to flush custom backend", err, ErrorLevelLow)
+			}
+		}
 		dest.mu.Unlock()
 	}
 }
@@ -143,12 +150,12 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
 	maxSize := f.GetMaxSize()
-	
+
 	// Get redactor reference while not holding any locks
 	f.mu.Lock()
 	redactor := f.redactor
 	f.mu.Unlock()
-	
+
 	// File backend with flock locking
 	if err := dest.Lock.Lock(); err != nil {
 		f.logError("lock", dest.Name, "Failed to acquire file lock", err, ErrorLevelHigh)
@@ -196,7 +203,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
 		dest.mu.Unlock()
-		
+
 		// Track write metrics
 		dest.trackWrite(entrySize, writeDuration)
 		f.trackWrite(entrySize, writeDuration)
@@ -231,7 +238,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			}
 			entryData += "\n"
 		}
-		
+
 		entry = entryData
 		entrySize = int64(len(entryData))
 
@@ -261,14 +268,14 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
 		dest.mu.Unlock()
-		
+
 		// Track write metrics
 		dest.trackWrite(entrySize, writeDuration)
 		f.trackWrite(entrySize, writeDuration)
 	} else {
 		// Regular text format
 		message := fmt.Sprintf(msg.Format, msg.Args...)
-		
+
 		// Apply redaction if configured
 		if redactor != nil {
 			message = redactor.Redact(message)
@@ -294,7 +301,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Format level based on format options
 		if formatOpts.LevelFormat == LevelFormatNameLower {
 			levelStr = strings.ToLower(levelStr)
-		} else if formatOpts.LevelFormat == LevelFormatSymbol {
+		} else if formatOpts.LevelFormat == LevelFormatSymbol && len(levelStr) > 0 {
 			// Use just the first letter for symbol format
 			levelStr = string(levelStr[0])
 		}
@@ -302,7 +309,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Use buffer pool for formatting
 		buf := GetBuffer()
 		defer PutBuffer(buf)
-		
+
 		// Format the entry based on the logger's options
 		if formatOpts.IncludeTime {
 			buf.WriteString("[")
@@ -316,7 +323,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		}
 		buf.WriteString(message)
 		buf.WriteString("\n")
-		
+
 		entry = buf.String()
 
 		// Assign the formatted entry to the entryPtr immediately after formatting
@@ -365,7 +372,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		writeDuration := time.Since(writeStart)
 		dest.Size += entrySize
 		dest.mu.Unlock()
-		
+
 		// Track write metrics
 		dest.trackWrite(entrySize, writeDuration)
 		f.trackWrite(entrySize, writeDuration)
@@ -379,6 +386,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 // processSyslogMessage processes a message for a syslog backend
 func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
+	// Quick check without lock first
 	if dest.SyslogConn == nil {
 		f.logError("syslog", dest.Name, "Syslog connection not initialized", nil, ErrorLevelHigh)
 		return
@@ -439,6 +447,12 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 
 	// Write to syslog connection
 	dest.mu.Lock()
+	if dest.Writer == nil {
+		dest.mu.Unlock()
+		f.logError("write", dest.Name, "Syslog writer is nil", nil, ErrorLevelHigh)
+		return
+	}
+
 	if _, err := dest.Writer.WriteString(syslogMsg); err != nil {
 		dest.mu.Unlock()
 		f.logError("write", dest.Name, "Failed to write to syslog", err, ErrorLevelMedium)

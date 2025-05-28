@@ -7,69 +7,69 @@ import (
 // Config contains all configuration options for FlexLog
 type Config struct {
 	// Core settings
-	Path            string        // Primary log file path
-	Level           int           // Minimum log level
-	Format          int           // Output format (text/json)
-	FormatOptions   FormatOptions // Format-specific options
-	ChannelSize     int           // Message channel buffer size
-	
+	Path          string        // Primary log file path
+	Level         int           // Minimum log level
+	Format        int           // Output format (text/json)
+	FormatOptions FormatOptions // Format-specific options
+	ChannelSize   int           // Message channel buffer size
+
 	// Rotation settings
 	MaxSize         int64         // Maximum file size before rotation
 	MaxFiles        int           // Maximum number of rotated files to keep
 	MaxAge          time.Duration // Maximum age of log files
 	CleanupInterval time.Duration // Interval for age-based cleanup
-	
+
 	// Compression settings
 	Compression     int // Compression type (none/gzip)
 	CompressMinAge  int // Minimum rotations before compression
 	CompressWorkers int // Number of compression workers
-	
+
 	// Error handling
-	ErrorHandler    ErrorHandler    // Custom error handler
-	
+	ErrorHandler ErrorHandler // Custom error handler
+
 	// Advanced settings
-	IncludeTrace    bool            // Include stack traces on errors
-	StackSize       int             // Stack trace buffer size
-	CaptureAll      bool            // Capture full stack on errors
-	
+	IncludeTrace bool // Include stack traces on errors
+	StackSize    int  // Stack trace buffer size
+	CaptureAll   bool // Capture full stack on errors
+
 	// Sampling settings
-	SamplingStrategy int     // Sampling strategy
-	SamplingRate     float64 // Sampling rate (0.0-1.0)
+	SamplingStrategy int                                              // Sampling strategy
+	SamplingRate     float64                                          // Sampling rate (0.0-1.0)
 	SampleKeyFunc    func(int, string, map[string]interface{}) string // Function to generate sampling keys
-	
+
 	// Redaction settings
-	RedactionPatterns []string       // Patterns to redact
-	RedactionReplace  string         // Replacement string for redacted content
-	
+	RedactionPatterns []string // Patterns to redact
+	RedactionReplace  string   // Replacement string for redacted content
+
 	// Performance settings
-	EnableBufferPool  bool           // Enable buffer pooling for formatting
-	EnableLazyFormat  bool           // Enable lazy formatting
+	EnableBufferPool bool // Enable buffer pooling for formatting
+	EnableLazyFormat bool // Enable lazy formatting
 }
 
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		Path:            "",
-		Level:           LevelInfo,
-		Format:          FormatText,
-		FormatOptions:   defaultFormatOptions(),
-		ChannelSize:     getDefaultChannelSize(),
-		MaxSize:         defaultMaxSize,
-		MaxFiles:        defaultMaxFiles,
-		MaxAge:          0,
-		CleanupInterval: 1 * time.Hour,
-		Compression:     CompressionNone,
-		CompressMinAge:  1,
-		CompressWorkers: 1,
-		ErrorHandler:    StderrErrorHandler,
-		IncludeTrace:    false,
-		StackSize:       4096,
-		CaptureAll:      false,
-		SamplingStrategy: SamplingNone,
-		SamplingRate:    1.0,
-		SampleKeyFunc:   defaultSampleKeyFunc,
+		Path:              "",
+		Level:             LevelInfo,
+		Format:            FormatText,
+		FormatOptions:     defaultFormatOptions(),
+		ChannelSize:       getDefaultChannelSize(),
+		MaxSize:           defaultMaxSize,
+		MaxFiles:          defaultMaxFiles,
+		MaxAge:            0,
+		CleanupInterval:   1 * time.Hour,
+		Compression:       CompressionNone,
+		CompressMinAge:    1,
+		CompressWorkers:   1,
+		ErrorHandler:      StderrErrorHandler,
+		IncludeTrace:      false,
+		StackSize:         4096,
+		CaptureAll:        false,
+		SamplingStrategy:  SamplingNone,
+		SamplingRate:      1.0,
+		SampleKeyFunc:     defaultSampleKeyFunc,
 		RedactionPatterns: nil,
-		RedactionReplace: "[REDACTED]",
+		RedactionReplace:  "[REDACTED]",
 	}
 }
 
@@ -78,43 +78,43 @@ func (c *Config) Validate() error {
 	if c.ChannelSize <= 0 {
 		c.ChannelSize = getDefaultChannelSize()
 	}
-	
+
 	if c.MaxSize < 0 {
 		c.MaxSize = defaultMaxSize
 	}
-	
+
 	if c.MaxFiles < 0 {
 		c.MaxFiles = 0
 	}
-	
+
 	if c.CleanupInterval < time.Minute {
 		c.CleanupInterval = time.Minute
 	}
-	
+
 	if c.CompressWorkers <= 0 {
 		c.CompressWorkers = 1
 	}
-	
+
 	if c.StackSize <= 0 {
 		c.StackSize = 4096
 	}
-	
+
 	if c.SamplingRate < 0 || c.SamplingRate > 1 {
 		c.SamplingRate = 1.0
 	}
-	
+
 	if c.ErrorHandler == nil {
 		c.ErrorHandler = StderrErrorHandler
 	}
-	
+
 	if c.FormatOptions.TimestampFormat == "" {
 		c.FormatOptions = defaultFormatOptions()
 	}
-	
+
 	if c.SampleKeyFunc == nil {
 		c.SampleKeyFunc = defaultSampleKeyFunc
 	}
-	
+
 	return nil
 }
 
@@ -124,7 +124,7 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	
+
 	// Create logger instance
 	f := &FlexLog{
 		maxSize:          config.MaxSize,
@@ -155,23 +155,23 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 		errorHandler:     config.ErrorHandler,
 		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
-	
+
 	// Initialize message level counters
 	f.messagesByLevel.Store(LevelDebug, uint64(0))
 	f.messagesByLevel.Store(LevelInfo, uint64(0))
 	f.messagesByLevel.Store(LevelWarn, uint64(0))
 	f.messagesByLevel.Store(LevelError, uint64(0))
-	
+
 	// Add primary destination if path provided
 	if config.Path != "" {
 		dest, err := f.createDestination(config.Path, BackendFlock)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		f.defaultDest = dest
 		f.Destinations = append(f.Destinations, dest)
-		
+
 		// Set backward compatibility fields
 		f.file = dest.File
 		f.writer = dest.Writer
@@ -180,34 +180,34 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 		f.currentSize = dest.Size
 		f.size = dest.Size
 	}
-	
+
 	// Apply redaction patterns if provided
 	if len(config.RedactionPatterns) > 0 {
 		f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
 	}
-	
+
 	// Apply performance settings
 	if config.EnableLazyFormat {
 		f.EnableLazyFormatting()
 	}
-	
+
 	// Start message dispatcher
 	f.workerWg.Add(1)
 	f.workerStarted = true
 	go f.messageDispatcher()
-	
+
 	// Start compression workers if enabled
 	if config.Compression != CompressionNone {
 		f.startCompressionWorkers()
 	}
-	
+
 	// Start cleanup routine if max age is set
 	if config.MaxAge > 0 {
 		f.mu.Lock()
 		f.startCleanupRoutine()
 		f.mu.Unlock()
 	}
-	
+
 	return f, nil
 }
 
@@ -215,35 +215,35 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 func (f *FlexLog) GetConfig() *Config {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	config := &Config{
-		Path:            f.path,
-		Level:           f.level,
-		Format:          f.format,
-		FormatOptions:   f.formatOptions,
-		ChannelSize:     f.channelSize,
-		MaxSize:         f.maxSize,
-		MaxFiles:        f.maxFiles,
-		MaxAge:          f.maxAge,
-		CleanupInterval: f.cleanupInterval,
-		Compression:     f.compression,
-		CompressMinAge:  f.compressMinAge,
-		CompressWorkers: f.compressWorkers,
-		ErrorHandler:    f.errorHandler,
-		IncludeTrace:    f.includeTrace,
-		StackSize:       f.stackSize,
-		CaptureAll:      f.captureAll,
+		Path:             f.path,
+		Level:            f.level,
+		Format:           f.format,
+		FormatOptions:    f.formatOptions,
+		ChannelSize:      f.channelSize,
+		MaxSize:          f.maxSize,
+		MaxFiles:         f.maxFiles,
+		MaxAge:           f.maxAge,
+		CleanupInterval:  f.cleanupInterval,
+		Compression:      f.compression,
+		CompressMinAge:   f.compressMinAge,
+		CompressWorkers:  f.compressWorkers,
+		ErrorHandler:     f.errorHandler,
+		IncludeTrace:     f.includeTrace,
+		StackSize:        f.stackSize,
+		CaptureAll:       f.captureAll,
 		SamplingStrategy: f.samplingStrategy,
-		SamplingRate:    f.samplingRate,
-		SampleKeyFunc:   f.sampleKeyFunc,
+		SamplingRate:     f.samplingRate,
+		SampleKeyFunc:    f.sampleKeyFunc,
 	}
-	
+
 	// Get redaction patterns if set
 	if f.redactor != nil {
 		config.RedactionPatterns = f.redactionPatterns
 		config.RedactionReplace = f.redactionReplace
 	}
-	
+
 	return config
 }
 
@@ -253,10 +253,10 @@ func (f *FlexLog) UpdateConfig(config *Config) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Update settings that can be changed at runtime
 	f.level = config.Level
 	f.format = config.Format
@@ -270,7 +270,7 @@ func (f *FlexLog) UpdateConfig(config *Config) error {
 	f.samplingRate = config.SamplingRate
 	f.sampleKeyFunc = config.SampleKeyFunc
 	f.errorHandler = config.ErrorHandler
-	
+
 	// Update compression settings
 	if f.compression != config.Compression {
 		if f.compression == CompressionNone && config.Compression != CompressionNone {
@@ -289,13 +289,13 @@ func (f *FlexLog) UpdateConfig(config *Config) error {
 			f.compressMinAge = config.CompressMinAge
 		}
 	}
-	
+
 	// Update max age and cleanup settings
 	if f.maxAge != config.MaxAge || f.cleanupInterval != config.CleanupInterval {
 		oldMaxAge := f.maxAge
 		f.maxAge = config.MaxAge
 		f.cleanupInterval = config.CleanupInterval
-		
+
 		if oldMaxAge == 0 && config.MaxAge > 0 {
 			// Start cleanup routine
 			f.startCleanupRoutine()
@@ -308,7 +308,7 @@ func (f *FlexLog) UpdateConfig(config *Config) error {
 			f.startCleanupRoutine()
 		}
 	}
-	
+
 	// Update redaction patterns
 	if len(config.RedactionPatterns) > 0 {
 		f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
@@ -318,6 +318,6 @@ func (f *FlexLog) UpdateConfig(config *Config) error {
 		f.redactionPatterns = nil
 		f.redactionReplace = ""
 	}
-	
+
 	return nil
 }

@@ -557,13 +557,13 @@ func TestStructuredLogFieldOrdering(t *testing.T) {
 
 	// Test that all field types are handled correctly
 	logger.StructuredLog(flexlog.LevelInfo, "field types", map[string]interface{}{
-		"string":  "hello",
-		"int":     42,
-		"float":   3.14,
-		"bool":    true,
-		"nil":     nil,
-		"slice":   []int{1, 2, 3},
-		"map":     map[string]string{"key": "value"},
+		"string": "hello",
+		"int":    42,
+		"float":  3.14,
+		"bool":   true,
+		"nil":    nil,
+		"slice":  []int{1, 2, 3},
+		"map":    map[string]string{"key": "value"},
 	})
 	logger.Sync()
 

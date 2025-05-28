@@ -83,7 +83,7 @@ func TestMetricsDroppedMessages(t *testing.T) {
 
 	// Use non-blocking mode to force drops when channel is full
 	logger.channelSize = 1
-	
+
 	// Log many messages quickly in a goroutine to avoid blocking
 	done := make(chan bool)
 	go func() {
@@ -95,7 +95,7 @@ func TestMetricsDroppedMessages(t *testing.T) {
 
 	// Wait for goroutine to finish
 	<-done
-	
+
 	// Close and wait
 	logger.Close()
 

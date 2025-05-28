@@ -146,8 +146,8 @@ func TestRecoveryManager_FallbackWrite(t *testing.T) {
 	// Test structured message
 	msg := LogMessage{
 		Entry: &LogEntry{
-			Level:   "info",
-			Message: "test message",
+			Level:     "info",
+			Message:   "test message",
 			Timestamp: "2023-01-01T12:00:00Z",
 		},
 	}
