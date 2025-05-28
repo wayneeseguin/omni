@@ -52,14 +52,14 @@ type DestinationMetrics struct {
 // GetMetrics returns current logger metrics
 func (f *FlexLog) GetMetrics() LoggerMetrics {
 	// Collect data that requires f.mu lock
-	f.mu.Lock()
+	f.mu.RLock()
 	queueDepth := len(f.msgChan)
 	queueCapacity := cap(f.msgChan)
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
 	lastError := f.lastError
 	lastErrorTime := f.lastErrorTime
-	f.mu.Unlock()
+	f.mu.RUnlock()
 
 	metrics := LoggerMetrics{
 		MessagesLogged:   make(map[int]uint64),

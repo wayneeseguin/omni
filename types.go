@@ -92,9 +92,13 @@ type Destination struct {
 	mu         sync.Mutex  // Protects concurrent access to Writer
 
 	// Batching configuration
+	batchWriter   *BatchWriter  // Batch writer for efficient writes
 	flushInterval time.Duration // How often to flush the buffer
 	flushTimer    *time.Timer   // Timer for periodic flushing
 	flushSize     int           // Flush when buffer reaches this size
+	batchEnabled  bool          // Whether batching is enabled for this destination
+	batchMaxSize  int           // Maximum batch size in bytes
+	batchMaxCount int           // Maximum number of entries in a batch
 
 	// Metrics
 	bytesWritten uint64
@@ -137,7 +141,7 @@ type FormatOptions struct {
 // FlexLog uses a background worker pattern with channels to ensure logging
 // doesn't block the main application flow.
 type FlexLog struct {
-	mu            sync.Mutex
+	mu            sync.RWMutex
 	file          *os.File
 	writer        *bufio.Writer
 	path          string

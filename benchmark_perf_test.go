@@ -12,9 +12,9 @@ func BenchmarkLoggingWithoutPooling(b *testing.B) {
 	logFile := filepath.Join(tempDir, "bench_no_pool.log")
 
 	// Temporarily disable buffer pooling (simulate old behavior)
-	oldPool := globalBufferPool
-	globalBufferPool = nil
-	defer func() { globalBufferPool = oldPool }()
+	oldPool := mediumBufferPool
+	mediumBufferPool = NewBufferPoolWithCapacity(0) // Disabled pool
+	defer func() { mediumBufferPool = oldPool }()
 
 	logger, err := New(logFile)
 	if err != nil {

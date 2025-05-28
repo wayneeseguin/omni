@@ -1,6 +1,7 @@
 package flexlog
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -132,6 +133,90 @@ func initializeDestinationBatching(dest *Destination) {
 	dest.flushInterval = defaultFlushInterval
 	dest.flushSize = defaultFlushSize
 
+	// Initialize batch settings from defaults
+	dest.batchEnabled = false     // Will be set based on configuration
+	dest.batchMaxSize = 64 * 1024 // 64KB default
+	dest.batchMaxCount = 100      // 100 entries default
+
 	// Timer will be started when destination is added to logger
 	// to ensure we have access to the logger's flushDestination method
+}
+
+// EnableBatching enables or disables batch processing for a destination
+func (f *FlexLog) EnableBatching(destIndex int, enabled bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if destIndex < 0 || destIndex >= len(f.Destinations) {
+		return ErrInvalidIndex
+	}
+
+	dest := f.Destinations[destIndex]
+	dest.mu.Lock()
+	defer dest.mu.Unlock()
+
+	if enabled && !dest.batchEnabled {
+		// Enable batching - create BatchWriter
+		if dest.Writer == nil {
+			return fmt.Errorf("destination writer is nil")
+		}
+
+		dest.batchWriter = NewBatchWriter(
+			dest.Writer,
+			dest.batchMaxSize,
+			dest.batchMaxCount,
+			100*time.Millisecond, // Default flush interval for batch writer
+		)
+		dest.batchEnabled = true
+	} else if !enabled && dest.batchEnabled {
+		// Disable batching - cleanup BatchWriter
+		if dest.batchWriter != nil {
+			dest.batchWriter.Close()
+			dest.batchWriter = nil
+		}
+		dest.batchEnabled = false
+	}
+
+	return nil
+}
+
+// SetBatchingConfig configures batch settings for a destination
+func (f *FlexLog) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushInterval time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if destIndex < 0 || destIndex >= len(f.Destinations) {
+		return ErrInvalidIndex
+	}
+
+	dest := f.Destinations[destIndex]
+	dest.mu.Lock()
+	defer dest.mu.Unlock()
+
+	dest.batchMaxSize = maxSize
+	dest.batchMaxCount = maxCount
+
+	// If batching is currently enabled, update the existing BatchWriter
+	if dest.batchEnabled && dest.batchWriter != nil {
+		dest.batchWriter.SetBatchSize(maxSize, maxCount)
+		dest.batchWriter.SetFlushInterval(flushInterval)
+	}
+
+	return nil
+}
+
+// IsBatchingEnabled returns whether batching is enabled for the specified destination
+func (f *FlexLog) IsBatchingEnabled(destIndex int) (bool, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if destIndex < 0 || destIndex >= len(f.Destinations) {
+		return false, ErrInvalidIndex
+	}
+
+	dest := f.Destinations[destIndex]
+	dest.mu.Lock()
+	defer dest.mu.Unlock()
+
+	return dest.batchEnabled, nil
 }

@@ -170,10 +170,10 @@ func (f *FlexLog) messageDispatcher() {
 		}
 
 		// Send to all enabled destinations
-		f.mu.Lock()
+		f.mu.RLock()
 		destinations := make([]*Destination, len(f.Destinations))
 		copy(destinations, f.Destinations)
-		f.mu.Unlock()
+		f.mu.RUnlock()
 
 		for _, dest := range destinations {
 			// Skip disabled destinations
@@ -192,8 +192,8 @@ func (f *FlexLog) messageDispatcher() {
 
 // IsClosed returns true if the logger has been closed
 func (f *FlexLog) IsClosed() bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return f.closed
 }
 
@@ -206,8 +206,8 @@ func (f *FlexLog) SetMaxSize(size int64) {
 
 // GetMaxSize returns the maximum log file size (thread-safe)
 func (f *FlexLog) GetMaxSize() int64 {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return f.maxSize
 }
 

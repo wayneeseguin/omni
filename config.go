@@ -44,32 +44,44 @@ type Config struct {
 	// Performance settings
 	EnableBufferPool bool // Enable buffer pooling for formatting
 	EnableLazyFormat bool // Enable lazy formatting
+
+	// Batch processing settings
+	EnableBatching     bool          // Enable batch processing for writes
+	BatchMaxSize       int           // Maximum batch size in bytes (default: 64KB)
+	BatchMaxCount      int           // Maximum number of entries in a batch (default: 100)
+	BatchFlushInterval time.Duration // How often to flush batches (default: 100ms)
 }
 
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {
 	return &Config{
-		Path:              "",
-		Level:             LevelInfo,
-		Format:            FormatText,
-		FormatOptions:     defaultFormatOptions(),
-		ChannelSize:       getDefaultChannelSize(),
-		MaxSize:           defaultMaxSize,
-		MaxFiles:          defaultMaxFiles,
-		MaxAge:            0,
-		CleanupInterval:   1 * time.Hour,
-		Compression:       CompressionNone,
-		CompressMinAge:    1,
-		CompressWorkers:   1,
-		ErrorHandler:      StderrErrorHandler,
-		IncludeTrace:      false,
-		StackSize:         4096,
-		CaptureAll:        false,
-		SamplingStrategy:  SamplingNone,
-		SamplingRate:      1.0,
-		SampleKeyFunc:     defaultSampleKeyFunc,
-		RedactionPatterns: nil,
-		RedactionReplace:  "[REDACTED]",
+		Path:               "",
+		Level:              LevelInfo,
+		Format:             FormatText,
+		FormatOptions:      defaultFormatOptions(),
+		ChannelSize:        getDefaultChannelSize(),
+		MaxSize:            defaultMaxSize,
+		MaxFiles:           defaultMaxFiles,
+		MaxAge:             0,
+		CleanupInterval:    1 * time.Hour,
+		Compression:        CompressionNone,
+		CompressMinAge:     1,
+		CompressWorkers:    1,
+		ErrorHandler:       StderrErrorHandler,
+		IncludeTrace:       false,
+		StackSize:          4096,
+		CaptureAll:         false,
+		SamplingStrategy:   SamplingNone,
+		SamplingRate:       1.0,
+		SampleKeyFunc:      defaultSampleKeyFunc,
+		RedactionPatterns:  nil,
+		RedactionReplace:   "[REDACTED]",
+		EnableBufferPool:   false,
+		EnableLazyFormat:   false,
+		EnableBatching:     false,
+		BatchMaxSize:       64 * 1024, // 64KB
+		BatchMaxCount:      100,
+		BatchFlushInterval: 100 * time.Millisecond,
 	}
 }
 
@@ -191,6 +203,27 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 		f.EnableLazyFormatting()
 	}
 
+	// Apply batching settings
+	if config.EnableBatching {
+		// Enable batching for all destinations
+		for i := range f.Destinations {
+			dest := f.Destinations[i]
+			dest.mu.Lock()
+			dest.batchEnabled = true
+			dest.batchMaxSize = config.BatchMaxSize
+			dest.batchMaxCount = config.BatchMaxCount
+			if dest.Writer != nil {
+				dest.batchWriter = NewBatchWriter(
+					dest.Writer,
+					config.BatchMaxSize,
+					config.BatchMaxCount,
+					config.BatchFlushInterval,
+				)
+			}
+			dest.mu.Unlock()
+		}
+	}
+
 	// Start message dispatcher
 	f.workerWg.Add(1)
 	f.workerStarted = true
@@ -213,8 +246,8 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 
 // GetConfig returns the current configuration of the logger
 func (f *FlexLog) GetConfig() *Config {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 
 	config := &Config{
 		Path:             f.path,

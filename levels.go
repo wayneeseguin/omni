@@ -35,8 +35,8 @@ func (f *FlexLog) SetLevel(level int) {
 //	    fmt.Println("Debug logging is enabled")
 //	}
 func (f *FlexLog) GetLevel() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return f.level
 }
 
@@ -214,7 +214,7 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 		f.logError("channel", "", "Message channel full, dropping ERROR message", nil, ErrorLevelHigh)
 		// Still write to stderr for backward compatibility
 		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Error message to STDERR directly\n")
-		fmt.Fprintf(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
+		fmt.Fprint(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
 	}
 }
 

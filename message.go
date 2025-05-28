@@ -8,6 +8,46 @@ import (
 	"time"
 )
 
+// writeToDestination writes data to a destination using batch writer if enabled, otherwise direct write
+func (f *FlexLog) writeToDestination(dest *Destination, data []byte) error {
+	// This function is called with dest.mu already locked
+	if dest.batchEnabled && dest.batchWriter != nil {
+		// Use batch writer
+		_, err := dest.batchWriter.Write(data)
+		return err
+	} else {
+		// Use direct write
+		if dest.Writer == nil {
+			return fmt.Errorf("writer is nil")
+		}
+		if _, err := dest.Writer.Write(data); err != nil {
+			return err
+		}
+		// Flush immediately for non-batched writes
+		return dest.Writer.Flush()
+	}
+}
+
+// writeStringToDestination writes string data to a destination using batch writer if enabled, otherwise direct write
+func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error {
+	// This function is called with dest.mu already locked
+	if dest.batchEnabled && dest.batchWriter != nil {
+		// Use batch writer
+		_, err := dest.batchWriter.WriteString(data)
+		return err
+	} else {
+		// Use direct write
+		if dest.Writer == nil {
+			return fmt.Errorf("writer is nil")
+		}
+		if _, err := dest.Writer.WriteString(data); err != nil {
+			return err
+		}
+		// Flush immediately for non-batched writes
+		return dest.Writer.Flush()
+	}
+}
+
 // processMessage processes a single log message
 func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 	var entry string
@@ -107,38 +147,43 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 			levelStr = string(levelStr[0])
 		}
 
-		// Use buffer pool for formatting
-		buf := GetBuffer()
-		defer PutBuffer(buf)
+		// Use string builder for more efficient string construction
+		sb := GetStringBuilder()
+		defer PutStringBuilder(sb)
+
+		// Pre-calculate approximate size to reduce allocations
+		estimatedSize := len(message) + 20 // message + brackets, spaces, newline
+		if formatOpts.IncludeTime {
+			estimatedSize += len(formatOpts.TimestampFormat) + 3 // timestamp + brackets + space
+		}
+		if formatOpts.IncludeLevel {
+			estimatedSize += len(levelStr) + 3 // level + brackets + space
+		}
+		sb.Grow(estimatedSize)
 
 		// Format the entry based on options
 		if formatOpts.IncludeTime {
-			buf.WriteString("[")
-			buf.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
-			buf.WriteString("] ")
+			sb.WriteByte('[')
+			sb.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
+			sb.WriteString("] ")
 		}
 		if formatOpts.IncludeLevel {
-			buf.WriteString("[")
-			buf.WriteString(levelStr)
-			buf.WriteString("] ")
+			sb.WriteByte('[')
+			sb.WriteString(levelStr)
+			sb.WriteString("] ")
 		}
-		buf.WriteString(message)
-		buf.WriteString("\n")
+		sb.WriteString(message)
+		sb.WriteByte('\n')
 
-		entry = buf.String()
+		entry = sb.String()
 	}
 
 	// Write to the custom writer
 	if dest.Writer != nil {
 		dest.mu.Lock()
-		if dest.Writer != nil { // Double-check after acquiring lock
-			if _, err := dest.Writer.WriteString(entry); err != nil {
-				dest.trackError()
-				f.logError("write", dest.Name, "Failed to write to custom backend", err, ErrorLevelMedium)
-			} else if err := dest.Writer.Flush(); err != nil {
-				dest.trackError()
-				f.logError("flush", dest.Name, "Failed to flush custom backend", err, ErrorLevelLow)
-			}
+		if err := f.writeStringToDestination(dest, entry); err != nil {
+			dest.trackError()
+			f.logError("write", dest.Name, "Failed to write to custom backend", err, ErrorLevelMedium)
 		}
 		dest.mu.Unlock()
 	}
@@ -181,23 +226,11 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 		// Write the bytes
 		dest.mu.Lock()
-		if dest.Writer == nil {
-			dest.mu.Unlock()
-			dest.trackError()
-			f.logError("write", dest.Name, "Writer is nil", nil, ErrorLevelHigh)
-			return
-		}
 		writeStart := time.Now()
-		if _, err := dest.Writer.Write(msg.Raw); err != nil {
+		if err := f.writeToDestination(dest, msg.Raw); err != nil {
 			dest.mu.Unlock()
 			dest.trackError()
 			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
-			return
-		}
-		if err := dest.Writer.Flush(); err != nil {
-			dest.mu.Unlock()
-			dest.trackError()
-			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
 		writeDuration := time.Since(writeStart)
@@ -253,16 +286,10 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Write the entry
 		dest.mu.Lock()
 		writeStart := time.Now()
-		if _, err := dest.Writer.Write([]byte(entryData)); err != nil {
+		if err := f.writeToDestination(dest, []byte(entryData)); err != nil {
 			dest.mu.Unlock()
 			dest.trackError()
 			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
-			return
-		}
-		if err := dest.Writer.Flush(); err != nil {
-			dest.mu.Unlock()
-			dest.trackError()
-			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
 		writeDuration := time.Since(writeStart)
@@ -306,25 +333,35 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			levelStr = string(levelStr[0])
 		}
 
-		// Use buffer pool for formatting
-		buf := GetBuffer()
-		defer PutBuffer(buf)
+		// Use string builder for more efficient string construction
+		sb := GetStringBuilder()
+		defer PutStringBuilder(sb)
+
+		// Pre-calculate approximate size to reduce allocations
+		estimatedSize := len(message) + 20 // message + brackets, spaces, newline
+		if formatOpts.IncludeTime {
+			estimatedSize += len(formatOpts.TimestampFormat) + 3 // timestamp + brackets + space
+		}
+		if formatOpts.IncludeLevel {
+			estimatedSize += len(levelStr) + 3 // level + brackets + space
+		}
+		sb.Grow(estimatedSize)
 
 		// Format the entry based on the logger's options
 		if formatOpts.IncludeTime {
-			buf.WriteString("[")
-			buf.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
-			buf.WriteString("] ")
+			sb.WriteByte('[')
+			sb.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
+			sb.WriteString("] ")
 		}
 		if formatOpts.IncludeLevel {
-			buf.WriteString("[")
-			buf.WriteString(levelStr)
-			buf.WriteString("] ")
+			sb.WriteByte('[')
+			sb.WriteString(levelStr)
+			sb.WriteString("] ")
 		}
-		buf.WriteString(message)
-		buf.WriteString("\n")
+		sb.WriteString(message)
+		sb.WriteByte('\n')
 
-		entry = buf.String()
+		entry = sb.String()
 
 		// Assign the formatted entry to the entryPtr immediately after formatting
 		// This ensures it's available even if we return early due to errors later
@@ -350,23 +387,11 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 		// Write the entry
 		dest.mu.Lock()
-		if dest.Writer == nil {
-			dest.mu.Unlock()
-			dest.trackError()
-			f.logError("write", dest.Name, "Writer is nil", nil, ErrorLevelHigh)
-			return
-		}
 		writeStart := time.Now()
-		if _, err := dest.Writer.WriteString(entry); err != nil {
+		if err := f.writeStringToDestination(dest, entry); err != nil {
 			dest.mu.Unlock()
 			dest.trackError()
 			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
-			return
-		}
-		if err := dest.Writer.Flush(); err != nil {
-			dest.mu.Unlock()
-			dest.trackError()
-			f.logError("flush", dest.Name, "Failed to flush log file", err, ErrorLevelLow)
 			return
 		}
 		writeDuration := time.Since(writeStart)
@@ -447,21 +472,10 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 
 	// Write to syslog connection
 	dest.mu.Lock()
-	if dest.Writer == nil {
-		dest.mu.Unlock()
-		f.logError("write", dest.Name, "Syslog writer is nil", nil, ErrorLevelHigh)
-		return
-	}
-
-	if _, err := dest.Writer.WriteString(syslogMsg); err != nil {
+	if err := f.writeStringToDestination(dest, syslogMsg); err != nil {
 		dest.mu.Unlock()
 		f.logError("write", dest.Name, "Failed to write to syslog", err, ErrorLevelMedium)
 		return
-	}
-
-	// Flush the writer
-	if err := dest.Writer.Flush(); err != nil {
-		f.logError("flush", dest.Name, "Failed to flush syslog writer", err, ErrorLevelLow)
 	}
 	dest.mu.Unlock()
 }

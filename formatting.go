@@ -16,8 +16,8 @@ func (f *FlexLog) SetFormat(format LogFormat) {
 
 // GetFormat returns the current output format (thread-safe)
 func (f *FlexLog) GetFormat() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return f.format
 }
 
@@ -79,8 +79,8 @@ func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error 
 
 // GetFormatOption gets a format option
 func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 
 	switch option {
 	case FormatOptionTimestampFormat:
@@ -104,8 +104,8 @@ func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
 
 // GetFormatOptions returns a copy of all format options (thread-safe)
 func (f *FlexLog) GetFormatOptions() FormatOptions {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return f.formatOptions
 }
 

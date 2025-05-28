@@ -544,6 +544,14 @@ func (f *FlexLog) closeDestination(dest *Destination) error {
 		dest.flushTimer = nil
 	}
 
+	// Close batch writer if enabled
+	if dest.batchWriter != nil {
+		if err := dest.batchWriter.Close(); err != nil {
+			f.logError("batch-close", dest.Name, "Failed to close batch writer", err, ErrorLevelMedium)
+		}
+		dest.batchWriter = nil
+	}
+
 	// Flush the buffer
 	if dest.Writer != nil {
 		if err := dest.Writer.Flush(); err != nil {
