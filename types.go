@@ -186,12 +186,12 @@ type FlexLog struct {
 	errorHandler ErrorHandler
 	errorChan    chan LogError
 	errorCount   uint64
-	errorsBySource map[string]uint64
+	errorsBySource sync.Map // map[string]uint64 - thread-safe map for error counts by source
 	lastError    *LogError
 	lastErrorTime *time.Time
 	
 	// Metrics
-	messagesByLevel  map[int]uint64
+	messagesByLevel  sync.Map // map[int]uint64 - thread-safe map for message counts by level
 	messagesDropped  uint64
 	rotationCount    uint64
 	compressionCount uint64
@@ -208,5 +208,9 @@ type FlexLog struct {
 	// Performance
 	lazyFormatting   bool
 	
-	closed     bool
+	// Recovery
+	recoveryManager  *RecoveryManager
+	
+	closed           bool
+	workerStarted    bool // Track if message dispatcher was started
 }

@@ -66,8 +66,7 @@ func TestProcessMessage(t *testing.T) {
 			LevelFormat:     LevelFormatNameUpper,
 		},
 		errorHandler:    StderrErrorHandler,
-		messagesByLevel: make(map[int]uint64),
-		errorsBySource:  make(map[string]uint64),
+		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
 	// Create a destination with file backend
@@ -400,8 +399,7 @@ func TestProcessSyslogMessage(t *testing.T) {
 			IncludeTime:     true,
 		},
 		errorHandler:    StderrErrorHandler,
-		messagesByLevel: make(map[int]uint64),
-		errorsBySource:  make(map[string]uint64),
+		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
 	tests := []struct {
@@ -584,8 +582,7 @@ func TestMessageFormatting(t *testing.T) {
 			LevelFormat:     LevelFormatNameUpper,
 		},
 		errorHandler:    StderrErrorHandler,
-		messagesByLevel: make(map[int]uint64),
-		errorsBySource:  make(map[string]uint64),
+		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 
 	tests := []struct {

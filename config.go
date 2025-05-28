@@ -153,15 +153,14 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 		Destinations:     make([]*Destination, 0),
 		messageQueue:     make(chan *LogMessage, config.ChannelSize),
 		errorHandler:     config.ErrorHandler,
-		messagesByLevel:  make(map[int]uint64),
-		errorsBySource:   make(map[string]uint64),
+		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 	}
 	
 	// Initialize message level counters
-	f.messagesByLevel[LevelDebug] = 0
-	f.messagesByLevel[LevelInfo] = 0
-	f.messagesByLevel[LevelWarn] = 0
-	f.messagesByLevel[LevelError] = 0
+	f.messagesByLevel.Store(LevelDebug, uint64(0))
+	f.messagesByLevel.Store(LevelInfo, uint64(0))
+	f.messagesByLevel.Store(LevelWarn, uint64(0))
+	f.messagesByLevel.Store(LevelError, uint64(0))
 	
 	// Add primary destination if path provided
 	if config.Path != "" {
@@ -194,6 +193,7 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 	
 	// Start message dispatcher
 	f.workerWg.Add(1)
+	f.workerStarted = true
 	go f.messageDispatcher()
 	
 	// Start compression workers if enabled

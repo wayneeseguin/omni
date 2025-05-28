@@ -187,8 +187,12 @@ func (f *FlexLog) CloseWithContext(ctx context.Context) error {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
-		// Context cancelled, but still try to close
-		go f.CloseAll()
+		// Context cancelled, but still try to close in background
+		// We don't wait for it to complete since the context is already cancelled
+		// The CloseAll() method will clean up resources properly
+		go func() {
+			f.CloseAll()
+		}()
 		return ctx.Err()
 	}
 }

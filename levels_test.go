@@ -121,7 +121,9 @@ func TestLevelFunctions(t *testing.T) {
 			tt.logFunc()
 
 			// Ensure async logging completes
-			logger.defaultDest.Writer.Flush()
+			if err := logger.FlushAll(); err != nil {
+				t.Logf("Warning: flush error: %v", err)
+			}
 			time.Sleep(10 * time.Millisecond)
 
 			// Read log file content
@@ -216,7 +218,9 @@ func TestLevelFiltering(t *testing.T) {
 			tt.logFunc()
 
 			// Ensure async logging completes
-			logger.defaultDest.Writer.Flush()
+			if err := logger.FlushAll(); err != nil {
+				t.Logf("Warning: flush error: %v", err)
+			}
 			time.Sleep(10 * time.Millisecond)
 
 			// Read log file content
@@ -248,8 +252,7 @@ func TestChannelFullFallback(t *testing.T) {
 		level:           LevelDebug,
 		msgChan:         make(chan LogMessage, 1), // Small channel
 		closed:          false,
-		messagesByLevel: make(map[int]uint64),
-		errorsBySource:  make(map[string]uint64),
+		// messagesByLevel and errorsBySource are sync.Map, no initialization needed
 		errorHandler:    StderrErrorHandler,
 	}
 	

@@ -130,19 +130,16 @@ func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
 	// Set default error handler
 	f.errorHandler = StderrErrorHandler
 	
-	// Initialize metrics
-	f.messagesByLevel = make(map[int]uint64)
-	f.messagesByLevel[LevelDebug] = 0
-	f.messagesByLevel[LevelInfo] = 0
-	f.messagesByLevel[LevelWarn] = 0
-	f.messagesByLevel[LevelError] = 0
-	f.errorsBySource = make(map[string]uint64)
+	// Initialize metrics (sync.Map fields don't need explicit initialization)
+	f.messagesByLevel.Store(LevelDebug, uint64(0))
+	f.messagesByLevel.Store(LevelInfo, uint64(0))
+	f.messagesByLevel.Store(LevelWarn, uint64(0))
+	f.messagesByLevel.Store(LevelError, uint64(0))
 	
-	// Start the single message dispatcher (only for the first destination)
-	if len(f.Destinations) == 1 {
-		f.workerWg.Add(1)
-		go f.messageDispatcher()
-	}
+	// Start the single message dispatcher
+	f.workerWg.Add(1)
+	f.workerStarted = true
+	go f.messageDispatcher()
 
 	return f, nil
 }

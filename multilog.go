@@ -2,6 +2,7 @@ package flexlog
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -594,6 +595,112 @@ func (f *FlexLog) Close() error {
 	return f.CloseAll()
 }
 
+// Shutdown gracefully shuts down the logger with a timeout context.
+// This method ensures all pending messages are processed before closing.
+//
+// The shutdown process:
+//   1. Stops accepting new messages (non-blocking sends will fail)
+//   2. Drains and processes all messages in the channel
+//   3. Flushes all destination buffers
+//   4. Closes all file handles and connections
+//   5. Stops background workers (compression, cleanup)
+//
+// If the context expires before shutdown completes, resources are still
+// cleaned up in the background to prevent leaks.
+//
+// Parameters:
+//   - ctx: Context with timeout for graceful shutdown
+//
+// Returns:
+//   - error: Context error if timeout, or last close error
+//
+// Example:
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+//	defer cancel()
+//	if err := logger.Shutdown(ctx); err != nil {
+//	    log.Printf("Logger shutdown error: %v", err)
+//	}
+func (f *FlexLog) Shutdown(ctx context.Context) error {
+	f.mu.Lock()
+	if f.closed {
+		f.mu.Unlock()
+		return nil // Already closed
+	}
+	
+	// Mark as closing to reject new messages
+	f.closed = true
+	
+	// Create a done channel for shutdown completion
+	done := make(chan error, 1)
+	
+	// Get channel reference before closing
+	msgChan := f.msgChan
+	f.mu.Unlock()
+	
+	// Start shutdown in background
+	go func() {
+		// Close the channel to stop accepting new messages
+		if msgChan != nil {
+			close(msgChan)
+		}
+		
+		// Wait for workers to finish processing remaining messages
+		// Only wait if the worker was actually started
+		f.mu.Lock()
+		workerStarted := f.workerStarted
+		f.mu.Unlock()
+		
+		if workerStarted {
+			f.workerWg.Wait()
+		}
+		
+		// Now perform cleanup
+		done <- f.performShutdown()
+	}()
+	
+	// Wait for shutdown or context timeout
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		// Context expired, but ensure cleanup happens in background
+		go func() {
+			<-done // Wait for shutdown to complete
+		}()
+		return ctx.Err()
+	}
+}
+
+// performShutdown does the actual shutdown work
+func (f *FlexLog) performShutdown() error {
+	f.mu.Lock()
+	destinations := make([]*Destination, len(f.Destinations))
+	copy(destinations, f.Destinations)
+	
+	// Stop background workers
+	f.stopCompressionWorkers()
+	f.stopCleanupRoutine()
+	f.mu.Unlock()
+	
+	var lastErr error
+	
+	// Close all destinations
+	for _, dest := range destinations {
+		if err := f.closeDestination(dest); err != nil {
+			lastErr = err
+		}
+	}
+	
+	// Clear the destinations list
+	f.mu.Lock()
+	f.Destinations = nil
+	f.defaultDest = nil
+	f.mu.Unlock()
+	
+	return lastErr
+}
+
 // CloseAll closes all destinations and shuts down the logger completely.
 // This method:
 //   - Stops accepting new messages
@@ -612,46 +719,10 @@ func (f *FlexLog) Close() error {
 //	    log.Printf("Error during logger shutdown: %v", err)
 //	}
 func (f *FlexLog) CloseAll() error {
-	f.mu.Lock()
-	if f.closed {
-		f.mu.Unlock()
-		return nil // Already closed
-	}
-
-	// Mark as closed
-	f.closed = true
-	
-	// Get a copy of destinations to avoid holding lock during cleanup
-	destinations := make([]*Destination, len(f.Destinations))
-	copy(destinations, f.Destinations)
-	
-	// Close the message channel to signal workers to stop
-	close(f.msgChan)
-	f.mu.Unlock()
-
-	// Wait for all workers to finish processing remaining messages
-	// This must be done without holding the lock
-	f.workerWg.Wait()
-
-	var lastErr error
-
-	// Stop compression workers if running
-	f.mu.Lock()
-	f.stopCompressionWorkers()
-	f.stopCleanupRoutine()
-	f.mu.Unlock()
-	
-	// Clean up destination resources
-	for _, dest := range destinations {
-		if err := f.closeDestination(dest); err != nil {
-			lastErr = err
-		}
-	}
-
-	// Clear destinations
-	f.Destinations = nil
-
-	return lastErr
+	// Use Shutdown with a reasonable timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return f.Shutdown(ctx)
 }
 
 // The Info and log methods are already implemented in levels.go

@@ -2,7 +2,6 @@ package flexlog
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,13 +19,17 @@ func (f *FlexLog) rotate() error {
 	// Lock already acquired in flocklogf
 
 	// Flush current file
-	if err := f.writer.Flush(); err != nil {
-		return fmt.Errorf("flushing current log: %w", err)
+	if f.writer != nil {
+		if err := f.writer.Flush(); err != nil {
+			return fmt.Errorf("flushing current log: %w", err)
+		}
 	}
 
 	// Close current file
-	if err := f.file.Close(); err != nil {
-		return fmt.Errorf("closing current log: %w", err)
+	if f.file != nil {
+		if err := f.file.Close(); err != nil {
+			return fmt.Errorf("closing current log: %w", err)
+		}
 	}
 
 	// Generate timestamp for rotation
@@ -158,27 +161,24 @@ func (f *FlexLog) cleanupOldLogs() error {
 		return nil // Age-based cleanup disabled
 	}
 
-	// Try to acquire lock with context-based timeout
-	lockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	
-	locked := make(chan struct{})
+	// Try to acquire lock with timeout using a simple approach
+	lockAcquired := make(chan bool, 1)
 	go func() {
 		f.mu.Lock()
-		select {
-		case locked <- struct{}{}:
-			// Successfully signaled lock acquisition
-		case <-lockCtx.Done():
-			// Timeout occurred, unlock and return
-			f.mu.Unlock()
-		}
+		lockAcquired <- true
 	}()
-
+	
 	// Wait for lock with timeout
 	select {
-	case <-locked:
+	case <-lockAcquired:
 		defer f.mu.Unlock()
-	case <-lockCtx.Done():
+	case <-time.After(5 * time.Second):
+		// If we timeout, the goroutine will eventually acquire the lock
+		// and we need to ensure it gets unlocked
+		go func() {
+			<-lockAcquired // Wait for the lock to be acquired
+			f.mu.Unlock()   // Then unlock it
+		}()
 		return fmt.Errorf("timed out waiting for lock in cleanupOldLogs")
 	}
 
@@ -324,15 +324,19 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 
 	// Flush the current file
 	dest.mu.Lock()
-	if err := dest.Writer.Flush(); err != nil {
-		dest.mu.Unlock()
-		return fmt.Errorf("flushing log: %w", err)
+	if dest.Writer != nil {
+		if err := dest.Writer.Flush(); err != nil {
+			dest.mu.Unlock()
+			return fmt.Errorf("flushing log: %w", err)
+		}
 	}
 	dest.mu.Unlock()
 
 	// Close the file
-	if err := dest.File.Close(); err != nil {
-		return fmt.Errorf("closing log file: %w", err)
+	if dest.File != nil {
+		if err := dest.File.Close(); err != nil {
+			return fmt.Errorf("closing log file: %w", err)
+		}
 	}
 
 	// Generate timestamp for rotation
@@ -347,15 +351,25 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	// Open a new file
 	newFile, err := os.OpenFile(dest.URI, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
+		// Try to restore the original file
+		if restoreErr := os.Rename(rotatedPath, dest.URI); restoreErr != nil {
+			return fmt.Errorf("opening new log file: %w (failed to restore original: %v)", err, restoreErr)
+		}
 		return fmt.Errorf("opening new log file: %w", err)
 	}
 
-	// Update destination fields
+	// Close old file handle if it exists
 	dest.mu.Lock()
+	oldFile := dest.File
 	dest.File = newFile
 	dest.Writer = bufio.NewWriterSize(newFile, defaultBufferSize)
 	dest.Size = 0
 	dest.mu.Unlock()
+	
+	// Close old file after updating references
+	if oldFile != nil {
+		oldFile.Close()
+	}
 	
 	// Track rotation metrics
 	dest.trackRotation()

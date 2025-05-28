@@ -110,12 +110,6 @@ func TestRedactSensitive(t *testing.T) {
 }
 
 func TestLogRequest(t *testing.T) {
-	// Create a buffer to capture log output
-	var buf bytes.Buffer
-
-	// Create a test logger that writes to our buffer
-	logger := createTestLogger(&buf)
-
 	// Test cases
 	tests := []struct {
 		name    string
@@ -208,14 +202,25 @@ func TestLogRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
+			// Create a buffer to capture log output for this test
+			var buf bytes.Buffer
+
+			// Create a test logger that writes to our buffer
+			logger := createTestLogger(&buf)
 
 			// Call LogRequest
 			logger.LogRequest(tt.method, tt.path, tt.headers, tt.body)
 
-			// Add a sleep to give the worker goroutine time to process the message
-			// This is the key change - we wait for async processing to complete
-			time.Sleep(50 * time.Millisecond)
+			// Flush the logger to ensure all messages are processed
+			if err := logger.FlushAll(); err != nil {
+				t.Logf("Warning: flush error: %v", err)
+			}
+			
+			// Close the logger to stop the worker goroutine
+			close(logger.msgChan)
+			
+			// Add a small delay to ensure flush completes
+			time.Sleep(10 * time.Millisecond)
 
 			output := buf.String()
 
@@ -238,12 +243,6 @@ func TestLogRequest(t *testing.T) {
 }
 
 func TestLogResponse(t *testing.T) {
-	// Create a buffer to capture log output
-	var buf bytes.Buffer
-
-	// Create a test logger that writes to our buffer
-	logger := createTestLogger(&buf)
-
 	// Test cases
 	tests := []struct {
 		name       string
@@ -346,12 +345,24 @@ func TestLogResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf.Reset()
+			// Create a buffer to capture log output for this test
+			var buf bytes.Buffer
+
+			// Create a test logger that writes to our buffer
+			logger := createTestLogger(&buf)
 
 			logger.LogResponse(tt.statusCode, tt.headers, tt.body)
 
-			// Logger is Async() so:
-			time.Sleep(50 * time.Millisecond)
+			// Flush the logger to ensure all messages are processed
+			if err := logger.FlushAll(); err != nil {
+				t.Logf("Warning: flush error: %v", err)
+			}
+			
+			// Close the logger to stop the worker goroutine
+			close(logger.msgChan)
+			
+			// Add a small delay to ensure flush completes
+			time.Sleep(10 * time.Millisecond)
 
 			output := buf.String()
 

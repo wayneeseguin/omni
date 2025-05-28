@@ -51,20 +51,27 @@ type DestinationMetrics struct {
 
 // GetMetrics returns current logger metrics
 func (f *FlexLog) GetMetrics() LoggerMetrics {
+	// Collect data that requires f.mu lock
 	f.mu.Lock()
-	defer f.mu.Unlock()
+	queueDepth := len(f.msgChan)
+	queueCapacity := cap(f.msgChan)
+	destinations := make([]*Destination, len(f.Destinations))
+	copy(destinations, f.Destinations)
+	lastError := f.lastError
+	lastErrorTime := f.lastErrorTime
+	f.mu.Unlock()
 	
 	metrics := LoggerMetrics{
 		MessagesLogged:   make(map[int]uint64),
 		MessagesDropped:  atomic.LoadUint64(&f.messagesDropped),
-		QueueDepth:       len(f.msgChan),
-		QueueCapacity:    cap(f.msgChan),
+		QueueDepth:       queueDepth,
+		QueueCapacity:    queueCapacity,
 		RotationCount:    atomic.LoadUint64(&f.rotationCount),
 		CompressionCount: atomic.LoadUint64(&f.compressionCount),
 		BytesWritten:     atomic.LoadUint64(&f.bytesWritten),
 		ErrorCount:       atomic.LoadUint64(&f.errorCount),
 		ErrorsBySource:   make(map[string]uint64),
-		DestinationCount: len(f.Destinations),
+		DestinationCount: len(destinations),
 	}
 	
 	// Calculate queue utilization
@@ -73,19 +80,25 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 	}
 	
 	// Copy message counts by level
-	for level, count := range f.messagesByLevel {
+	f.messagesByLevel.Range(func(key, value interface{}) bool {
+		level := key.(int)
+		count := value.(uint64)
 		metrics.MessagesLogged[level] = count
-	}
+		return true
+	})
 	
 	// Copy error counts by source
-	for source, count := range f.errorsBySource {
+	f.errorsBySource.Range(func(key, value interface{}) bool {
+		source := key.(string)
+		count := value.(uint64)
 		metrics.ErrorsBySource[source] = count
-	}
+		return true
+	})
 	
 	// Get last error info
-	if f.lastError != nil {
-		metrics.LastError = f.lastError
-		metrics.LastErrorTime = f.lastErrorTime
+	if lastError != nil {
+		metrics.LastError = lastError
+		metrics.LastErrorTime = lastErrorTime
 	}
 	
 	// Get performance metrics
@@ -93,9 +106,9 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 		time.Duration(atomic.LoadUint64(&f.writeCount)+1) // +1 to avoid division by zero
 	metrics.MaxWriteTime = time.Duration(atomic.LoadInt64(&f.maxWriteTime))
 	
-	// Collect destination metrics
-	metrics.Destinations = make([]DestinationMetrics, 0, len(f.Destinations))
-	for _, dest := range f.Destinations {
+	// Collect destination metrics (no f.mu lock held)
+	metrics.Destinations = make([]DestinationMetrics, 0, len(destinations))
+	for _, dest := range destinations {
 		dest.mu.Lock()
 		dm := DestinationMetrics{
 			Name:         dest.Name,
@@ -128,13 +141,21 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 
 // ResetMetrics resets all metrics counters
 func (f *FlexLog) ResetMetrics() {
+	// Get a copy of destinations to avoid holding f.mu while locking dest.mu
 	f.mu.Lock()
-	defer f.mu.Unlock()
+	destinations := make([]*Destination, len(f.Destinations))
+	copy(destinations, f.Destinations)
+	
+	// Clear last error
+	f.lastError = nil
+	f.lastErrorTime = nil
+	f.mu.Unlock()
 	
 	// Reset message counts
-	for level := range f.messagesByLevel {
-		f.messagesByLevel[level] = 0
-	}
+	f.messagesByLevel.Range(func(key, value interface{}) bool {
+		f.messagesByLevel.Store(key, uint64(0))
+		return true
+	})
 	
 	// Reset other counters
 	atomic.StoreUint64(&f.messagesDropped, 0)
@@ -147,12 +168,13 @@ func (f *FlexLog) ResetMetrics() {
 	atomic.StoreInt64(&f.maxWriteTime, 0)
 	
 	// Reset error counts by source
-	for source := range f.errorsBySource {
-		f.errorsBySource[source] = 0
-	}
+	f.errorsBySource.Range(func(key, value interface{}) bool {
+		f.errorsBySource.Store(key, uint64(0))
+		return true
+	})
 	
-	// Reset destination metrics
-	for _, dest := range f.Destinations {
+	// Reset destination metrics (no f.mu lock held)
+	for _, dest := range destinations {
 		dest.mu.Lock()
 		atomic.StoreUint64(&dest.bytesWritten, 0)
 		atomic.StoreUint64(&dest.rotations, 0)
@@ -161,20 +183,22 @@ func (f *FlexLog) ResetMetrics() {
 		atomic.StoreInt64(&dest.totalLatency, 0)
 		dest.mu.Unlock()
 	}
-	
-	// Clear last error
-	f.lastError = nil
-	f.lastErrorTime = nil
 }
 
 // trackMessageLogged increments the message counter for a level
 func (f *FlexLog) trackMessageLogged(level int) {
-	f.mu.Lock()
-	if _, exists := f.messagesByLevel[level]; !exists {
-		f.messagesByLevel[level] = 0
+	// Load current value or initialize to 0
+	val, _ := f.messagesByLevel.LoadOrStore(level, uint64(0))
+	current := val.(uint64)
+	// Increment atomically
+	for {
+		if f.messagesByLevel.CompareAndSwap(level, current, current+1) {
+			break
+		}
+		// Reload and retry if another goroutine changed the value
+		val, _ := f.messagesByLevel.Load(level)
+		current = val.(uint64)
 	}
-	f.messagesByLevel[level]++
-	f.mu.Unlock()
 }
 
 // trackMessageDropped increments the dropped message counter

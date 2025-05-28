@@ -166,6 +166,12 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 		// Write the bytes
 		dest.mu.Lock()
+		if dest.Writer == nil {
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("write", dest.Name, "Writer is nil", nil, ErrorLevelHigh)
+			return
+		}
 		writeStart := time.Now()
 		if _, err := dest.Writer.Write(msg.Raw); err != nil {
 			dest.mu.Unlock()
@@ -319,9 +325,11 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				// Try to log to the file as well for visibility
 				dest.mu.Lock()
-				fmt.Fprintf(dest.Writer, "[%s] ERROR: Failed to rotate log file: %v\n",
-					msg.Timestamp.Format(formatOpts.TimestampFormat), err)
-				dest.Writer.Flush()
+				if dest.Writer != nil {
+					fmt.Fprintf(dest.Writer, "[%s] ERROR: Failed to rotate log file: %v\n",
+						msg.Timestamp.Format(formatOpts.TimestampFormat), err)
+					dest.Writer.Flush()
+				}
 				dest.mu.Unlock()
 				return
 			}
@@ -329,6 +337,12 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 		// Write the entry
 		dest.mu.Lock()
+		if dest.Writer == nil {
+			dest.mu.Unlock()
+			dest.trackError()
+			f.logError("write", dest.Name, "Writer is nil", nil, ErrorLevelHigh)
+			return
+		}
 		writeStart := time.Now()
 		if _, err := dest.Writer.WriteString(entry); err != nil {
 			dest.mu.Unlock()
