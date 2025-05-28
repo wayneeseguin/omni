@@ -164,13 +164,23 @@ func defaultFormatOptions() FormatOptions {
 }
 
 // formatJSONEntry formats a LogEntry as JSON
-func formatJSONEntry(entry *LogEntry) (string, error) {
-	// Use the formatJSON function to properly marshal the entire entry
-	jsonStr, err := formatJSON(entry, false)
-	if err != nil {
-		return "", err
+func formatJSONEntry(entry *LogEntry) ([]byte, error) {
+	// Get a buffer from the pool
+	buf := GetBuffer()
+	defer PutBuffer(buf)
+	
+	// Use json.Encoder to write directly to buffer
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false) // Avoid HTML escaping for performance
+	
+	if err := encoder.Encode(entry); err != nil {
+		return nil, err
 	}
-	return jsonStr + "\n", nil
+	
+	// Make a copy since we're returning the buffer to the pool
+	result := make([]byte, buf.Len())
+	copy(result, buf.Bytes())
+	return result, nil
 }
 
 // formatJSON formats an object as JSON with optional indentation

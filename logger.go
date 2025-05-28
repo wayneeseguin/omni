@@ -175,9 +175,9 @@ func (f *FlexLog) messageDispatcher() {
 
 		for _, dest := range destinations {
 			// Skip disabled destinations
-			dest.mu.Lock()
+			dest.mu.RLock()
 			enabled := dest.Enabled
-			dest.mu.Unlock()
+			dest.mu.RUnlock()
 			if !enabled {
 				continue
 			}

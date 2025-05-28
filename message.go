@@ -259,7 +259,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 				f.logError("format", dest.Name, "Failed to format JSON entry", err, ErrorLevelMedium)
 				return
 			}
-			entryData = data
+			entryData = string(data)
 		} else {
 			// Use text format for structured entries
 			if formatOpts.IncludeTime {
@@ -459,7 +459,7 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 			f.logError("format", dest.Name, "Failed to format JSON entry for syslog", err, ErrorLevelMedium)
 			return
 		}
-		content = jsonData
+		content = string(jsonData)
 	} else {
 		// Regular message
 		content = fmt.Sprintf(msg.Format, msg.Args...)

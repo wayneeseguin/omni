@@ -96,7 +96,7 @@ type Destination struct {
 	Done       chan struct{}
 	SyslogConn *syslogConn // Connection for syslog backend
 	Enabled    bool        // Whether this destination is enabled
-	mu         sync.Mutex  // Protects concurrent access to Writer
+	mu         sync.RWMutex  // Protects concurrent access to Writer and other fields
 
 	// Batching configuration
 	batchWriter   *BatchWriter  // Batch writer for efficient writes
