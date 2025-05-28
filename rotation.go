@@ -2,6 +2,7 @@ package flexlog
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -111,7 +112,9 @@ func (f *FlexLog) startCleanupRoutine() {
 	f.cleanupTicker = time.NewTicker(f.cleanupInterval)
 	f.cleanupDone = make(chan struct{})
 
+	f.cleanupWg.Add(1)
 	go func() {
+		defer f.cleanupWg.Done()
 		defer func() {
 			if r := recover(); r != nil {
 				f.logError("cleanup", "", "Panic in cleanup routine", fmt.Errorf("%v", r), ErrorLevelHigh)
@@ -141,6 +144,10 @@ func (f *FlexLog) stopCleanupRoutine() {
 	if f.cleanupDone != nil {
 		close(f.cleanupDone)
 	}
+	
+	// Wait for the cleanup goroutine to finish
+	f.cleanupWg.Wait()
+	
 	f.cleanupTicker = nil
 	f.cleanupDone = nil
 }
@@ -151,19 +158,33 @@ func (f *FlexLog) cleanupOldLogs() error {
 		return nil // Age-based cleanup disabled
 	}
 
-	// Try to acquire lock, but don't block for too long
-	locked := make(chan bool, 1)
+	// Try to acquire lock with context-based timeout
+	lockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	locked := make(chan struct{})
 	go func() {
 		f.mu.Lock()
-		locked <- true
+		select {
+		case locked <- struct{}{}:
+			// Successfully signaled lock acquisition
+		case <-lockCtx.Done():
+			// Timeout occurred, unlock and return
+			f.mu.Unlock()
+		}
 	}()
 
 	// Wait for lock with timeout
 	select {
 	case <-locked:
 		defer f.mu.Unlock()
-	case <-time.After(5 * time.Second):
+	case <-lockCtx.Done():
 		return fmt.Errorf("timed out waiting for lock in cleanupOldLogs")
+	}
+
+	// Check if we have a valid path
+	if f.path == "" {
+		return nil // No primary log file to clean up
 	}
 
 	// Get the directory and pattern for log files

@@ -19,8 +19,8 @@ func TestLevelFunctions(t *testing.T) {
 	}
 	defer logger.CloseAll()
 
-	// Set level to Debug to test all logging levels
-	logger.SetLevel(LevelDebug)
+	// Set level to Trace to test all logging levels
+	logger.SetLevel(LevelTrace)
 
 	tests := []struct {
 		name     string
@@ -28,6 +28,22 @@ func TestLevelFunctions(t *testing.T) {
 		level    int
 		expected string
 	}{
+		{
+			name: "Trace",
+			logFunc: func() {
+				logger.Trace("trace message")
+			},
+			level:    LevelTrace,
+			expected: "trace message",
+		},
+		{
+			name: "Tracef",
+			logFunc: func() {
+				logger.Tracef("trace %s", "formatted")
+			},
+			level:    LevelTrace,
+			expected: "trace formatted",
+		},
 		{
 			name: "Debug",
 			logFunc: func() {
@@ -142,6 +158,15 @@ func TestLevelFiltering(t *testing.T) {
 		message  string
 		expected bool // whether the message should be logged
 	}{
+		{
+			name: "Trace with Info level",
+			logFunc: func() {
+				logger.Trace("trace should be filtered")
+			},
+			level:    LevelTrace,
+			message:  "trace should be filtered",
+			expected: false,
+		},
 		{
 			name: "Debug with Info level",
 			logFunc: func() {

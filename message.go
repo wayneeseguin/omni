@@ -83,6 +83,8 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 		// Format based on level
 		var levelStr string
 		switch msg.Level {
+		case LevelTrace:
+			levelStr = "TRACE"
 		case LevelDebug:
 			levelStr = "DEBUG"
 		case LevelInfo:
@@ -263,6 +265,8 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Format based on level
 		var levelStr string
 		switch msg.Level {
+		case LevelTrace:
+			levelStr = "TRACE"
 		case LevelDebug:
 			levelStr = "DEBUG"
 		case LevelInfo:
@@ -363,6 +367,9 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 	// Determine syslog priority based on log level
 	priority := dest.SyslogConn.priority
 	switch msg.Level {
+	case LevelTrace:
+		// Trace level (7) - same as debug in syslog
+		priority = (priority & 0xFFF8) | 7
 	case LevelDebug:
 		// Debug level (7)
 		priority = (priority & 0xFFF8) | 7

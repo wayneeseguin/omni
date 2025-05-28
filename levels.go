@@ -11,7 +11,7 @@ import (
 // Messages below this level will be filtered out and not logged.
 //
 // Parameters:
-//   - level: The minimum log level (LevelDebug, LevelInfo, LevelWarn, or LevelError)
+//   - level: The minimum log level (LevelTrace, LevelDebug, LevelInfo, LevelWarn, or LevelError)
 //
 // Example:
 //
@@ -26,7 +26,7 @@ func (f *FlexLog) SetLevel(level int) {
 // This method is thread-safe.
 //
 // Returns:
-//   - int: The current log level (LevelDebug, LevelInfo, LevelWarn, or LevelError)
+//   - int: The current log level (LevelTrace, LevelDebug, LevelInfo, LevelWarn, or LevelError)
 //
 // Example:
 //
@@ -38,6 +38,41 @@ func (f *FlexLog) GetLevel() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.level
+}
+
+// TraceWithFormat logs a trace message with formatting
+func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
+	// Check if logger is closed
+	if f.IsClosed() {
+		return
+	}
+	
+	if f.GetLevel() > LevelTrace {
+		return
+	}
+
+	// Check if we should log this based on sampling
+	if !f.shouldLog(LevelTrace, format, nil) {
+		return
+	}
+
+	// Create log message and send to channel
+	msg := LogMessage{
+		Level:     LevelTrace,
+		Format:    format,
+		Args:      args,
+		Timestamp: time.Now(),
+	}
+
+	// Try to send to channel, but don't block if channel is full
+	select {
+	case f.msgChan <- msg:
+		// Message sent successfully
+	default:
+		// Channel is full
+		f.trackMessageDropped()
+		f.logError("channel", "", "Message channel full, dropping TRACE message", nil, ErrorLevelMedium)
+	}
 }
 
 // DebugWithFormat logs a debug message with formatting
@@ -249,6 +284,41 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 		// Still write to stderr for backward compatibility
 		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly.\n", strings.Title(strings.ToLower(levelName)))
 		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
+	}
+}
+
+// Trace logs a message at TRACE level.
+// The message is constructed by concatenating the arguments, similar to fmt.Sprint.
+// Trace messages are typically used for very detailed diagnostic information.
+//
+// Parameters:
+//   - args: Values to be logged
+//
+// Example:
+//
+//	logger.Trace("Entering function with params: ", param1, param2)
+//	logger.Trace("Variable state: ", varName, "=", value)
+func (f *FlexLog) Trace(args ...interface{}) {
+	if f.GetLevel() <= LevelTrace {
+		f.logf(LevelTrace, "%s", args...)
+	}
+}
+
+// Tracef logs a formatted message at TRACE level.
+// The message is constructed using fmt.Sprintf with the provided format string.
+// Trace messages are typically used for very detailed diagnostic information.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
+//
+// Example:
+//
+//	logger.Tracef("Entering function %s with params: %+v", funcName, params)
+//	logger.Tracef("Variable %s = %v (type: %T)", varName, value, value)
+func (f *FlexLog) Tracef(format string, args ...interface{}) {
+	if f.GetLevel() <= LevelTrace {
+		f.logf(LevelTrace, format, args...)
 	}
 }
 

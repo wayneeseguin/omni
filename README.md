@@ -25,7 +25,7 @@ go get github.com/wayneeseguin/flexlog
 ## Features
 
 - **Process-Safe Logging**: Uses file locking for cross-process synchronization
-- **Standard Log Levels**: Supports DEBUG, INFO, WARN, ERROR levels
+- **Standard Log Levels**: Supports TRACE, DEBUG, INFO, WARN, ERROR levels
 - **Structured Logging**: Supports structured logging with fields
 - **Log Rotation**: Automatic log rotation based on file size
 - **Multiple Output Destinations**: Log to multiple destinations simultaneously
@@ -62,38 +62,58 @@ func main() {
 
 ## Log Levels
 
-flexlog supports standard logging levels:
+flexlog supports standard logging levels with a new TRACE level for very detailed diagnostics:
 
 ```go
-logger, err := flexlog.Newflexlog("app.log")
+logger, err := flexlog.New("app.log")
 if err != nil {
     panic(err)
 }
 defer logger.Close()
 
 // Set minimum log level (default is INFO)
-logger.SetLevel(flexlog.LevelDebug) // Options: LevelDebug, LevelInfo, LevelWarn, LevelError
+logger.SetLevel(flexlog.LevelTrace) // Options: LevelTrace, LevelDebug, LevelInfo, LevelWarn, LevelError
 
-// Log at different levels
-logger.Debug("Debug message")
+// Log at different levels (from most to least verbose)
+logger.Trace("Trace message - very detailed diagnostics")
+logger.Tracef("Formatted %s message", "trace")
+
+logger.Debug("Debug message - detailed diagnostics")
 logger.Debugf("Formatted %s message", "debug")
 
-logger.Info("Info message")
+logger.Info("Info message - general information")
 logger.Infof("Formatted %s message", "info")
 
-logger.Warn("Warning message")
+logger.Warn("Warning message - potentially harmful situations")
 logger.Warnf("Formatted %s message", "warning")
 
-logger.Error("Error message")
+logger.Error("Error message - error conditions")
 logger.Errorf("Formatted %s message", "error")
 ```
+
+### Log Level Hierarchy
+
+The log levels follow this hierarchy (from lowest to highest priority):
+- **TRACE (0)**: Very detailed diagnostic information for troubleshooting
+- **DEBUG (1)**: Detailed diagnostic information for debugging
+- **INFO (2)**: General informational messages about application flow
+- **WARN (3)**: Warning messages for potentially harmful situations
+- **ERROR (4)**: Error messages for failures that need attention
+
+When you set a log level, all messages at that level and above will be logged.
 
 ## Structured Logging
 
 For more detailed logs, use structured logging with fields:
 
 ```go
-// Structured logging with fields
+// Structured logging with fields (from most to least verbose)
+logger.TraceWithFields("Function entry", map[string]interface{}{
+    "function": "processOrder",
+    "params":   map[string]string{"id": "123"},
+    "caller":   "handler.go:42",
+})
+
 logger.DebugWithFields("User logged in", map[string]interface{}{
     "user_id": 123,
     "ip":      "192.168.1.1",

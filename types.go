@@ -156,6 +156,7 @@ type FlexLog struct {
 	cleanupInterval time.Duration
 	cleanupTicker   *time.Ticker
 	cleanupDone     chan struct{}
+	cleanupWg       sync.WaitGroup
 
 	// Filtering
 	filters []Filter

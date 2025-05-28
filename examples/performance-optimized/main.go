@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"fmt"
 	"log"
 	"runtime"
 	"sync"
@@ -11,179 +11,144 @@ import (
 )
 
 func main() {
-	// Performance-optimized configuration
-	config := flexlog.Config{
-		ChannelSize:   10000, // Large buffer for high throughput
-		DefaultLevel:  flexlog.INFO,
-		EnableMetrics: true,
-		
-		// Aggressive sampling for debug logs
-		Sampling: flexlog.SamplingConfig{
-			Enabled: true,
-			Rate:    0.01, // Only 1% of debug logs
-			Levels:  []flexlog.LogLevel{flexlog.DEBUG},
-		},
-		
-		// Enable object pooling for reduced GC pressure
-		EnablePooling: true,
-	}
-
-	logger, err := flexlog.NewFlexLogWithConfig(config)
+	// Create a performance-optimized logger
+	logger, err := flexlog.New("performance.log")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Close()
+	defer logger.CloseAll()
 
-	// Add high-performance destination
-	err = logger.AddDestination("perf", flexlog.DestinationConfig{
-		Backend:      flexlog.BackendFile,
-		FilePath:     "logs/performance.log",
-		Format:       flexlog.FormatJSON,
-		MinLevel:     flexlog.INFO,
-		BufferSize:   8192, // Large write buffer
-		AsyncWrites:  true, // Non-blocking writes
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	// For performance testing, we'll only log INFO and above
+	// TRACE and DEBUG can be very verbose and impact performance
+	logger.SetLevel(flexlog.LevelInfo)
 
-	// Benchmark: Measure logging throughput
-	log.Println("Starting performance benchmark...")
-	startTime := time.Now()
-	messageCount := 1000000
+	log.Printf("Performance testing with different log levels...")
+	log.Printf("Current level: INFO (TRACE and DEBUG will be filtered)")
+
+	// Test 1: Single-threaded logging performance
+	log.Printf("Test 1: Single-threaded logging")
+	start := time.Now()
 	
-	// Use goroutines to simulate concurrent logging
-	numGoroutines := runtime.NumCPU()
-	messagesPerGoroutine := messageCount / numGoroutines
+	for i := 0; i < 10000; i++ {
+		// These TRACE calls will be filtered out, showing performance benefit
+		logger.Trace("This trace will be filtered") // Won't be logged
+		logger.Debug("This debug will be filtered") // Won't be logged
+		
+		// Only INFO and above will be logged
+		if i%1000 == 0 {
+			logger.InfoWithFields("Performance test progress", map[string]interface{}{
+				"iteration": i,
+				"timestamp": time.Now().Unix(),
+			})
+		}
+	}
+	
+	singleThreaded := time.Since(start)
+	log.Printf("Single-threaded: %v for 10,000 iterations", singleThreaded)
+
+	// Test 2: Multi-threaded logging performance
+	log.Printf("Test 2: Multi-threaded logging (4 goroutines)")
+	start = time.Now()
 	
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines)
-	
+	numGoroutines := 4
+	iterationsPerGoroutine := 2500
+
 	for g := 0; g < numGoroutines; g++ {
+		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
 			
-			for i := 0; i < messagesPerGoroutine; i++ {
-				// Use pre-allocated fields to reduce allocations
-				logger.Info("High throughput message",
-					"goroutine", goroutineID,
-					"message", i,
-					"timestamp", time.Now().UnixNano(),
-				)
+			for i := 0; i < iterationsPerGoroutine; i++ {
+				// These will be filtered for performance
+				logger.Trace("Goroutine trace", "goroutine", goroutineID) // Won't be logged
+				logger.Debug("Goroutine debug", "goroutine", goroutineID) // Won't be logged
 				
-				// Occasional debug message (will be sampled)
-				if i%100 == 0 {
-					logger.Debug("Debug checkpoint",
-						"goroutine", goroutineID,
-						"progress", i,
-					)
+				// Only log occasionally to reduce overhead
+				if i%500 == 0 {
+					logger.InfoWithFields("Goroutine progress", map[string]interface{}{
+						"goroutine":  goroutineID,
+						"iteration":  i,
+						"total":      iterationsPerGoroutine,
+					})
 				}
 			}
 		}(g)
 	}
 	
 	wg.Wait()
-	duration := time.Since(startTime)
-	
-	// Calculate and display performance metrics
-	throughput := float64(messageCount) / duration.Seconds()
-	log.Printf("Performance Results:")
-	log.Printf("  Total messages: %d", messageCount)
-	log.Printf("  Duration: %v", duration)
-	log.Printf("  Throughput: %.2f messages/second", throughput)
-	log.Printf("  Latency: %.2f microseconds/message", duration.Seconds()*1000000/float64(messageCount))
-	
-	// Wait for async writes to complete
-	time.Sleep(time.Second)
-	
-	// Display logger metrics
-	metrics := logger.GetMetrics()
-	log.Printf("\nLogger Metrics:")
-	log.Printf("  Total logged: %d", metrics.TotalMessages)
-	log.Printf("  Dropped: %d", metrics.DroppedMessages)
-	log.Printf("  Buffer usage: %.2f%%", metrics.BufferUsage)
-	log.Printf("  Pool hit rate: %.2f%%", metrics.PoolHitRate)
-	
-	// Memory stats
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	log.Printf("\nMemory Stats:")
-	log.Printf("  Alloc: %d MB", m.Alloc/1024/1024)
-	log.Printf("  TotalAlloc: %d MB", m.TotalAlloc/1024/1024)
-	log.Printf("  NumGC: %d", m.NumGC)
-	
-	// Demonstrate zero-allocation logging path
-	log.Println("\nTesting zero-allocation logging...")
-	
-	// Pre-allocate message
-	msg := &flexlog.LogMessage{
-		Level:     flexlog.INFO,
-		Message:   "Zero allocation message",
-		Timestamp: time.Now(),
-		Fields:    make(map[string]interface{}, 4),
-	}
-	
-	// Reuse message object
-	for i := 0; i < 10000; i++ {
-		msg.Timestamp = time.Now()
-		msg.Fields["counter"] = i
-		msg.Fields["thread"] = 0
-		
-		logger.LogMessage(msg)
-		
-		// Reset fields for reuse
-		for k := range msg.Fields {
-			delete(msg.Fields, k)
-		}
-	}
-	
-	log.Println("Performance benchmark completed!")
-}
+	multiThreaded := time.Since(start)
+	log.Printf("Multi-threaded: %v for 10,000 iterations (4 goroutines)", multiThreaded)
 
-// Example of using logger in a high-performance server
-func highPerformanceServer(logger *flexlog.FlexLog) {
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
+	// Test 3: Level filtering performance benefit
+	log.Printf("Test 3: Demonstrating level filtering performance")
 	
-	// Pre-allocated log entries for common scenarios
-	successLog := &flexlog.LogMessage{
-		Level:   flexlog.INFO,
-		Message: "Request processed",
-		Fields:  make(map[string]interface{}, 8),
-	}
+	// Test with TRACE level enabled (more expensive)
+	logger.SetLevel(flexlog.LevelTrace)
+	start = time.Now()
 	
-	errorLog := &flexlog.LogMessage{
-		Level:   flexlog.ERROR,
-		Message: "Request failed",
-		Fields:  make(map[string]interface{}, 8),
-	}
-	
-	// Simulate request handling
-	for i := 0; i < 100000; i++ {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			// Process request
-			startTime := time.Now()
-			
-			// Simulate work
-			time.Sleep(time.Microsecond)
-			
-			// Log result (reusing pre-allocated messages)
-			if i%1000 == 0 {
-				errorLog.Timestamp = time.Now()
-				errorLog.Fields["request_id"] = i
-				errorLog.Fields["error"] = "simulated error"
-				errorLog.Fields["duration_us"] = time.Since(startTime).Microseconds()
-				logger.LogMessage(errorLog)
-			} else {
-				successLog.Timestamp = time.Now()
-				successLog.Fields["request_id"] = i
-				successLog.Fields["duration_us"] = time.Since(startTime).Microseconds()
-				logger.LogMessage(successLog)
-			}
+	for i := 0; i < 5000; i++ {
+		logger.Trace("Expensive trace message with formatting", "value", i*2)
+		logger.Debug("Debug message", "iteration", i)
+		if i%1000 == 0 {
+			logger.Info("Progress with TRACE enabled", "iteration", i)
 		}
 	}
+	
+	withTrace := time.Since(start)
+	
+	// Test with INFO level (filtered TRACE/DEBUG)
+	logger.SetLevel(flexlog.LevelInfo)
+	start = time.Now()
+	
+	for i := 0; i < 5000; i++ {
+		logger.Trace("Expensive trace message with formatting", "value", i*2) // Filtered
+		logger.Debug("Debug message", "iteration", i) // Filtered
+		if i%1000 == 0 {
+			logger.Info("Progress with TRACE filtered", "iteration", i)
+		}
+	}
+	
+	withoutTrace := time.Since(start)
+	
+	log.Printf("With TRACE enabled: %v", withTrace)
+	log.Printf("With TRACE filtered: %v", withoutTrace)
+	log.Printf("Performance improvement: %.2fx faster", float64(withTrace)/float64(withoutTrace))
+
+	// Test 4: Memory allocation patterns
+	log.Printf("Test 4: Memory usage patterns")
+	var m1, m2 runtime.MemStats
+	
+	runtime.GC()
+	runtime.ReadMemStats(&m1)
+	
+	logger.SetLevel(flexlog.LevelTrace)
+	for i := 0; i < 1000; i++ {
+		logger.TraceWithFields("Memory test", map[string]interface{}{
+			"iteration": i,
+			"data":      fmt.Sprintf("test-data-%d", i),
+			"timestamp": time.Now(),
+		})
+	}
+	
+	runtime.GC()
+	runtime.ReadMemStats(&m2)
+	
+	allocatedKB := (m2.TotalAlloc - m1.TotalAlloc) / 1024
+	log.Printf("Memory allocated for 1000 TRACE messages: %d KB", allocatedKB)
+
+	// Final summary
+	log.Printf("\nPerformance Summary:")
+	log.Printf("  Single-threaded throughput: %.0f ops/sec", 10000.0/singleThreaded.Seconds())
+	log.Printf("  Multi-threaded throughput: %.0f ops/sec", 10000.0/multiThreaded.Seconds())
+	log.Printf("  Level filtering saves: %.1f%% time", (1.0-float64(withoutTrace)/float64(withTrace))*100)
+	log.Printf("  Memory per TRACE message: %.1f bytes", float64(allocatedKB*1024)/1000.0)
+	
+	logger.InfoWithFields("Performance test completed", map[string]interface{}{
+		"single_threaded_ms": singleThreaded.Milliseconds(),
+		"multi_threaded_ms":  multiThreaded.Milliseconds(),
+		"memory_kb":          allocatedKB,
+	})
+
+	fmt.Println("Check performance.log for detailed logs")
 }

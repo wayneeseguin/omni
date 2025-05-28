@@ -9,7 +9,7 @@ import (
 // This is the core method for structured logging that other level-specific methods delegate to.
 //
 // Parameters:
-//   - level: The log level (LevelDebug, LevelInfo, LevelWarn, or LevelError)
+//   - level: The log level (LevelTrace, LevelDebug, LevelInfo, LevelWarn, or LevelError)
 //   - message: The log message
 //   - fields: Key-value pairs to include with the log entry
 //
@@ -34,6 +34,8 @@ func (f *FlexLog) StructuredLog(level int, message string, fields map[string]int
 
 	var levelStr string
 	switch level {
+	case LevelTrace:
+		levelStr = "TRACE"
 	case LevelDebug:
 		levelStr = "DEBUG"
 	case LevelInfo:
@@ -70,6 +72,24 @@ func (f *FlexLog) StructuredLog(level int, message string, fields map[string]int
 	}
 
 	f.writeLogEntry(entry)
+}
+
+// TraceWithFields logs a trace message with structured fields.
+// This method is useful for very detailed diagnostic information with context.
+//
+// Parameters:
+//   - message: The trace message
+//   - fields: Key-value pairs providing additional context
+//
+// Example:
+//
+//	logger.TraceWithFields("Function entry", map[string]interface{}{
+//		"function": "processOrder",
+//		"params": params,
+//		"caller": "api/handler.go:42",
+//	})
+func (f *FlexLog) TraceWithFields(message string, fields map[string]interface{}) {
+	f.StructuredLog(LevelTrace, message, fields)
 }
 
 // DebugWithFields logs a debug message with structured fields.

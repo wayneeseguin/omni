@@ -13,28 +13,23 @@ import (
 type RequestIDKey struct{}
 
 func main() {
-	logger, err := flexlog.NewFlexLog()
+	logger, err := flexlog.New("context-aware.log")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Close()
+	defer logger.CloseAll()
 
-	// Add destination
-	err = logger.AddDestination("file", flexlog.DestinationConfig{
-		Backend:  flexlog.BackendFile,
-		FilePath: "context-aware.log",
-		Format:   flexlog.FormatJSON,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Set level to TRACE to see detailed context tracking
+	logger.SetLevel(flexlog.LevelTrace)
 
-	// Simulate handling multiple requests
+	// Simulate handling multiple requests with context tracking
 	for i := 0; i < 5; i++ {
 		requestID := fmt.Sprintf("req-%d", i+1)
 		handleRequest(logger, requestID)
 		time.Sleep(100 * time.Millisecond)
 	}
+
+	fmt.Println("Check context-aware.log for the logged messages")
 }
 
 func handleRequest(logger *flexlog.FlexLog, requestID string) {
@@ -45,70 +40,150 @@ func handleRequest(logger *flexlog.FlexLog, requestID string) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	logger.InfoContext(ctx, "Request started",
-		"request_id", requestID,
-		"method", "GET",
-		"path", "/api/users",
-	)
+	// Extract request ID from context for logging
+	reqID := getRequestID(ctx)
 
-	// Simulate processing steps
+	logger.TraceWithFields("Request handler started", map[string]interface{}{
+		"request_id": reqID,
+		"function":   "handleRequest",
+	})
+
+	logger.InfoWithFields("Request started", map[string]interface{}{
+		"request_id": reqID,
+		"method":     "GET",
+		"path":       "/api/users",
+	})
+
+	// Simulate processing steps with detailed tracing
+	logger.TraceWithFields("Starting user fetch", map[string]interface{}{
+		"request_id": reqID,
+		"step":       "fetch_user",
+	})
+
 	if err := fetchUser(ctx, logger); err != nil {
-		logger.ErrorContext(ctx, "Failed to fetch user",
-			"error", err,
-			"request_id", requestID,
-		)
+		logger.ErrorWithFields("Failed to fetch user", map[string]interface{}{
+			"error":      err.Error(),
+			"request_id": reqID,
+		})
 		return
 	}
 
+	logger.TraceWithFields("Starting permission validation", map[string]interface{}{
+		"request_id": reqID,
+		"step":       "validate_permissions",
+	})
+
 	if err := validatePermissions(ctx, logger); err != nil {
-		logger.WarnContext(ctx, "Permission validation failed",
-			"error", err,
-			"request_id", requestID,
-		)
+		logger.WarnWithFields("Permission validation failed", map[string]interface{}{
+			"error":      err.Error(),
+			"request_id": reqID,
+		})
 	}
 
-	// Simulate context cancellation
+	// Simulate context cancellation for demonstration
 	if requestID == "req-3" {
+		logger.TraceWithFields("Simulating request cancellation", map[string]interface{}{
+			"request_id": reqID,
+		})
 		cancel()
 		select {
 		case <-ctx.Done():
-			logger.ErrorContext(ctx, "Request cancelled",
-				"request_id", requestID,
-				"reason", ctx.Err(),
-			)
+			logger.ErrorWithFields("Request cancelled", map[string]interface{}{
+				"request_id": reqID,
+				"reason":     ctx.Err().Error(),
+			})
 			return
 		default:
 		}
 	}
 
-	logger.InfoContext(ctx, "Request completed successfully",
-		"request_id", requestID,
-		"duration_ms", 45,
-	)
+	logger.InfoWithFields("Request completed successfully", map[string]interface{}{
+		"request_id":  reqID,
+		"duration_ms": 45,
+	})
+
+	logger.TraceWithFields("Request handler completed", map[string]interface{}{
+		"request_id": reqID,
+		"function":   "handleRequest",
+	})
 }
 
 func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
-	logger.DebugContext(ctx, "Fetching user from database")
+	reqID := getRequestID(ctx)
+	
+	logger.TraceWithFields("Database query starting", map[string]interface{}{
+		"request_id": reqID,
+		"operation":  "fetchUser",
+		"table":      "users",
+	})
+
+	logger.DebugWithFields("Fetching user from database", map[string]interface{}{
+		"request_id": reqID,
+	})
 	
 	// Simulate database query
 	select {
 	case <-time.After(20 * time.Millisecond):
-		logger.DebugContext(ctx, "User fetched successfully", "user_id", 12345)
+		logger.DebugWithFields("User fetched successfully", map[string]interface{}{
+			"user_id":    12345,
+			"request_id": reqID,
+		})
+		
+		logger.TraceWithFields("Database query completed", map[string]interface{}{
+			"request_id": reqID,
+			"operation":  "fetchUser",
+			"result":     "success",
+		})
 		return nil
 	case <-ctx.Done():
+		logger.TraceWithFields("Database query cancelled", map[string]interface{}{
+			"request_id": reqID,
+			"operation":  "fetchUser",
+			"reason":     ctx.Err().Error(),
+		})
 		return ctx.Err()
 	}
 }
 
 func validatePermissions(ctx context.Context, logger *flexlog.FlexLog) error {
-	logger.DebugContext(ctx, "Validating user permissions")
+	reqID := getRequestID(ctx)
+	
+	logger.TraceWithFields("Permission validation starting", map[string]interface{}{
+		"request_id": reqID,
+		"operation":  "validatePermissions",
+	})
+
+	logger.DebugWithFields("Validating user permissions", map[string]interface{}{
+		"request_id": reqID,
+	})
 	
 	// Simulate permission check
 	select {
 	case <-time.After(10 * time.Millisecond):
-		logger.DebugContext(ctx, "Permissions validated", "role", "admin")
+		logger.DebugWithFields("Permissions validated", map[string]interface{}{
+			"role":       "admin",
+			"request_id": reqID,
+		})
+		
+		logger.TraceWithFields("Permission validation completed", map[string]interface{}{
+			"request_id": reqID,
+			"operation":  "validatePermissions",
+			"result":     "success",
+		})
 		return nil
 	case <-ctx.Done():
+		logger.TraceWithFields("Permission validation cancelled", map[string]interface{}{
+			"request_id": reqID,
+			"operation":  "validatePermissions",
+			"reason":     ctx.Err().Error(),
+		})
 		return ctx.Err()
 	}
+}
+
+func getRequestID(ctx context.Context) string {
+	if reqID, ok := ctx.Value(RequestIDKey{}).(string); ok {
+		return reqID
+	}
+	return "unknown"
 }

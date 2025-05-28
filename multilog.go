@@ -206,6 +206,8 @@ func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
 func getLevelString(level int, format LevelFormat) string {
 	var levelStr string
 	switch level {
+	case LevelTrace:
+		levelStr = "TRACE"
 	case LevelDebug:
 		levelStr = "DEBUG"
 	case LevelInfo:

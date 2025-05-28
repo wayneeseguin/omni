@@ -18,8 +18,8 @@ func TestStructuredLog(t *testing.T) {
 	}
 	defer logger.CloseAll()
 
-	// Set level to DEBUG to ensure all messages are logged
-	logger.SetLevel(flexlog.LevelDebug)
+	// Set level to TRACE to ensure all messages are logged
+	logger.SetLevel(flexlog.LevelTrace)
 
 	tests := []struct {
 		name     string
@@ -28,6 +28,17 @@ func TestStructuredLog(t *testing.T) {
 		fields   map[string]interface{}
 		expected []string
 	}{
+		{
+			name:    "trace level with fields",
+			level:   flexlog.LevelTrace,
+			message: "trace message",
+			fields: map[string]interface{}{
+				"function": "processOrder",
+				"params":   map[string]string{"id": "123"},
+				"caller":   "handler.go:42",
+			},
+			expected: []string{"[TRACE]", "trace message", "function=processOrder", "caller=handler.go:42"},
+		},
 		{
 			name:    "debug level with fields",
 			level:   flexlog.LevelDebug,
@@ -237,6 +248,47 @@ func TestStructuredLogWithCaptureAll(t *testing.T) {
 
 	if !strings.Contains(contentStr, "goroutine") {
 		t.Error("Should include stack trace for INFO when captureAll is true")
+	}
+}
+
+func TestTraceWithFields(t *testing.T) {
+	tempFile := filepath.Join(t.TempDir(), "test.log")
+	logger, err := flexlog.New(tempFile)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.CloseAll()
+
+	// Set level to trace to ensure it's logged
+	logger.SetLevel(flexlog.LevelTrace)
+
+	logger.TraceWithFields("trace message", map[string]interface{}{
+		"function": "processOrder",
+		"params":   map[string]string{"id": "123"},
+		"caller":   "handler.go:42",
+	})
+	logger.Sync()
+
+	content, err := os.ReadFile(tempFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "[TRACE]") {
+		t.Error("Expected TRACE level")
+	}
+
+	if !strings.Contains(contentStr, "trace message") {
+		t.Error("Expected trace message")
+	}
+
+	if !strings.Contains(contentStr, "function=processOrder") {
+		t.Error("Expected function field")
+	}
+
+	if !strings.Contains(contentStr, "caller=handler.go:42") {
+		t.Error("Expected caller field")
 	}
 }
 

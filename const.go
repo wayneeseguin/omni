@@ -8,10 +8,11 @@ const (
 	BlockingMode = true // TODO: Enable toggling this configuration flag to specify blocking or non-blocking behavior
 
 	// Log levels
-	LevelDebug = 0
-	LevelInfo  = 1
-	LevelWarn  = 2
-	LevelError = 3
+	LevelTrace = 0
+	LevelDebug = 1
+	LevelInfo  = 2
+	LevelWarn  = 3
+	LevelError = 4
 
 	// Format types
 	FormatText = 0
