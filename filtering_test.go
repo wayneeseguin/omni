@@ -67,7 +67,7 @@ func TestAddFilter(t *testing.T) {
 
 			// Initialize logger
 			logger, _ := flexlog.New(tempFile)
-			logger.AddFilter(tt.filter)
+			_ = logger.AddFilter(flexlog.FilterFunc(tt.filter))
 
 			// Log message
 			switch tt.logLevel {

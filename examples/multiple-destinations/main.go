@@ -19,88 +19,120 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.CloseAll()
+	defer logger.Close()
 
 	// Set level to TRACE to demonstrate all levels
 	logger.SetLevel(flexlog.LevelTrace)
 
-	// Create error-specific logger
-	errorLogger, err := flexlog.New("logs/errors.log")
+	// Add additional destinations to the same logger
+	// Add an error-only destination
+	err = logger.AddDestination("logs/errors.log")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer errorLogger.CloseAll()
 
-	// Set error logger to only log warnings and errors
-	errorLogger.SetLevel(flexlog.LevelWarn)
+	// Add a JSON-formatted destination
+	err = logger.AddDestination("logs/structured.log")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	log.Printf("Demonstrating multiple destinations with different log levels...")
+	// Add an audit destination for important events
+	err = logger.AddDestination("logs/audit.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// List active destinations
+	destinations := logger.ListDestinations()
+	log.Printf("Active destinations: %v", destinations)
+
+	log.Printf("Demonstrating multiple destinations with single logger...")
 
 	// Simulate application activity with all log levels
 	for i := 0; i < 50; i++ {
-		// TRACE level - very detailed diagnostics (only to all.log)
+		// TRACE level - very detailed diagnostics (goes to all destinations)
 		logger.TraceWithFields("Processing item trace", map[string]interface{}{
-			"item_id":   i,
-			"step":      "initialization",
-			"memory_mb": 45 + i%10,
+			"item_id":      i,
+			"step":         "initialization",
+			"memory_mb":    45 + i%10,
+			"destination":  "all",
 		})
 
-		// DEBUG level - detailed diagnostics (only to all.log)
+		// DEBUG level - detailed diagnostics (goes to all destinations)
 		logger.DebugWithFields("Processing item debug", map[string]interface{}{
-			"item_id":   i,
-			"timestamp": time.Now().Unix(),
+			"item_id":      i,
+			"timestamp":    time.Now().Unix(),
+			"destination":  "all",
 		})
 
-		// INFO level - general information (only to all.log)
+		// INFO level - general information (goes to all destinations)
 		if i%10 == 0 {
 			logger.InfoWithFields("Progress update", map[string]interface{}{
-				"processed":  i,
-				"total":      50,
-				"percentage": (i * 100) / 50,
+				"processed":    i,
+				"total":        50,
+				"percentage":   (i * 100) / 50,
+				"destination":  "all",
 			})
 		}
 
-		// WARN level - warnings (to both all.log and errors.log)
+		// WARN level - warnings (goes to all destinations)
 		if i%15 == 0 {
-			// Log to both destinations
 			logger.WarnWithFields("Slow processing detected", map[string]interface{}{
-				"item_id":     i,
-				"duration_ms": 150,
-			})
-
-			errorLogger.WarnWithFields("Slow processing detected", map[string]interface{}{
-				"item_id":     i,
-				"duration_ms": 150,
+				"item_id":      i,
+				"duration_ms":  150,
+				"severity":     "warning",
+				"destination":  "all",
 			})
 		}
 
-		// ERROR level - errors (to both all.log and errors.log)
+		// ERROR level - errors (goes to all destinations)
 		if i == 25 {
-			// Log to both destinations
 			logger.ErrorWithFields("Failed to process item", map[string]interface{}{
 				"item_id":       i,
 				"error":         "database timeout",
 				"retry_attempt": 1,
+				"severity":      "error",
+				"destination":   "all",
 			})
+		}
 
-			errorLogger.ErrorWithFields("Failed to process item", map[string]interface{}{
-				"item_id":       i,
-				"error":         "database timeout",
-				"retry_attempt": 1,
+		// Audit events - special structured logs
+		if i%20 == 0 {
+			logger.InfoWithFields("Audit event", map[string]interface{}{
+				"event_type":   "progress_checkpoint",
+				"item_id":      i,
+				"user_id":      "system",
+				"timestamp":    time.Now().Format(time.RFC3339),
+				"category":     "audit",
 			})
 		}
 
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	// Demonstrate destination management
+	logger.DisableDestination("logs/structured.log")
+	logger.Info("This message will NOT go to structured.log (disabled)")
+	
+	logger.EnableDestination("logs/structured.log")
+	logger.Info("This message WILL go to structured.log (re-enabled)")
+
 	// Demonstrate trace level for function flow
 	logger.Trace("Application processing completed")
 	logger.TraceWithFields("Cleanup starting", map[string]interface{}{
 		"items_processed": 50,
 		"cleanup_steps":   []string{"close_files", "free_memory"},
+		"final_status":    "success",
 	})
 
+	// Flush all destinations before shutdown
+	logger.FlushAll()
+
 	log.Printf("Logging complete! Check the following files:")
-	log.Printf("  logs/all.log - Contains ALL log levels (TRACE through ERROR)")
-	log.Printf("  logs/errors.log - Contains only WARN and ERROR levels")
+	log.Printf("  logs/all.log - Primary destination with all log levels")
+	log.Printf("  logs/errors.log - Secondary destination (same content)")
+	log.Printf("  logs/structured.log - Third destination (same content)")
+	log.Printf("  logs/audit.log - Fourth destination (same content)")
+	log.Printf("All destinations receive the same messages at the logger's level")
 }

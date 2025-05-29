@@ -43,7 +43,16 @@ func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error
 		if _, err := dest.Writer.WriteString(data); err != nil {
 			return err
 		}
-		// Flush immediately for non-batched writes
+		// Always check if we need to flush based on buffer size
+		f.checkFlushSize(dest)
+
+		// Don't auto-flush if batching is disabled (flushInterval == 0)
+		// The user explicitly disabled auto-flushing and expects manual control
+		if dest.flushInterval == 0 {
+			return nil
+		}
+
+		// Otherwise flush immediately for non-batched writes
 		return dest.Writer.Flush()
 	}
 }
@@ -55,7 +64,7 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 		f.logError("process", "", "Attempted to process message for nil destination", nil, ErrorLevelHigh)
 		return
 	}
-	
+
 	var entry string
 	var entrySize int64
 
@@ -225,7 +234,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		entrySize = int64(len(msg.Raw))
 
 		// Check if rotation needed
-		if dest.Size+entrySize > maxSize {
+		if maxSize > 0 && dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
@@ -285,7 +294,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		entrySize = int64(len(entryData))
 
 		// Check if rotation needed
-		if dest.Size+entrySize > maxSize {
+		if maxSize > 0 && dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
@@ -379,7 +388,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		entrySize = int64(len(entry))
 
 		// Check if rotation needed
-		if dest.Size+entrySize > maxSize {
+		if maxSize > 0 && dest.Size+entrySize > maxSize {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				// Try to log to the file as well for visibility

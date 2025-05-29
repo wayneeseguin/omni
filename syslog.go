@@ -27,7 +27,7 @@ func NewSyslog(address string, tag string) (*FlexLog, error) {
 	}
 
 	// Create logger with syslog backend
-	logger, err := NewWithOptions(uri, BackendSyslog)
+	logger, err := NewWithBackend(uri, BackendSyslog)
 	if err != nil {
 		return nil, err
 	}

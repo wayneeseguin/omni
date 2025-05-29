@@ -77,8 +77,16 @@ func TestBoundaryConditions(t *testing.T) {
 			t.Fatalf("Failed to glob files: %v", err)
 		}
 
-		if len(files) > 1 {
-			t.Errorf("Expected 1 file, got %d files: %v", len(files), files)
+		// Filter out lock files
+		var logFiles []string
+		for _, f := range files {
+			if !strings.HasSuffix(f, ".lock") {
+				logFiles = append(logFiles, f)
+			}
+		}
+
+		if len(logFiles) > 1 {
+			t.Errorf("Expected 1 file, got %d files: %v", len(logFiles), logFiles)
 		}
 	})
 
@@ -131,6 +139,9 @@ func TestBoundaryConditions(t *testing.T) {
 		logger.Infof("")
 		logger.Infof("%s", "")
 
+		// Give messages time to reach the dispatcher
+		time.Sleep(50 * time.Millisecond)
+
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
@@ -167,6 +178,9 @@ func TestBoundaryConditions(t *testing.T) {
 		// Very long message (1MB)
 		longMessage := strings.Repeat("A", 1024*1024)
 		logger.Info(longMessage)
+
+		// Give message time to reach the dispatcher
+		time.Sleep(50 * time.Millisecond)
 
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
@@ -327,8 +341,9 @@ func TestBoundaryConditions(t *testing.T) {
 		if err == nil {
 			t.Error("Expected timeout error")
 		}
-		if err != context.DeadlineExceeded {
-			t.Errorf("Expected deadline exceeded, got: %v", err)
+		// Check if the error contains DeadlineExceeded
+		if !strings.Contains(err.Error(), "context deadline exceeded") {
+			t.Errorf("Expected deadline exceeded error, got: %v", err)
 		}
 
 		// Cleanup should still happen in background
@@ -457,15 +472,15 @@ func TestDestinationBoundaryConditions(t *testing.T) {
 		}
 		defer logger.Close()
 
-		// Should return false for non-existent destination
-		result := logger.EnableDestination("non-existent.log")
-		if result {
-			t.Error("EnableDestination should return false for non-existent destination")
+		// Should return error for non-existent destination
+		err = logger.EnableDestination("non-existent.log")
+		if err == nil {
+			t.Error("EnableDestination should return error for non-existent destination")
 		}
 
-		result = logger.DisableDestination("non-existent.log")
-		if result {
-			t.Error("DisableDestination should return false for non-existent destination")
+		err = logger.DisableDestination("non-existent.log")
+		if err == nil {
+			t.Error("DisableDestination should return error for non-existent destination")
 		}
 	})
 }

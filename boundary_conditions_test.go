@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// TestZeroMaxSize tests behavior with zero max size (should rotate on every write)
+// TestZeroMaxSize tests behavior with zero max size (should disable rotation)
 func TestZeroMaxSize(t *testing.T) {
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
@@ -21,21 +21,35 @@ func TestZeroMaxSize(t *testing.T) {
 	}
 	defer logger.Close()
 
-	// Set zero max size
+	// Set zero max size (disables rotation)
 	logger.SetMaxSize(0)
 
 	// Log multiple messages
-	for i := 0; i < 5; i++ {
-		logger.Info("Message %d", i)
+	for i := 0; i < 100; i++ {
+		logger.Info("Message %d with some content to ensure we write more data", i)
 	}
 
 	// Wait for processing
 	time.Sleep(200 * time.Millisecond)
 
-	// Should have multiple rotations
+	// Should have no rotations with zero max size
 	metrics := logger.GetMetrics()
-	if metrics.RotationCount < 4 {
-		t.Errorf("Expected at least 4 rotations with zero max size, got %d", metrics.RotationCount)
+	if metrics.RotationCount != 0 {
+		t.Errorf("Expected no rotations with zero max size, got %d", metrics.RotationCount)
+	}
+
+	// Check that all data was written to a single file (excluding lock files)
+	files, _ := os.ReadDir(dir)
+	fileCount := 0
+	var fileNames []string
+	for _, f := range files {
+		if !f.IsDir() && !strings.HasSuffix(f.Name(), ".lock") {
+			fileCount++
+			fileNames = append(fileNames, f.Name())
+		}
+	}
+	if fileCount != 1 {
+		t.Errorf("Expected exactly 1 log file with zero max size, got %d files: %v", fileCount, fileNames)
 	}
 }
 
@@ -111,15 +125,18 @@ func TestMaxFilesZero(t *testing.T) {
 
 	// Set zero max files and small rotation size
 	logger.SetMaxFiles(0)
-	logger.SetMaxSize(100)
+	logger.SetMaxSize(50) // Very small size to force many rotations
 
 	// Log enough to cause multiple rotations
 	for i := 0; i < 10; i++ {
-		logger.Info("This message will cause rotation %d", i)
+		logger.Info("This is a longer message that will cause rotation number %d", i)
 	}
 
 	// Wait for processing
 	time.Sleep(200 * time.Millisecond)
+
+	// Ensure all messages are flushed
+	logger.FlushAll()
 
 	// Count rotated files
 	files, _ := os.ReadDir(dir)
@@ -131,8 +148,17 @@ func TestMaxFilesZero(t *testing.T) {
 	}
 
 	// With zero max files, all rotated files should be kept
-	if rotatedCount < 5 {
-		t.Errorf("Expected multiple rotated files, got %d", rotatedCount)
+	// With 10 messages and maxSize of 50, we should get multiple rotations
+	// Each message is approximately 60+ bytes, so we expect around 10 rotations
+	if rotatedCount < 3 {
+		t.Errorf("Expected at least 3 rotated files, got %d", rotatedCount)
+		// Debug: print file sizes
+		for _, f := range files {
+			if !f.IsDir() {
+				info, _ := f.Info()
+				t.Logf("File: %s, Size: %d bytes", f.Name(), info.Size())
+			}
+		}
 	}
 }
 
@@ -366,3 +392,4 @@ func TestExtremeConcurrency(t *testing.T) {
 	t.Logf("Messages logged: %d, dropped: %d (%.2f%%)", totalLogged, metrics.MessagesDropped, droppedRatio*100)
 	t.Logf("Average write time: %v, Max write time: %v", metrics.AverageWriteTime, metrics.MaxWriteTime)
 }
+

@@ -38,14 +38,14 @@ func TestNewWithOptions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	logger, err := NewWithOptions(logPath, BackendFlock)
+	logger, err := NewWithBackend(logPath, BackendFlock)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
 	// Test with invalid backend
-	_, err = NewWithOptions(logPath, 999)
+	_, err = NewWithBackend(logPath, 999)
 	if err == nil {
 		t.Errorf("Expected error for invalid backend type")
 	}

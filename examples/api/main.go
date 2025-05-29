@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
@@ -10,81 +9,77 @@ import (
 )
 
 func main() {
-	// Example 1: Using the Builder Pattern
-	builderExample()
+	// Example 1: Basic API Usage
+	basicExample()
 
 	// Example 2: Using Functional Options
 	optionsExample()
 
-	// Example 3: Using Interfaces
-	interfaceExample()
+	// Example 3: Advanced Configuration
+	advancedExample()
 
 	// Example 4: Error Handling
 	errorHandlingExample()
 }
 
-func builderExample() {
-	fmt.Println("=== Builder Pattern Example ===")
+func basicExample() {
+	fmt.Println("=== Basic API Usage Example ===")
 
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
-		WithJSON().
-		WithDestination("/tmp/app.log",
-			flexlog.WithBatching(8192, 100*time.Millisecond),
-			flexlog.WithDestinationName("primary")).
-		WithSyslogDestination("syslog://localhost:514",
-			flexlog.WithDestinationName("syslog")).
-		WithRotation(100*1024*1024, 10). // 100MB, keep 10 files
-		WithCompression(flexlog.CompressionGzip, 2).
-		WithErrorHandler(flexlog.StderrErrorHandler).
-		WithTimezone(time.UTC).
-		WithStackTrace(true, 4096).
-		WithFilter(func(level int, message string, fields map[string]interface{}) bool {
-			// Filter out debug messages in production
-			return level >= flexlog.LevelInfo
-		}).
-		Build()
-
+	// Create a basic logger
+	logger, err := flexlog.New("/tmp/basic_api.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	// Use the logger
-	logger.Info("Application started")
-	logger.WithFields(map[string]interface{}{
-		"version": "1.0.0",
-		"env":     "production",
-	}).Info("Configuration loaded")
+	// Configure basic settings
+	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetFormat(flexlog.FormatJSON)
+
+	// Basic logging methods
+	logger.Trace("This is a trace message")
+	logger.Debug("This is a debug message") 
+	logger.Info("This is an info message")
+	logger.Warn("This is a warning message")
+	logger.Error("This is an error message")
+
+	// Formatted logging
+	logger.Infof("User %s logged in at %s", "john_doe", time.Now().Format(time.RFC3339))
+
+	// Structured logging with fields
+	logger.InfoWithFields("User action performed", map[string]interface{}{
+		"user_id":   "12345",
+		"action":    "login", 
+		"timestamp": time.Now().Unix(),
+		"success":   true,
+	})
+
+	fmt.Println("✓ Basic API example completed")
 }
 
 func optionsExample() {
 	fmt.Println("\n=== Functional Options Example ===")
 
-	// Production configuration
+	// Production configuration with options
 	prodLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("/var/log/app.log"),
-		flexlog.WithProductionDefaults(),
-		flexlog.WithRotation(100*1024*1024, 10),
+		flexlog.WithPath("/tmp/api_prod.log"),
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithRotation(50*1024*1024, 5), // 50MB, keep 5 files
 		flexlog.WithGzipCompression(),
-		flexlog.WithRateSampling(0.1), // Sample 10% of debug logs
-		flexlog.WithRedaction([]string{
-			`\b\d{16}\b`,              // Credit card numbers
-			`\b[A-Za-z0-9+/]{40}\b`,   // API keys
-		}, "[REDACTED]"),
-		flexlog.WithRecovery("/var/log/app-fallback.log", 3),
+		flexlog.WithJSON(),
+		flexlog.WithChannelSize(1000),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create production logger: %v", err)
 	}
 	defer prodLogger.Close()
 
-	// Development configuration
+	// Development configuration with options
 	devLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("./dev.log"),
-		flexlog.WithDevelopmentDefaults(),
-		flexlog.WithLevelFilter(flexlog.LevelDebug),
-		flexlog.WithTimestampFormat("15:04:05.000"),
+		flexlog.WithPath("/tmp/api_dev.log"),
+		flexlog.WithLevel(flexlog.LevelTrace),
+		flexlog.WithText(),
+		flexlog.WithStackTrace(4096),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create dev logger: %v", err)
@@ -92,68 +87,98 @@ func optionsExample() {
 	defer devLogger.Close()
 
 	// Use the loggers
-	prodLogger.Info("Production logger initialized")
+	prodLogger.Info("Production logger initialized with options")
 	devLogger.Debug("Development logger initialized with detailed output")
+	
+	// Add filters to production logger
+	prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+		// Only allow INFO and above in production
+		return level >= flexlog.LevelInfo
+	})
+
+	prodLogger.Debug("This debug message will be filtered out")
+	prodLogger.Info("This info message will be logged")
+
+	fmt.Println("✓ Functional options example completed")
 }
 
-func interfaceExample() {
-	fmt.Println("\n=== Interface Example ===")
+func advancedExample() {
+	fmt.Println("\n=== Advanced Configuration Example ===")
 
-	// Create a logger
-	flexLogger, err := flexlog.New("/tmp/interface-example.log")
+	// Create a logger with advanced configuration
+	logger, err := flexlog.New("/tmp/api_advanced.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
-	defer flexLogger.Close()
+	defer logger.Close()
 
-	// Use it through the Logger interface
-	var logger flexlog.Logger = flexlog.NewLoggerAdapter(flexLogger)
+	// Configure advanced settings
+	logger.SetLevel(flexlog.LevelDebug)
+	logger.SetFormat(flexlog.FormatJSON)
 
-	// Now you can pass this logger to functions that expect the Logger interface
-	doWork(logger)
+	// Set up rotation and compression
+	logger.SetMaxSize(10 * 1024 * 1024) // 10MB
+	logger.SetMaxFiles(3)
+	logger.SetCompression(flexlog.CompressionGzip)
 
-	// Use it through the Manager interface for configuration
-	var manager flexlog.Manager = flexLogger
-	manager.SetMaxSize(50 * 1024 * 1024)
-	manager.SetCompression(flexlog.CompressionGzip)
+	// Enable stack traces
+	logger.EnableStackTraces(true)
 
-	// Add another destination
-	err = manager.AddDestination("/tmp/interface-example-2.log")
+	// Add multiple destinations
+	err = logger.AddDestination("/tmp/api_advanced_copy.log")
 	if err != nil {
 		log.Printf("Failed to add destination: %v", err)
 	}
 
-	// Get metrics
-	metrics := manager.GetMetrics()
-	fmt.Printf("Messages logged: %+v\n", metrics.MessagesLogged)
+	// Test destination management
+	destinations := logger.ListDestinations()
+	fmt.Printf("Active destinations: %v\n", destinations)
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := manager.Shutdown(ctx); err != nil {
-		log.Printf("Shutdown error: %v", err)
-	}
+	// Disable and re-enable a destination
+	logger.DisableDestination("/tmp/api_advanced_copy.log")
+	logger.Info("This message won't go to the disabled destination")
+	
+	logger.EnableDestination("/tmp/api_advanced_copy.log")
+	logger.Info("This message will go to the re-enabled destination")
+
+	// Use the logger with various methods
+	doWork(logger)
+
+	fmt.Println("✓ Advanced configuration example completed")
 }
 
-func doWork(logger flexlog.Logger) {
-	// Function that accepts the Logger interface
+func doWork(logger *flexlog.FlexLog) {
+	// Function that works with the FlexLog instance
 	logger.Info("Starting work")
 	
 	// Structured logging with fields
-	logger.WithFields(map[string]interface{}{
+	logger.InfoWithFields("Task completed", map[string]interface{}{
 		"task":     "processing",
 		"duration": "5s",
-	}).Info("Task completed")
+		"worker":   "api_example",
+	})
 
-	// Logging with error
-	err := fmt.Errorf("sample error")
-	logger.WithError(err).Error("Operation failed")
+	// Logging with error information
+	err := fmt.Errorf("sample error for demonstration")
+	logger.ErrorWithFields("Operation encountered an error", map[string]interface{}{
+		"error":     err.Error(),
+		"operation": "sample_work",
+		"retryable": true,
+	})
 
-	// Check if debug is enabled before expensive operation
-	if logger.IsLevelEnabled(flexlog.LevelDebug) {
-		debugData := expensiveDebugOperation()
-		logger.Debug("Debug data: ", debugData)
-	}
+	// Generate some debug data
+	debugData := expensiveDebugOperation()
+	logger.DebugWithFields("Debug information collected", map[string]interface{}{
+		"debug_data": debugData,
+		"source":     "doWork",
+	})
+
+	// Test different log levels
+	logger.Trace("Detailed trace information")
+	logger.Debug("Debug information")
+	logger.Info("General information")
+	logger.Warn("Warning message")
+	logger.Error("Error message")
 }
 
 func expensiveDebugOperation() string {
@@ -165,52 +190,41 @@ func expensiveDebugOperation() string {
 func errorHandlingExample() {
 	fmt.Println("\n=== Error Handling Example ===")
 
-	// Try to create logger with invalid configuration
-	_, err := flexlog.NewBuilder().
-		WithLevel(-1). // Invalid level
-		Build()
-
+	// Test error handling with invalid path
+	_, err := flexlog.New("/invalid/path/that/does/not/exist/test.log")
 	if err != nil {
-		// Check error type
-		if flexlog.IsConfigError(err) {
-			fmt.Println("Configuration error detected:", err)
-		}
-
-		// Get error code
-		code := flexlog.GetErrorCode(err)
-		fmt.Printf("Error code: %s\n", code)
-
-		// Get error context
-		context := flexlog.GetErrorContext(err)
-		fmt.Printf("Error context: %+v\n", context)
+		fmt.Printf("Expected error for invalid path: %v\n", err)
 	}
 
-	// Create logger with error handler
-	logger, err := flexlog.NewBuilder().
-		WithPath("/tmp/error-example.log").
-		WithErrorHandler(func(logErr flexlog.LogError) {
-			// Custom error handling
-			fmt.Printf("Logger error: [%s] %s: %v\n", 
-				logErr.Time.Format("15:04:05"),
-				logErr.Source,
-				logErr.Err)
-		}).
-		Build()
-
+	// Create logger successfully
+	logger, err := flexlog.New("/tmp/api_error_example.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	// Get error channel for monitoring
-	errorChan := logger.GetErrors()
-	go func() {
-		for logErr := range errorChan {
-			fmt.Printf("Received error: %v\n", logErr)
-		}
-	}()
+	// Test various error conditions
+	logger.Info("Testing error handling")
 
-	// Simulate an error by closing the file
-	logger.Close()
-	logger.Info("This will cause an error")
+	// Test invalid level setting (should handle gracefully)
+	logger.SetLevel(flexlog.LevelError)
+	logger.Debug("This debug message should be filtered")
+	logger.Error("This error message should be logged")
+
+	// Test error recovery
+	logger.ErrorWithFields("Simulated application error", map[string]interface{}{
+		"error_type":   "demonstration",
+		"error_code":   500,
+		"recoverable":  true,
+		"timestamp":    time.Now().Unix(),
+	})
+
+	// Test logging after errors
+	logger.Info("Logger continues to work after errors")
+
+	// Test flush and sync operations
+	logger.FlushAll()
+	logger.Sync()
+
+	fmt.Println("✓ Error handling example completed")
 }

@@ -74,7 +74,7 @@ func (f *FlexLog) rotate() error {
 // SetMaxAge sets the maximum age for log files
 // Logs older than this will be deleted during cleanup
 // Use 0 to disable age-based cleanup
-func (f *FlexLog) SetMaxAge(duration time.Duration) {
+func (f *FlexLog) SetMaxAge(duration time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -86,6 +86,7 @@ func (f *FlexLog) SetMaxAge(duration time.Duration) {
 	} else if f.maxAge == 0 && f.cleanupTicker != nil {
 		f.stopCleanupRoutine()
 	}
+	return nil
 }
 
 // SetCleanupInterval sets how often to check for and remove old log files
@@ -242,7 +243,7 @@ func (f *FlexLog) cleanupOldLogs() error {
 			// Remove the file
 			if err := os.Remove(filePath); err != nil {
 				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", filePath), err, ErrorLevelLow)
-			} else {
+			} else if !isTestMode() {
 				fmt.Fprintf(os.Stderr, "Removed old log file: %s (age: %v)\n",
 					filePath, time.Since(fileTime))
 			}
@@ -307,7 +308,7 @@ func (f *FlexLog) cleanupOldFiles() error {
 		for i := f.maxFiles; i < len(logFiles); i++ {
 			if err := os.Remove(logFiles[i].path); err != nil {
 				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", logFiles[i].path), err, ErrorLevelLow)
-			} else {
+			} else if !isTestMode() {
 				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
 			}
 		}
@@ -470,7 +471,7 @@ func (f *FlexLog) cleanupOldFilesForDestination(path string) error {
 		for i := f.maxFiles; i < len(logFiles); i++ {
 			if err := os.Remove(logFiles[i].path); err != nil {
 				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", logFiles[i].path), err, ErrorLevelLow)
-			} else {
+			} else if !isTestMode() {
 				fmt.Fprintf(os.Stderr, "Removed old log file (exceeded maxFiles): %s\n", logFiles[i].path)
 			}
 		}

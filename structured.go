@@ -52,7 +52,7 @@ func (f *FlexLog) StructuredLog(level int, message string, fields map[string]int
 		Timestamp: f.formatTimestamp(time.Now()),
 		Level:     levelStr,
 		Message:   message,
-		Fields:    fields,
+		Fields:    safeFields(fields),
 	}
 
 	// Add file and line information

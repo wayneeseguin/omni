@@ -140,7 +140,7 @@ func TestShutdownErrors(t *testing.T) {
 // TestSyslogConnectionError tests syslog connection failures
 func TestSyslogConnectionError(t *testing.T) {
 	// Try to connect to non-existent syslog server
-	_, err := NewWithOptions("syslog://127.0.0.1:9999", BackendSyslog)
+	_, err := NewWithBackend("syslog://127.0.0.1:9999", BackendSyslog)
 	if err == nil {
 		t.Error("Expected error connecting to non-existent syslog server")
 	}
@@ -186,7 +186,7 @@ func TestFileLockError(t *testing.T) {
 	defer logger1.Close()
 
 	// Try to create second logger with same file (should fail due to lock)
-	logger2, err := NewWithOptions(logFile, BackendFlock)
+	logger2, err := NewWithBackend(logFile, BackendFlock)
 	if err == nil {
 		logger2.Close()
 		t.Error("Expected error when creating second logger with locked file")

@@ -201,9 +201,9 @@ func TestWithFields(t *testing.T) {
 	grandchildLogger := childLogger.WithField("component", "auth")
 
 	// Log with grandchild logger
-	grandchildLogger.InfoWithFields("User authenticated", map[string]interface{}{
+	grandchildLogger.WithFields(map[string]interface{}{
 		"user_id": "user123",
-	})
+	}).Info("User authenticated")
 
 	// Wait for processing
 	logger.Sync()

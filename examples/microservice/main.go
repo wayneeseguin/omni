@@ -49,50 +49,46 @@ func initService() error {
 	}
 	
 	// Create logger with service context
-	builder := flexlog.NewBuilder().
-		WithPath(fmt.Sprintf("/var/log/%s.log", config.ServiceName)).
-		WithLevel(config.LogLevel).
-		WithJSON() // Always use JSON for microservices
+	options := []flexlog.Option{
+		flexlog.WithPath(fmt.Sprintf("/tmp/%s.log", config.ServiceName)), // Use /tmp for demo
+		flexlog.WithLevel(config.LogLevel),
+		flexlog.WithJSON(), // Always use JSON for microservices
+	}
 	
 	// Production settings
 	if config.Environment == "production" {
-		builder = builder.
-			WithRotation(200*1024*1024, 20).  // 200MB files, keep 20
-			WithGzipCompression().
-			WithChannelSize(10000)
-		
-		// Add centralized logging destination
-		if syslogAddr := getEnv("SYSLOG_ADDR", ""); syslogAddr != "" {
-			builder = builder.WithDestination(fmt.Sprintf("syslog://%s", syslogAddr))
-		}
+		options = append(options,
+			flexlog.WithRotation(200*1024*1024, 20),  // 200MB files, keep 20
+			flexlog.WithGzipCompression(),
+			flexlog.WithChannelSize(10000),
+		)
 	}
 	
 	var err error
-	logger, err = builder.Build()
+	logger, err = flexlog.NewWithOptions(options...)
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
 	
-	// Add global context fields
-	logger = logger.WithFields(map[string]interface{}{
+	// Log service initialization with context fields
+	logger.InfoWithFields("Service initializing", map[string]interface{}{
 		"service":     config.ServiceName,
 		"service_id":  config.ServiceID,
 		"environment": config.Environment,
 		"version":     "1.0.0",
 		"host":        getHostname(),
-	}).(*flexlog.FlexLog)
+	})
 	
 	// Configure sampling for production
 	if config.Environment == "production" {
-		logger.EnableAdaptiveSampling(flexlog.AdaptiveSamplingConfig{
-			TargetRate:    1000,              // Target 1000 logs/second
-			WindowSize:    time.Minute,
-			MinSampleRate: 0.001,             // Never less than 0.1%
-			MaxSampleRate: 1.0,               // Never more than 100%
-			LevelExemptions: map[int]bool{
-				flexlog.LevelWarn:  true,     // Always log warnings
-				flexlog.LevelError: true,     // Always log errors
-			},
+		// Add sampling filter for non-critical messages
+		logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+			// Always allow warnings and errors
+			if level >= flexlog.LevelWarn {
+				return true
+			}
+			// Sample other messages at 10%
+			return time.Now().UnixNano()%10 == 0
 		})
 	}
 	
@@ -110,7 +106,7 @@ func extractTraceContext(r *http.Request) context.Context {
 	if traceID == "" {
 		traceID = generateTraceID()
 	}
-	ctx = flexlog.WithTraceID(ctx, traceID)
+	ctx = context.WithValue(ctx, "trace_id", traceID)
 	
 	// Extract span information
 	parentSpanID := r.Header.Get(ParentSpanIDHeader)
@@ -124,7 +120,7 @@ func extractTraceContext(r *http.Request) context.Context {
 
 // Propagate trace context to outgoing requests
 func propagateTraceContext(ctx context.Context, req *http.Request) {
-	if traceID := flexlog.GetTraceID(ctx); traceID != "" {
+	if traceID, ok := ctx.Value("trace_id").(string); ok && traceID != "" {
 		req.Header.Set(TraceIDHeader, traceID)
 	}
 	
@@ -142,20 +138,34 @@ func serviceMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Extract trace context
 		ctx := extractTraceContext(r)
 		
-		// Create request logger with context
-		reqLogger := flexlog.NewContextLogger(logger, ctx).
-			WithFields(map[string]interface{}{
-				"method":     r.Method,
-				"path":       r.URL.Path,
-				"remote_ip":  r.RemoteAddr,
-				"user_agent": r.Header.Get("User-Agent"),
-			})
+		// Create request context fields
+		requestFields := map[string]interface{}{
+			"service":     config.ServiceName,
+			"service_id":  config.ServiceID,
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"remote_ip":   r.RemoteAddr,
+			"user_agent":  r.Header.Get("User-Agent"),
+		}
 		
-		// Add logger to context
-		ctx = context.WithValue(ctx, "logger", reqLogger)
+		// Add trace context if available
+		if traceID, ok := ctx.Value("trace_id").(string); ok {
+			requestFields["trace_id"] = traceID
+		}
+		if spanID, ok := ctx.Value("span_id").(string); ok {
+			requestFields["span_id"] = spanID
+		}
+		
+		// Add request fields to context
+		ctx = context.WithValue(ctx, "request_fields", requestFields)
 		
 		// Log request start
-		reqLogger.Info("Request received")
+		logger.InfoWithFields("Request received", requestFields)
+		
+		// Add trace headers to response before processing
+		if traceID, ok := ctx.Value("trace_id").(string); ok {
+			w.Header().Set(TraceIDHeader, traceID)
+		}
 		
 		// Wrap response writer
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: 200}
@@ -166,15 +176,19 @@ func serviceMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Calculate duration
 		duration := time.Since(start)
 		
-		// Log request completion
-		reqLogger.WithFields(map[string]interface{}{
-			"status":      wrapped.statusCode,
-			"duration_ms": duration.Milliseconds(),
-			"bytes":       wrapped.bytesWritten,
-		}).Info("Request completed")
+		// Get request fields and add completion data
+		completionFields := make(map[string]interface{})
+		if requestFields, ok := ctx.Value("request_fields").(map[string]interface{}); ok {
+			for k, v := range requestFields {
+				completionFields[k] = v
+			}
+		}
+		completionFields["status"] = wrapped.statusCode
+		completionFields["duration_ms"] = duration.Milliseconds()
+		completionFields["bytes"] = wrapped.bytesWritten
 		
-		// Add trace headers to response
-		w.Header().Set(TraceIDHeader, flexlog.GetTraceID(ctx))
+		// Log request completion
+		logger.InfoWithFields("Request completed", completionFields)
 	}
 }
 
@@ -196,36 +210,60 @@ func (rw *responseWriter) Write(data []byte) (int, error) {
 	return n, err
 }
 
-// Get logger from context
-func getLogger(ctx context.Context) flexlog.Logger {
-	if l, ok := ctx.Value("logger").(flexlog.Logger); ok {
-		return l
+// Get request fields from context
+func getRequestFields(ctx context.Context) map[string]interface{} {
+	if fields, ok := ctx.Value("request_fields").(map[string]interface{}); ok {
+		return fields
 	}
-	return logger
+	return map[string]interface{}{
+		"service":    config.ServiceName,
+		"service_id": config.ServiceID,
+	}
+}
+
+// Log with context fields
+func logWithContext(ctx context.Context, level string, message string, additionalFields map[string]interface{}) {
+	fields := getRequestFields(ctx)
+	for k, v := range additionalFields {
+		fields[k] = v
+	}
+	
+	switch level {
+	case "debug":
+		logger.DebugWithFields(message, fields)
+	case "info":
+		logger.InfoWithFields(message, fields)
+	case "warn":
+		logger.WarnWithFields(message, fields)
+	case "error":
+		logger.ErrorWithFields(message, fields)
+	}
 }
 
 // Payment processing handler
 func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := getLogger(ctx)
 	
 	// Parse request
 	var payment PaymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&payment); err != nil {
-		log.WithError(err).Warn("Invalid payment request")
+		logWithContext(ctx, "warn", "Invalid payment request", map[string]interface{}{
+			"error": err.Error(),
+		})
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	
-	// Add payment context
-	log = log.WithFields(map[string]interface{}{
-		"payment_id":   generatePaymentID(),
-		"amount":       payment.Amount,
-		"currency":     payment.Currency,
-		"merchant_id":  payment.MerchantID,
-	})
+	// Add payment context to request fields
+	paymentFields := getRequestFields(ctx)
+	paymentID := generatePaymentID()
+	paymentFields["payment_id"] = paymentID
+	paymentFields["amount"] = payment.Amount
+	paymentFields["currency"] = payment.Currency
+	paymentFields["merchant_id"] = payment.MerchantID
+	ctx = context.WithValue(ctx, "request_fields", paymentFields)
 	
-	log.Info("Processing payment")
+	logger.InfoWithFields("Processing payment", paymentFields)
 	
 	// Simulate payment processing steps
 	steps := []struct {
@@ -240,8 +278,10 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	for _, step := range steps {
-		stepLog := log.WithField("step", step.name)
-		stepLog.Debug("Starting payment step")
+		stepFields := getRequestFields(ctx)
+		stepFields["step"] = step.name
+		
+		logger.DebugWithFields("Starting payment step", stepFields)
 		
 		// Simulate processing
 		time.Sleep(step.duration)
@@ -249,18 +289,21 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 		// Simulate failures
 		if rand.Float64() < step.failRate {
 			err := fmt.Errorf("%s failed", step.name)
-			stepLog.WithError(err).Error("Payment step failed")
+			stepFields["error"] = err.Error()
+			logger.ErrorWithFields("Payment step failed", stepFields)
 			
 			respondWithError(w, "Payment processing failed", http.StatusInternalServerError)
 			return
 		}
 		
-		stepLog.Debug("Payment step completed")
+		logger.DebugWithFields("Payment step completed", stepFields)
 	}
 	
 	// Call external service
 	if err := callExternalService(ctx, payment); err != nil {
-		log.WithError(err).Error("External service call failed")
+		logWithContext(ctx, "error", "External service call failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 		respondWithError(w, "External service error", http.StatusServiceUnavailable)
 		return
 	}
@@ -272,7 +315,10 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now(),
 	}
 	
-	log.WithField("response_status", response.Status).Info("Payment processed successfully")
+	logWithContext(ctx, "info", "Payment processed successfully", map[string]interface{}{
+		"response_status": response.Status,
+		"payment_id":      response.PaymentID,
+	})
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -280,8 +326,6 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 
 // Call external service with trace propagation
 func callExternalService(ctx context.Context, payment PaymentRequest) error {
-	log := getLogger(ctx)
-	
 	// Create request
 	reqBody, _ := json.Marshal(payment)
 	req, err := http.NewRequest("POST", "http://external-service/api/process", 
@@ -294,10 +338,10 @@ func callExternalService(ctx context.Context, payment PaymentRequest) error {
 	propagateTraceContext(ctx, req)
 	
 	// Log outgoing request
-	log.WithFields(map[string]interface{}{
+	logWithContext(ctx, "debug", "Calling external service", map[string]interface{}{
 		"external_service": "payment-processor",
 		"endpoint":         req.URL.String(),
-	}).Debug("Calling external service")
+	})
 	
 	// Make request with timeout
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -389,9 +433,8 @@ func main() {
 	}
 	defer func() {
 		logger.Info("Service shutting down")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		logger.Shutdown(ctx)
+		logger.FlushAll()
+		logger.Close()
 	}()
 	
 	// Set up routes
@@ -402,16 +445,22 @@ func main() {
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		metrics := logger.GetMetrics()
 		
+		// Calculate total messages from all levels
+		totalMessages := uint64(0)
+		for _, count := range metrics.MessagesLogged {
+			totalMessages += count
+		}
+		
 		// Export Prometheus-style metrics
 		fmt.Fprintf(w, "# HELP service_log_messages_total Total log messages\n")
 		fmt.Fprintf(w, "# TYPE service_log_messages_total counter\n")
 		fmt.Fprintf(w, "service_log_messages_total{service=\"%s\"} %d\n", 
-			config.ServiceName, metrics.TotalMessages)
+			config.ServiceName, totalMessages)
 		
-		fmt.Fprintf(w, "# HELP service_log_errors_total Total logging errors\n")
-		fmt.Fprintf(w, "# TYPE service_log_errors_total counter\n")
-		fmt.Fprintf(w, "service_log_errors_total{service=\"%s\"} %d\n", 
-			config.ServiceName, metrics.ErrorCount)
+		fmt.Fprintf(w, "# HELP service_log_dropped_total Total dropped messages\n")
+		fmt.Fprintf(w, "# TYPE service_log_dropped_total counter\n")
+		fmt.Fprintf(w, "service_log_dropped_total{service=\"%s\"} %d\n", 
+			config.ServiceName, metrics.MessagesDropped)
 		
 		// Add custom business metrics
 		fmt.Fprintf(w, "# HELP service_uptime_seconds Service uptime\n")
@@ -422,9 +471,18 @@ func main() {
 	
 	// Start server
 	addr := ":8080"
-	logger.WithField("addr", addr).Info("Service starting")
+	logger.InfoWithFields("Service starting", map[string]interface{}{
+		"addr":        addr,
+		"service":     config.ServiceName,
+		"service_id":  config.ServiceID,
+		"environment": config.Environment,
+	})
 	
 	if err := http.ListenAndServe(addr, nil); err != nil {
-		logger.WithError(err).Fatal("Failed to start server")
+		logger.ErrorWithFields("Failed to start server", map[string]interface{}{
+			"error": err.Error(),
+			"addr":  addr,
+		})
+		os.Exit(1)
 	}
 }

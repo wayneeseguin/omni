@@ -134,7 +134,7 @@ func (f *FlexLog) StructuredLogWithContext(ctx context.Context, level int, messa
 		Timestamp: time.Now().Format(f.formatOptions.TimestampFormat),
 		Level:     levelToString(level),
 		Message:   message,
-		Fields:    fields, // This now includes the context values
+		Fields:    safeFields(fields), // This now includes the context values
 	}
 
 	// Include stack trace if enabled for this level
@@ -214,7 +214,6 @@ func (f *FlexLog) FlushWithContext(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
-
 
 // captureStackTrace captures the current stack trace
 func captureStackTrace(maxFrames int) string {

@@ -23,8 +23,11 @@ type Plugin interface {
 	Shutdown(ctx context.Context) error
 }
 
+// Backend type for plugin backends
+const BackendPlugin = 2
+
 // BackendPlugin interface for custom log backends
-type BackendPlugin interface {
+type BackendPluginInterface interface {
 	Plugin
 	
 	// CreateBackend creates a new backend instance
@@ -59,7 +62,7 @@ type FilterPlugin interface {
 // PluginManager manages loaded plugins
 type PluginManager struct {
 	mu         sync.RWMutex
-	backends   map[string]BackendPlugin
+	backends   map[string]BackendPluginInterface
 	formatters map[string]FormatterPlugin
 	filters    map[string]FilterPlugin
 	loaded     map[string]Plugin
@@ -68,7 +71,7 @@ type PluginManager struct {
 // NewPluginManager creates a new plugin manager
 func NewPluginManager() *PluginManager {
 	return &PluginManager{
-		backends:   make(map[string]BackendPlugin),
+		backends:   make(map[string]BackendPluginInterface),
 		formatters: make(map[string]FormatterPlugin),
 		filters:    make(map[string]FilterPlugin),
 		loaded:     make(map[string]Plugin),
@@ -111,7 +114,7 @@ func (pm *PluginManager) LoadPlugin(path string) error {
 	pm.loaded[name] = pluginInstance
 	
 	// Register specific plugin types
-	if backendPlugin, ok := pluginInstance.(BackendPlugin); ok {
+	if backendPlugin, ok := pluginInstance.(BackendPluginInterface); ok {
 		schemes := backendPlugin.SupportedSchemes()
 		for _, scheme := range schemes {
 			pm.backends[scheme] = backendPlugin
@@ -150,7 +153,7 @@ func (pm *PluginManager) UnloadPlugin(name string) error {
 	}
 	
 	// Remove from registries
-	if backendPlugin, ok := pluginInstance.(BackendPlugin); ok {
+	if backendPlugin, ok := pluginInstance.(BackendPluginInterface); ok {
 		schemes := backendPlugin.SupportedSchemes()
 		for _, scheme := range schemes {
 			delete(pm.backends, scheme)
@@ -173,7 +176,7 @@ func (pm *PluginManager) UnloadPlugin(name string) error {
 }
 
 // GetBackendPlugin returns a backend plugin for the given scheme
-func (pm *PluginManager) GetBackendPlugin(scheme string) (BackendPlugin, bool) {
+func (pm *PluginManager) GetBackendPlugin(scheme string) (BackendPluginInterface, bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	
@@ -248,7 +251,7 @@ func (pm *PluginManager) GetPluginInfo() []PluginInfo {
 		}
 		
 		// Determine plugin type and add specific details
-		if backendPlugin, ok := plugin.(BackendPlugin); ok {
+		if backendPlugin, ok := plugin.(BackendPluginInterface); ok {
 			info.Type = "backend"
 			info.Details["supported_schemes"] = backendPlugin.SupportedSchemes()
 		} else if formatterPlugin, ok := plugin.(FormatterPlugin); ok {
@@ -285,7 +288,7 @@ func GetPluginManager() *PluginManager {
 }
 
 // RegisterBackendPlugin registers a backend plugin directly (for built-in plugins)
-func RegisterBackendPlugin(plugin BackendPlugin) error {
+func RegisterBackendPlugin(plugin BackendPluginInterface) error {
 	defaultPluginManager.mu.Lock()
 	defer defaultPluginManager.mu.Unlock()
 	

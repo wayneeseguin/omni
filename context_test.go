@@ -313,11 +313,11 @@ func TestContextLogger(t *testing.T) {
 	ctxLogger := NewContextLogger(logger, ctx)
 	
 	// Add fields
-	ctxLogger = ctxLogger.WithField("app", "test-app")
+	ctxLogger = ctxLogger.WithField("app", "test-app").(*ContextLogger)
 	ctxLogger = ctxLogger.WithFields(map[string]interface{}{
 		"version": "1.0.0",
 		"env":     "test",
-	})
+	}).(*ContextLogger)
 
 	// Log messages
 	ctxLogger.Info("Info message")

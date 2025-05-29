@@ -44,6 +44,10 @@ type Config struct {
 	RedactionPatterns []string // Patterns to redact
 	RedactionReplace  string   // Replacement string for redacted content
 
+	// Plugin settings
+	CustomFormatter       string                 // Custom formatter plugin name
+	CustomFormatterConfig map[string]interface{} // Custom formatter configuration
+
 	// Performance settings
 	EnableBufferPool bool // Enable buffer pooling for formatting
 	EnableLazyFormat bool // Enable lazy formatting

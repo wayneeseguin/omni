@@ -192,7 +192,7 @@ func (f *FlexLog) StructuredLogEntry(level int, message string, fields map[strin
 		Timestamp: f.formatTimestamp(time.Now()),
 		Level:     levelToString(level),
 		Message:   message,
-		Fields:    normalizedFields,
+		Fields:    safeFields(normalizedFields),
 	}
 
 	// Add metadata fields
@@ -325,16 +325,16 @@ func addMetadataFields(entry *LogEntry, logger *FlexLog) {
 // SortedFields returns fields in sorted order
 func SortedFields(fields map[string]interface{}) []StructuredField {
 	var result []StructuredField
-	
+
 	// Extract keys
 	keys := make([]string, 0, len(fields))
 	for k := range fields {
 		keys = append(keys, k)
 	}
-	
+
 	// Sort keys
 	sort.Strings(keys)
-	
+
 	// Create sorted fields
 	for _, k := range keys {
 		result = append(result, StructuredField{
@@ -343,7 +343,7 @@ func SortedFields(fields map[string]interface{}) []StructuredField {
 			Type:  GetFieldType(fields[k]),
 		})
 	}
-	
+
 	return result
 }
 
@@ -351,7 +351,7 @@ func SortedFields(fields map[string]interface{}) []StructuredField {
 func OrderedFields(fields map[string]interface{}, order []string) []StructuredField {
 	var result []StructuredField
 	seen := make(map[string]bool)
-	
+
 	// Add fields in specified order
 	for _, key := range order {
 		if value, exists := fields[key]; exists {
@@ -363,7 +363,7 @@ func OrderedFields(fields map[string]interface{}, order []string) []StructuredFi
 			seen[key] = true
 		}
 	}
-	
+
 	// Add remaining fields in alphabetical order
 	var remaining []string
 	for k := range fields {
@@ -372,7 +372,7 @@ func OrderedFields(fields map[string]interface{}, order []string) []StructuredFi
 		}
 	}
 	sort.Strings(remaining)
-	
+
 	for _, k := range remaining {
 		result = append(result, StructuredField{
 			Key:   k,
@@ -380,7 +380,7 @@ func OrderedFields(fields map[string]interface{}, order []string) []StructuredFi
 			Type:  GetFieldType(fields[k]),
 		})
 	}
-	
+
 	return result
 }
 
@@ -414,7 +414,7 @@ func NumericRangeValidator(min, max float64) FieldValidator {
 		default:
 			return fmt.Errorf("field %s must be numeric", key)
 		}
-		
+
 		if num < min || num > max {
 			return fmt.Errorf("field %s must be between %f and %f", key, min, max)
 		}
@@ -428,7 +428,7 @@ func EnumValidator(validValues ...string) FieldValidator {
 	for _, v := range validValues {
 		validSet[v] = true
 	}
-	
+
 	return func(key string, value interface{}) error {
 		str, ok := value.(string)
 		if !ok {
@@ -481,3 +481,4 @@ func TimestampNormalizer(key string, value interface{}) interface{} {
 		return value
 	}
 }
+

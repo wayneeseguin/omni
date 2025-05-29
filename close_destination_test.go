@@ -73,7 +73,7 @@ func TestCloseDefaultDestination(t *testing.T) {
 	if len(dests) != 1 {
 		t.Fatalf("Expected 1 destination, got %d", len(dests))
 	}
-	defaultName := dests[0].Name
+	defaultName := dests[0]
 
 	// Close the default destination
 	err = logger.CloseDestination(defaultName)
@@ -174,7 +174,7 @@ func TestCloseSyslogDestination(t *testing.T) {
 	// Verify syslog destination is gone
 	dests := logger.ListDestinations()
 	for _, dest := range dests {
-		if dest.Name == "syslog://localhost" {
+		if dest == "syslog://localhost" {
 			t.Error("Syslog destination still exists after close")
 		}
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/wayneeseguin/flexlog"
 )
 
-// RedisBackendPlugin implements the BackendPlugin interface
+// RedisBackendPlugin implements the BackendPluginInterface interface
 type RedisBackendPlugin struct {
 	initialized bool
 	config      map[string]interface{}
@@ -221,9 +221,53 @@ func (b *RedisBackend) SupportsAtomic() bool {
 var FlexLogPlugin = &RedisBackendPlugin{}
 
 func main() {
-	// This is a plugin, so main() is not used when loaded as a plugin
+	// Example usage demonstrating the Redis backend plugin
 	fmt.Println("Redis Backend Plugin")
 	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
 	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
 	fmt.Printf("Supported schemes: %v\n", FlexLogPlugin.SupportedSchemes())
+	
+	// Initialize the plugin
+	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+		fmt.Printf("Failed to initialize plugin: %v\n", err)
+		return
+	}
+	
+	// Demo creating a backend (won't connect to Redis in demo mode)
+	fmt.Println("\nDemo: Creating Redis backend...")
+	
+	// Parse a sample Redis URI
+	sampleURI := "redis://localhost:6379/0?key=demo:logs&max=1000&expire=3600"
+	fmt.Printf("Sample URI: %s\n", sampleURI)
+	
+	// This would normally create a Redis backend, but we'll just demonstrate
+	// the parsing logic without actually connecting
+	backend, err := FlexLogPlugin.CreateBackend(sampleURI, map[string]interface{}{})
+	if err != nil {
+		fmt.Printf("Note: Backend creation failed (Redis not available): %v\n", err)
+		fmt.Println("This is expected when Redis is not running.")
+	} else {
+		fmt.Println("Redis backend created successfully!")
+		
+		// Demo writing a log entry
+		testEntry := []byte(`{"timestamp":"2023-12-25T10:30:45Z","level":"INFO","message":"Test log entry"}`)
+		
+		n, err := backend.Write(testEntry)
+		if err != nil {
+			fmt.Printf("Failed to write log entry: %v\n", err)
+		} else {
+			fmt.Printf("Successfully wrote %d bytes to Redis\n", n)
+		}
+		
+		// Clean up
+		backend.Close()
+	}
+	
+	// Shutdown the plugin
+	ctx := context.Background()
+	if err := FlexLogPlugin.Shutdown(ctx); err != nil {
+		fmt.Printf("Failed to shutdown plugin: %v\n", err)
+	} else {
+		fmt.Println("Plugin shutdown successfully")
+	}
 }

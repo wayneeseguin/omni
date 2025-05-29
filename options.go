@@ -261,6 +261,30 @@ func WithRedaction(patterns []string, replacement string) Option {
 	}
 }
 
+// WithBatchProcessing enables batch processing for writes
+func WithBatchProcessing(maxSize, maxCount int, flushInterval time.Duration) Option {
+	return func(c *Config) error {
+		if maxSize <= 0 || maxCount <= 0 {
+			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+				WithContext("error", "batch size and count must be positive")
+		}
+		if flushInterval < 0 {
+			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+				WithContext("error", "flush interval cannot be negative")
+		}
+		c.EnableBatching = true
+		c.BatchMaxSize = maxSize
+		c.BatchMaxCount = maxCount
+		c.BatchFlushInterval = flushInterval
+		return nil
+	}
+}
+
+// WithDefaultBatching enables batching with default settings
+func WithDefaultBatching() Option {
+	return WithBatchProcessing(64*1024, 100, 100*time.Millisecond) // 64KB, 100 entries, 100ms
+}
+
 // Preset configurations
 
 // WithProductionDefaults sets recommended production settings

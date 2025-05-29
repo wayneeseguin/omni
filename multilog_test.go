@@ -221,8 +221,8 @@ func TestEnableDisableDestination(t *testing.T) {
 	logger.SetDestinationEnabled(1, true)
 
 	// Disable the second destination
-	if !logger.DisableDestination("secondary") {
-		t.Fatalf("Failed to disable destination")
+	if err := logger.DisableDestination("secondary"); err != nil {
+		t.Fatalf("Failed to disable destination: %v", err)
 	}
 
 	// Log a message
@@ -261,8 +261,8 @@ func TestEnableDisableDestination(t *testing.T) {
 	}
 
 	// Re-enable the second destination
-	if !logger.EnableDestination("secondary") {
-		t.Fatalf("Failed to enable destination")
+	if err := logger.EnableDestination("secondary"); err != nil {
+		t.Fatalf("Failed to enable destination: %v", err)
 	}
 
 	// Log another message
@@ -324,7 +324,7 @@ func TestListDestinations(t *testing.T) {
 	// Verify all names are present
 	foundNames := make(map[string]bool)
 	for _, dest := range dests {
-		foundNames[dest.Name] = true
+		foundNames[dest] = true
 	}
 
 	expectedNames := []string{"primary", "secondary", "third"}

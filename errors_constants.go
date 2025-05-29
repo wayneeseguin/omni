@@ -45,6 +45,15 @@ var (
 
 	// ErrShutdownTimeout is returned when shutdown times out
 	ErrShutdownTimeout = errors.New("shutdown timeout")
+
+	// ErrInvalidDestination is returned when destination is invalid
+	ErrInvalidDestination = errors.New("invalid destination")
+
+	// ErrNilWriter is returned when writer is nil
+	ErrNilWriter = errors.New("writer cannot be nil")
+
+	// ErrInvalidConfiguration is returned when configuration is invalid
+	ErrInvalidConfiguration = errors.New("invalid configuration")
 )
 
 // ErrorCodeString returns a human-readable string for an error code

@@ -212,9 +212,11 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 		// Channel is full
 		f.trackMessageDropped()
 		f.logError("channel", "", "Message channel full, dropping ERROR message", nil, ErrorLevelHigh)
-		// Still write to stderr for backward compatibility
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Error message to STDERR directly\n")
-		fmt.Fprint(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
+		// Still write to stderr for backward compatibility (but only in non-test mode)
+		if !isTestMode() {
+			fmt.Fprintf(os.Stderr, "Warning: message channel full, writing Error message to STDERR directly\n")
+			fmt.Fprint(os.Stderr, fmt.Sprintf(msg.Format, msg.Timestamp, msg.Level, msg.Args))
+		}
 	}
 }
 
@@ -281,9 +283,11 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 		}
 
 		f.logError("channel", "", fmt.Sprintf("Message channel full, dropping %s message", levelName), nil, ErrorLevelHigh)
-		// Still write to stderr for backward compatibility
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly.\n", strings.Title(strings.ToLower(levelName)))
-		fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
+		// Still write to stderr for backward compatibility (but only in non-test mode)
+		if !isTestMode() {
+			fmt.Fprintf(os.Stderr, "Warning: message channel full, writing %s message to STDERR directly.\n", strings.Title(strings.ToLower(levelName)))
+			fmt.Fprintln(os.Stderr, fmt.Sprintf(format, args...))
+		}
 	}
 }
 

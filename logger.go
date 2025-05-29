@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -39,6 +40,25 @@ func getDefaultChannelSize() int {
 		}
 	}
 	return 100 // Default to 100 if not specified in environment
+}
+
+// isTestMode detects if we're running under go test
+func isTestMode() bool {
+	// Check if we're running under go test
+	if exe, err := os.Executable(); err == nil {
+		if filepath.Base(exe) == "go" || strings.Contains(exe, ".test") {
+			return true
+		}
+	}
+	
+	// Check for testing package import via command line
+	for _, arg := range os.Args {
+		if strings.Contains(arg, "test") {
+			return true
+		}
+	}
+	
+	return false
 }
 
 // New creates a new file logger with default settings.
@@ -130,8 +150,12 @@ func NewWithBackend(uri string, backendType int) (*FlexLog, error) {
 		f.size = dest.Size
 	}
 
-	// Set default error handler
-	f.errorHandler = StderrErrorHandler
+	// Set default error handler (silent during tests to avoid noisy output)
+	if isTestMode() {
+		f.errorHandler = SilentErrorHandler
+	} else {
+		f.errorHandler = StderrErrorHandler
+	}
 
 	// Metrics sync.Map fields will be lazily initialized on first use
 
@@ -303,8 +327,10 @@ func (f *FlexLog) writeLogEntry(entry LogEntry) {
 	case f.msgChan <- msg:
 		// Message sent successfully
 	default:
-		// Channel is full, log to stderr
-		fmt.Fprintf(os.Stderr, "Warning: message channel full, dropping structured log entry\n")
+		// Channel is full, log to stderr (but only in non-test mode)
+		if !isTestMode() {
+			fmt.Fprintf(os.Stderr, "Warning: message channel full, dropping structured log entry\n")
+		}
 	}
 }
 

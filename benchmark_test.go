@@ -166,7 +166,7 @@ func BenchmarkFormats(b *testing.B) {
 			}
 			defer logger.CloseAll()
 
-			logger.SetFormat(bm.format)
+			_ = logger.SetFormat(int(bm.format))
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -231,7 +231,7 @@ func BenchmarkSampling(b *testing.B) {
 			}
 			defer logger.CloseAll()
 
-			logger.SetSampling(s.strategy, s.rate)
+			_ = logger.SetSampling(int(s.strategy), s.rate)
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

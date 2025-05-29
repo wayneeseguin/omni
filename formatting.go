@@ -8,10 +8,14 @@ import (
 )
 
 // SetFormat sets the output format (text or JSON)
-func (f *FlexLog) SetFormat(format LogFormat) {
+func (f *FlexLog) SetFormat(format int) error {
+	if format < FormatText || format > FormatCustom {
+		return fmt.Errorf("invalid format: %d", format)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.format = int(format)
+	f.format = format
+	return nil
 }
 
 // GetFormat returns the current output format (thread-safe)

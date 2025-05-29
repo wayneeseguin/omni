@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/wayneeseguin/flexlog"
@@ -94,21 +95,79 @@ func (p *XMLFormatterPlugin) FormatName() string {
 	return "xml"
 }
 
+// levelToString converts a log level integer to string
+func levelToString(level int) string {
+	switch level {
+	case flexlog.LevelTrace:
+		return "TRACE"
+	case flexlog.LevelDebug:
+		return "DEBUG"
+	case flexlog.LevelInfo:
+		return "INFO"
+	case flexlog.LevelWarn:
+		return "WARN"
+	case flexlog.LevelError:
+		return "ERROR"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// getMessageText extracts the message text from LogMessage
+func getMessageText(msg flexlog.LogMessage) string {
+	// If Entry exists and has a message, use that
+	if msg.Entry != nil && msg.Entry.Message != "" {
+		return msg.Entry.Message
+	}
+	
+	// If there's a format string, format it with args
+	if msg.Format != "" && len(msg.Args) > 0 {
+		return fmt.Sprintf(msg.Format, msg.Args...)
+	}
+	
+	// If there's just a format string without args, use it as is
+	if msg.Format != "" {
+		return msg.Format
+	}
+	
+	// Fallback: convert args to string with spaces
+	if len(msg.Args) > 0 {
+		strArgs := make([]string, len(msg.Args))
+		for i, arg := range msg.Args {
+			strArgs[i] = fmt.Sprintf("%v", arg)
+		}
+		return strings.Join(strArgs, " ")
+	}
+	
+	return ""
+}
+
+// getMessageFields extracts fields from LogMessage
+func getMessageFields(msg flexlog.LogMessage) map[string]interface{} {
+	if msg.Entry != nil && msg.Entry.Fields != nil {
+		return msg.Entry.Fields
+	}
+	return nil
+}
+
 // Format formats a log message as XML
 func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
 	entry := XMLLogEntry{
 		Timestamp: msg.Timestamp.Format(f.timeFormat),
-		Level:     flexlog.LevelName(msg.Level),
-		Message:   msg.Message,
+		Level:     levelToString(msg.Level),
+		Message:   getMessageText(msg),
 	}
 	
 	// Add fields if enabled and present
-	if f.includeFields && msg.Fields != nil {
-		for key, value := range msg.Fields {
-			entry.Fields = append(entry.Fields, XMLField{
-				Key:   key,
-				Value: fmt.Sprintf("%v", value),
-			})
+	if f.includeFields {
+		fields := getMessageFields(msg)
+		if fields != nil {
+			for key, value := range fields {
+				entry.Fields = append(entry.Fields, XMLField{
+					Key:   key,
+					Value: fmt.Sprintf("%v", value),
+				})
+			}
 		}
 	}
 	
@@ -120,8 +179,50 @@ func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
 var FlexLogPlugin = &XMLFormatterPlugin{}
 
 func main() {
-	// This is a plugin, so main() is not used when loaded as a plugin
+	// Example usage demonstrating the XML formatter plugin
 	fmt.Println("XML Formatter Plugin")
 	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
 	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
+	
+	// Initialize the plugin
+	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+		fmt.Printf("Failed to initialize plugin: %v\n", err)
+		return
+	}
+	
+	// Create a formatter
+	formatter, err := FlexLogPlugin.CreateFormatter(map[string]interface{}{
+		"include_fields": true,
+		"time_format":    time.RFC3339,
+	})
+	if err != nil {
+		fmt.Printf("Failed to create formatter: %v\n", err)
+		return
+	}
+	
+	// Create a sample log message
+	sampleMsg := flexlog.LogMessage{
+		Level:     flexlog.LevelInfo,
+		Format:    "User %s logged in",
+		Args:      []interface{}{"john_doe"},
+		Timestamp: time.Now(),
+		Entry: &flexlog.LogEntry{
+			Message: "User john_doe logged in",
+			Level:   "INFO",
+			Fields: map[string]interface{}{
+				"user_id":    12345,
+				"ip_address": "192.168.1.100",
+				"method":     "POST",
+			},
+		},
+	}
+	
+	// Format the message
+	formatted, err := formatter.Format(sampleMsg)
+	if err != nil {
+		fmt.Printf("Failed to format message: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("\nSample XML output:\n%s\n", string(formatted))
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/wayneeseguin/flexlog"
@@ -21,116 +22,165 @@ func main() {
 	fmt.Println("FlexLog Batch Processing Example")
 	fmt.Println("================================")
 
-	// Example 1: High-throughput logging with batching
-	fmt.Println("\n1. High-throughput logging with batching enabled:")
+	// Example 1: High-throughput logging with optimized settings
+	fmt.Println("\n1. High-throughput logging with optimization:")
 	
-	logFile := filepath.Join(tempDir, "batched.log")
-	config := flexlog.DefaultConfig()
-	config.Path = logFile
-	config.EnableBatching = true
-	config.BatchMaxSize = 4096  // 4KB batch size
-	config.BatchMaxCount = 50   // or 50 messages
-	config.BatchFlushInterval = 100 * time.Millisecond // flush every 100ms
-	
-	logger, err := flexlog.NewWithConfig(config)
+	logFile := filepath.Join(tempDir, "optimized.log")
+	logger, err := flexlog.NewWithOptions(
+		flexlog.WithPath(logFile),
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithChannelSize(1000), // Larger channel buffer for batching effect
+	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 
-	// Check if batching is enabled
-	if enabled, _ := logger.IsBatchingEnabled(0); enabled {
-		fmt.Printf("✓ Batching is enabled (max size: %d bytes, max count: %d, interval: %v)\n", 
-			config.BatchMaxSize, config.BatchMaxCount, config.BatchFlushInterval)
-	}
+	fmt.Printf("✓ Logger created with optimized channel size\n")
 
-	// Write many messages quickly
+	// Write many messages quickly to demonstrate batching behavior
 	start := time.Now()
-	for i := 0; i < 100; i++ {
-		logger.Info(fmt.Sprintf("High-throughput message %d with batching", i))
+	for i := 0; i < 1000; i++ {
+		logger.InfoWithFields("High-throughput batch message", map[string]interface{}{
+			"batch_id":   i / 100,
+			"message_id": i,
+			"timestamp":  time.Now().Unix(),
+		})
 	}
-	batchedDuration := time.Since(start)
+	optimizedDuration := time.Since(start)
 	
-	// Wait for final flush
-	time.Sleep(150 * time.Millisecond)
+	// Flush to ensure all messages are written
+	logger.FlushAll()
 	logger.Close()
 
-	fmt.Printf("✓ Logged 100 messages with batching in %v\n", batchedDuration)
+	fmt.Printf("✓ Logged 1000 messages with optimization in %v\n", optimizedDuration)
 
-	// Example 2: Same load without batching (for comparison)
-	fmt.Println("\n2. Same workload without batching:")
+	// Example 2: Processing batches of data with structured logging
+	fmt.Println("\n2. Processing data in batches with structured logging:")
 	
-	logFile2 := filepath.Join(tempDir, "unbatched.log")
-	config2 := flexlog.DefaultConfig()
-	config2.Path = logFile2
-	config2.EnableBatching = false // Disable batching
-	
-	logger2, err := flexlog.NewWithConfig(config2)
+	logFile2 := filepath.Join(tempDir, "data_batches.log")
+	logger2, err := flexlog.NewWithOptions(
+		flexlog.WithPath(logFile2),
+		flexlog.WithLevel(flexlog.LevelDebug),
+		flexlog.WithJSON(), // Use JSON format for structured data
+	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 
-	// Check if batching is disabled
-	if enabled, _ := logger2.IsBatchingEnabled(0); !enabled {
-		fmt.Printf("✓ Batching is disabled (immediate writes)\n")
-	}
-
-	// Write the same messages without batching
-	start = time.Now()
-	for i := 0; i < 100; i++ {
-		logger2.Info(fmt.Sprintf("High-throughput message %d without batching", i))
-	}
-	unbatchedDuration := time.Since(start)
+	// Simulate processing data in batches
+	totalRecords := 500
+	batchSize := 50
 	
+	for batchStart := 0; batchStart < totalRecords; batchStart += batchSize {
+		batchEnd := batchStart + batchSize
+		if batchEnd > totalRecords {
+			batchEnd = totalRecords
+		}
+		
+		batchID := (batchStart / batchSize) + 1
+		
+		logger2.InfoWithFields("Batch processing started", map[string]interface{}{
+			"batch_id":    batchID,
+			"batch_start": batchStart,
+			"batch_end":   batchEnd,
+			"batch_size":  batchEnd - batchStart,
+		})
+		
+		// Process each record in the batch
+		for i := batchStart; i < batchEnd; i++ {
+			logger2.DebugWithFields("Processing record", map[string]interface{}{
+				"batch_id":  batchID,
+				"record_id": i,
+				"status":    "processing",
+			})
+			
+			// Simulate processing time
+			if i%100 == 0 {
+				time.Sleep(1 * time.Millisecond)
+			}
+		}
+		
+		logger2.InfoWithFields("Batch processing completed", map[string]interface{}{
+			"batch_id":         batchID,
+			"records_processed": batchEnd - batchStart,
+			"total_progress":   float64(batchEnd) / float64(totalRecords) * 100,
+		})
+	}
+	
+	logger2.FlushAll()
 	logger2.Close()
 
-	fmt.Printf("✓ Logged 100 messages without batching in %v\n", unbatchedDuration)
+	fmt.Printf("✓ Processed %d records in %d batches\n", totalRecords, (totalRecords+batchSize-1)/batchSize)
 
-	// Show performance improvement
-	if batchedDuration < unbatchedDuration {
-		improvement := float64(unbatchedDuration-batchedDuration) / float64(unbatchedDuration) * 100
-		fmt.Printf("\n🚀 Batching provided %.1f%% performance improvement!\n", improvement)
-	}
-
-	// Example 3: Dynamic batching control
-	fmt.Println("\n3. Dynamic batching control:")
+	// Example 3: Concurrent batch processing
+	fmt.Println("\n3. Concurrent batch processing:")
 	
-	logFile3 := filepath.Join(tempDir, "dynamic.log")
-	logger3, err := flexlog.New(logFile3)
+	logFile3 := filepath.Join(tempDir, "concurrent_batches.log")
+	logger3, err := flexlog.NewWithOptions(
+		flexlog.WithPath(logFile3),
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithChannelSize(2000), // Large buffer for concurrent access
+	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger3.Close()
 
-	// Start without batching
-	fmt.Println("✓ Starting without batching")
-	logger3.Info("Message without batching")
+	// Start multiple goroutines to process batches concurrently
+	var wg sync.WaitGroup
+	numWorkers := 4
+	itemsPerWorker := 100
+	
+	start = time.Now()
+	
+	for workerID := 0; workerID < numWorkers; workerID++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			
+			logger3.InfoWithFields("Worker started", map[string]interface{}{
+				"worker_id": id,
+				"items":     itemsPerWorker,
+			})
+			
+			for i := 0; i < itemsPerWorker; i++ {
+				logger3.InfoWithFields("Processing item", map[string]interface{}{
+					"worker_id": id,
+					"item_id":   i,
+					"thread":    "concurrent",
+				})
+				
+				if i%25 == 0 {
+					logger3.InfoWithFields("Worker progress", map[string]interface{}{
+						"worker_id": id,
+						"progress":  float64(i) / float64(itemsPerWorker) * 100,
+					})
+				}
+			}
+			
+			logger3.InfoWithFields("Worker completed", map[string]interface{}{
+				"worker_id": id,
+				"items":     itemsPerWorker,
+			})
+		}(workerID)
+	}
+	
+	wg.Wait()
+	concurrentDuration := time.Since(start)
+	
+	logger3.FlushAll()
 
-	// Enable batching dynamically
-	if err := logger3.EnableBatching(0, true); err != nil {
-		log.Fatalf("Failed to enable batching: %v", err)
-	}
-	fmt.Println("✓ Enabled batching dynamically")
-	
-	logger3.Info("Message with batching enabled")
-	logger3.Info("Another batched message")
-	
-	// Configure batch settings
-	if err := logger3.SetBatchingConfig(0, 2048, 25, 50*time.Millisecond); err != nil {
-		log.Fatalf("Failed to configure batching: %v", err)
-	}
-	fmt.Println("✓ Updated batch configuration (2KB, 25 messages, 50ms)")
-	
-	logger3.Info("Message with updated batch config")
-	
-	// Disable batching
-	if err := logger3.EnableBatching(0, false); err != nil {
-		log.Fatalf("Failed to disable batching: %v", err)
-	}
-	fmt.Println("✓ Disabled batching dynamically")
-	
-	logger3.Info("Back to immediate writes")
+	fmt.Printf("✓ Processed %d items concurrently by %d workers in %v\n", 
+		numWorkers*itemsPerWorker, numWorkers, concurrentDuration)
 
+	// Performance summary
+	fmt.Println("\n📊 Performance Summary:")
+	fmt.Printf("  Optimized throughput: %.0f msgs/sec\n", 1000.0/optimizedDuration.Seconds())
+	fmt.Printf("  Concurrent throughput: %.0f msgs/sec\n", float64(numWorkers*itemsPerWorker)/concurrentDuration.Seconds())
+	
 	fmt.Println("\n✅ Batch processing example completed!")
 	fmt.Printf("📁 Log files created in: %s\n", tempDir)
-	fmt.Println("You can examine the log files to see the batching behavior.")
+	fmt.Println("   - optimized.log: High-throughput logging")
+	fmt.Println("   - data_batches.log: Structured batch processing logs")
+	fmt.Println("   - concurrent_batches.log: Concurrent processing logs")
 }

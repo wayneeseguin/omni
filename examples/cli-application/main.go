@@ -47,58 +47,64 @@ func setupLogger() error {
 		level = flexlog.LevelTrace
 	}
 	
-	// Build logger
-	builder := flexlog.NewBuilder().
-		WithPath(logPath).
-		WithLevel(level).
-		WithRotation(10*1024*1024, 5) // 10MB files, keep 5
+	// Create logger with options
+	options := []flexlog.Option{
+		flexlog.WithPath(logPath),
+		flexlog.WithLevel(level),
+		flexlog.WithRotation(10*1024*1024, 5), // 10MB files, keep 5
+	}
 	
 	if *jsonLogs {
-		builder = builder.WithJSON()
+		options = append(options, flexlog.WithJSON())
 	} else {
-		builder = builder.WithText()
+		options = append(options, flexlog.WithText())
 	}
 	
 	// Create logger
 	var err error
-	logger, err = builder.Build()
+	logger, err = flexlog.NewWithOptions(options...)
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
 	
-	// Add console output for warnings and errors
-	logger.AddDestination("stderr://")
-	
 	// Log startup information
-	logger.WithFields(map[string]interface{}{
+	logger.InfoWithFields("Application started", map[string]interface{}{
 		"version":   "1.0.0",
-		"log_level": flexlog.LevelName(level),
+		"log_level": getLevelName(level),
 		"log_file":  logPath,
 		"pid":       os.Getpid(),
-	}).Info("Application started")
+	})
 	
 	return nil
 }
 
 func processFiles(files []string) error {
-	logger.WithField("count", len(files)).Info("Starting file processing")
+	logger.InfoWithFields("Starting file processing", map[string]interface{}{
+		"count": len(files),
+	})
 	
 	processed := 0
 	errors := 0
 	startTime := time.Now()
 	
 	for i, file := range files {
-		fileLogger := logger.WithFields(map[string]interface{}{
+		logFields := map[string]interface{}{
 			"file":  file,
 			"index": i + 1,
 			"total": len(files),
-		})
+		}
 		
-		fileLogger.Debug("Processing file")
+		logger.DebugWithFields("Processing file", logFields)
 		
 		// Simulate file processing
 		if err := processFile(file); err != nil {
-			fileLogger.WithError(err).Error("Failed to process file")
+			errorFields := map[string]interface{}{
+				"file":  file,
+				"index": i + 1,
+				"total": len(files),
+				"error": err.Error(),
+			}
+			logger.ErrorWithFields("Failed to process file", errorFields)
 			errors++
 			continue
 		}
@@ -108,21 +114,25 @@ func processFiles(files []string) error {
 		// Log progress every 10 files
 		if processed%10 == 0 {
 			progress := float64(processed) / float64(len(files)) * 100
-			fileLogger.WithFields(map[string]interface{}{
+			progressFields := map[string]interface{}{
+				"file":      file,
+				"index":     i + 1,
+				"total":     len(files),
 				"processed": processed,
 				"progress":  fmt.Sprintf("%.1f%%", progress),
-			}).Info("Processing progress")
+			}
+			logger.InfoWithFields("Processing progress", progressFields)
 		}
 	}
 	
 	// Log summary
 	duration := time.Since(startTime)
-	logger.WithFields(map[string]interface{}{
+	logger.InfoWithFields("Processing completed", map[string]interface{}{
 		"processed":   processed,
 		"errors":      errors,
 		"duration_ms": duration.Milliseconds(),
 		"rate":        fmt.Sprintf("%.2f files/sec", float64(processed)/duration.Seconds()),
-	}).Info("Processing completed")
+	})
 	
 	if errors > 0 {
 		return fmt.Errorf("failed to process %d files", errors)
@@ -138,10 +148,10 @@ func processFile(path string) error {
 		return fmt.Errorf("stat file: %w", err)
 	}
 	
-	logger.WithFields(map[string]interface{}{
+	logger.TraceWithFields("File details", map[string]interface{}{
 		"size":     info.Size(),
 		"modified": info.ModTime(),
-	}).Trace("File details")
+	})
 	
 	// Simulate processing
 	time.Sleep(50 * time.Millisecond)
@@ -167,24 +177,29 @@ func analyzeData() error {
 	}
 	
 	for i, step := range steps {
-		stepLogger := logger.WithFields(map[string]interface{}{
+		stepFields := map[string]interface{}{
 			"step":     i + 1,
 			"total":    len(steps),
 			"activity": step,
-		})
+		}
 		
-		stepLogger.Info("Analysis step started")
+		logger.InfoWithFields("Analysis step started", stepFields)
 		
 		// Simulate work
 		time.Sleep(500 * time.Millisecond)
 		
 		// Log some debug information
-		if logger.IsLevelEnabled(flexlog.LevelDebug) {
-			stepLogger.WithField("memory_mb", getMemoryUsage()).
-				Debug("Step resource usage")
+		if logger.GetLevel() <= flexlog.LevelDebug {
+			debugFields := map[string]interface{}{
+				"step":      i + 1,
+				"total":     len(steps),
+				"activity":  step,
+				"memory_mb": getMemoryUsage(),
+			}
+			logger.DebugWithFields("Step resource usage", debugFields)
 		}
 		
-		stepLogger.Info("Analysis step completed")
+		logger.InfoWithFields("Analysis step completed", stepFields)
 	}
 	
 	logger.Info("Analysis completed successfully")
@@ -199,7 +214,10 @@ func generateReport() error {
 	// Create report file
 	file, err := os.Create(reportPath)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create report file")
+		logger.ErrorWithFields("Failed to create report file", map[string]interface{}{
+			"error": err.Error(),
+			"path":  reportPath,
+		})
 		return fmt.Errorf("create report: %w", err)
 	}
 	defer file.Close()
@@ -213,13 +231,16 @@ func generateReport() error {
 	}
 	
 	for _, section := range sections {
-		logger.WithField("section", section).Debug("Writing report section")
+		logger.DebugWithFields("Writing report section", map[string]interface{}{
+			"section": section,
+		})
 		
 		_, err := fmt.Fprintf(file, "## %s\n\n", section)
 		if err != nil {
-			logger.WithError(err).
-				WithField("section", section).
-				Error("Failed to write section")
+			logger.ErrorWithFields("Failed to write section", map[string]interface{}{
+				"section": section,
+				"error":   err.Error(),
+			})
 			return fmt.Errorf("write section %s: %w", section, err)
 		}
 		
@@ -227,7 +248,9 @@ func generateReport() error {
 		time.Sleep(200 * time.Millisecond)
 	}
 	
-	logger.WithField("path", reportPath).Info("Report generated successfully")
+	logger.InfoWithFields("Report generated successfully", map[string]interface{}{
+		"path": reportPath,
+	})
 	fmt.Printf("Report saved to: %s\n", reportPath)
 	
 	return nil
@@ -236,6 +259,23 @@ func generateReport() error {
 func getMemoryUsage() int {
 	// Simplified memory usage (would use runtime.MemStats in real app)
 	return 42
+}
+
+func getLevelName(level int) string {
+	switch level {
+	case flexlog.LevelTrace:
+		return "TRACE"
+	case flexlog.LevelDebug:
+		return "DEBUG"
+	case flexlog.LevelInfo:
+		return "INFO"
+	case flexlog.LevelWarn:
+		return "WARN"
+	case flexlog.LevelError:
+		return "ERROR"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 func main() {
@@ -256,7 +296,9 @@ func main() {
 	// Handle panic recovery
 	defer func() {
 		if r := recover(); r != nil {
-			logger.WithField("panic", r).Error("Application panicked")
+			logger.ErrorWithFields("Application panicked", map[string]interface{}{
+				"panic": r,
+			})
 			panic(r) // Re-panic after logging
 		}
 	}()
@@ -281,11 +323,15 @@ func main() {
 		
 	default:
 		err = fmt.Errorf("unknown operation: %s", *operation)
-		logger.WithField("operation", *operation).Error("Invalid operation")
+		logger.ErrorWithFields("Invalid operation", map[string]interface{}{
+			"operation": *operation,
+		})
 	}
 	
 	if err != nil {
-		logger.WithError(err).Error("Operation failed")
+		logger.ErrorWithFields("Operation failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 		os.Exit(1)
 	}
 	

@@ -17,7 +17,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.CloseAll()
+	defer logger.Close()
 
 	// Set level to TRACE to see detailed context tracking
 	logger.SetLevel(flexlog.LevelTrace)

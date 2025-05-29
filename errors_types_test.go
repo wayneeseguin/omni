@@ -237,7 +237,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrDestinationNotFound",
-			fn:       func() *FlexLogError { return ErrDestinationNotFound("test-dest") },
+			fn:       func() *FlexLogError { return NewDestinationNotFoundError("test-dest") },
 			code:     ErrCodeDestinationNotFound,
 			op:       "find",
 			path:     "test-dest",
@@ -267,7 +267,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 
 func TestErrShutdownTimeout(t *testing.T) {
 	duration := 5 * time.Second
-	err := ErrShutdownTimeout(duration)
+	err := NewShutdownTimeoutError(duration)
 
 	if err.Code != ErrCodeShutdownTimeout {
 		t.Errorf("Code = %v, want %v", err.Code, ErrCodeShutdownTimeout)

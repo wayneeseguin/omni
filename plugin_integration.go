@@ -40,7 +40,7 @@ func (f *FlexLog) AddDestinationWithPlugin(uri string) error {
 		dest.writeCount = 0
 		
 		// Add to destinations map
-		f.destinations.Store(dest.Name, dest)
+		f.Destinations = append(f.Destinations, dest)
 		
 		return nil
 	}
@@ -66,16 +66,6 @@ func (f *FlexLog) SetCustomFormatter(formatName string, config map[string]interf
 	}
 	
 	return fmt.Errorf("formatter plugin %s not found", formatName)
-}
-
-// AddFilter adds a filter function to the logger
-func (f *FlexLog) AddFilter(filterFunc FilterFunc) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	
-	// Convert FilterFunc to Filter interface if needed
-	filter := &filterWrapper{fn: filterFunc}
-	f.filters = append(f.filters, filter)
 }
 
 // filterWrapper wraps FilterFunc to implement Filter interface
@@ -132,36 +122,15 @@ func LevelName(level int) string {
 	}
 }
 
-// Builder extensions for plugin support
-
-// WithCustomFormatter adds a custom formatter to the builder
-func (b *Builder) WithCustomFormatter(formatName string, config map[string]interface{}) *Builder {
-	b.customFormatter = formatName
-	b.customFormatterConfig = config
-	return b
-}
-
-// WithFilter adds a filter to the builder
-func (b *Builder) WithFilter(filterFunc FilterFunc) *Builder {
-	b.filters = append(b.filters, filterFunc)
-	return b
-}
 
 // NewWithOptions extensions for plugin support
 
 // WithCustomFormatter option for custom formatters
 func WithCustomFormatter(formatName string, config map[string]interface{}) Option {
-	return func(config *Config) error {
-		config.CustomFormatter = formatName
-		config.CustomFormatterConfig = config
+	return func(c *Config) error {
+		c.CustomFormatter = formatName
+		c.CustomFormatterConfig = config
 		return nil
 	}
 }
 
-// WithFilter option for filters
-func WithFilter(filterFunc FilterFunc) Option {
-	return func(config *Config) error {
-		config.Filters = append(config.Filters, filterFunc)
-		return nil
-	}
-}

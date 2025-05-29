@@ -24,21 +24,17 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Generate request ID
 		requestID := fmt.Sprintf("req-%d", time.Now().UnixNano())
 		
-		// Create request-scoped logger
-		reqLogger := logger.WithFields(map[string]interface{}{
+		// Add request ID to context
+		ctx := context.WithValue(r.Context(), "request_id", requestID)
+		
+		// Log request start
+		logger.InfoWithFields("Request started", map[string]interface{}{
 			"request_id": requestID,
 			"method":     r.Method,
 			"path":       r.URL.Path,
 			"remote_ip":  r.RemoteAddr,
 			"user_agent": r.Header.Get("User-Agent"),
 		})
-		
-		// Add request ID to context
-		ctx := context.WithValue(r.Context(), "request_id", requestID)
-		ctx = context.WithValue(ctx, "logger", reqLogger)
-		
-		// Log request start
-		reqLogger.Info("Request started")
 		
 		// Wrap response writer to capture status code
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: 200}
@@ -48,16 +44,22 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		
 		// Log request completion
 		duration := time.Since(start)
-		reqLogger.WithFields(map[string]interface{}{
+		logger.InfoWithFields("Request completed", map[string]interface{}{
+			"request_id":  requestID,
+			"method":      r.Method,
+			"path":        r.URL.Path,
 			"status":      wrapped.statusCode,
 			"duration_ms": duration.Milliseconds(),
 			"bytes":       wrapped.bytesWritten,
-		}).Info("Request completed")
+		})
 		
 		// Log slow requests as warnings
 		if duration > 500*time.Millisecond {
-			reqLogger.WithField("duration_ms", duration.Milliseconds()).
-				Warn("Slow request detected")
+			logger.WarnWithFields("Slow request detected", map[string]interface{}{
+				"request_id":  requestID,
+				"path":        r.URL.Path,
+				"duration_ms": duration.Milliseconds(),
+			})
 		}
 	}
 }
@@ -80,12 +82,12 @@ func (rw *responseWriter) Write(data []byte) (int, error) {
 	return n, err
 }
 
-// Get logger from context
-func getLogger(r *http.Request) *flexlog.FlexLog {
-	if l, ok := r.Context().Value("logger").(*flexlog.FlexLog); ok {
-		return l
+// Get request ID from context
+func getRequestID(r *http.Request) string {
+	if id, ok := r.Context().Value("request_id").(string); ok {
+		return id
 	}
-	return logger
+	return "unknown"
 }
 
 // API handlers
@@ -98,18 +100,25 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func userHandler(w http.ResponseWriter, r *http.Request) {
-	log := getLogger(r)
+	requestID := getRequestID(r)
 	
 	// Simulate user lookup
 	userID := r.URL.Query().Get("id")
 	if userID == "" {
-		log.Warn("Missing user ID parameter")
+		logger.WarnWithFields("Missing user ID parameter", map[string]interface{}{
+			"request_id": requestID,
+			"path":       r.URL.Path,
+		})
 		http.Error(w, "User ID required", http.StatusBadRequest)
 		return
 	}
 	
 	// Log user access
-	log.WithField("user_id", userID).Info("User data accessed")
+	logger.InfoWithFields("User data accessed", map[string]interface{}{
+		"request_id": requestID,
+		"user_id":    userID,
+		"endpoint":   "/api/user",
+	})
 	
 	// Simulate some processing
 	time.Sleep(100 * time.Millisecond)
@@ -124,15 +133,18 @@ func userHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {
-	log := getLogger(r)
+	requestID := getRequestID(r)
 	
 	// Simulate an error
 	err := fmt.Errorf("database connection failed")
 	
-	// Log error with stack trace
-	log.WithError(err).
-		WithField("component", "database").
-		Error("Failed to process request")
+	// Log error with context
+	logger.ErrorWithFields("Failed to process request", map[string]interface{}{
+		"request_id": requestID,
+		"error":      err.Error(),
+		"component":  "database",
+		"endpoint":   "/api/error",
+	})
 	
 	http.Error(w, "Internal server error", http.StatusInternalServerError)
 }
@@ -140,14 +152,14 @@ func errorHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Initialize logger with production settings
 	var err error
-	logger, err = flexlog.NewBuilder().
-		WithPath("/var/log/webservice.log").
-		WithLevel(flexlog.LevelInfo).
-		WithJSON().                         // JSON for log aggregation
-		WithRotation(100*1024*1024, 10).   // 100MB files, keep 10
-		WithGzipCompression().             // Compress rotated logs
-		WithChannelSize(5000).             // Larger buffer for web service
-		Build()
+	logger, err = flexlog.NewWithOptions(
+		flexlog.WithPath("/tmp/webservice.log"), // Use /tmp for demo
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithJSON(),                    // JSON for log aggregation
+		flexlog.WithRotation(50*1024*1024, 5), // 50MB files, keep 5
+		flexlog.WithGzipCompression(),         // Compress rotated logs
+		flexlog.WithChannelSize(5000),         // Larger buffer for web service
+	)
 	
 	if err != nil {
 		// Fallback to stderr
@@ -158,28 +170,22 @@ func main() {
 	// Ensure logger cleanup
 	defer func() {
 		logger.Info("Shutting down web service")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := logger.Shutdown(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during logger shutdown: %v\n", err)
-		}
+		logger.Close()
 	}()
 	
-	// Set up error handling
-	logger.SetErrorHandler(func(err flexlog.LogError) {
-		// Could send to monitoring system
-		fmt.Fprintf(os.Stderr, "[%s] Logging error: %v\n", err.Level, err.Err)
-	})
-	
 	// Add additional log destination for errors
-	logger.AddDestination("/var/log/webservice-errors.log")
+	err = logger.AddDestination("/tmp/webservice-errors.log")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to add error destination: %v\n", err)
+	}
 	
-	// Configure sampling for high-volume endpoints
-	logger.EnablePatternBasedSampling([]flexlog.PatternSamplingRule{
-		{
-			Pattern: "health check",
-			Rate:    0.01, // Sample 1% of health checks
-		},
+	// Add a filter for sampling health checks
+	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+		// Sample health check requests (allow only 10%)
+		if path, ok := fields["path"].(string); ok && path == "/health" {
+			return time.Now().UnixNano()%10 == 0
+		}
+		return true // Allow all other messages
 	})
 	
 	// Set up HTTP routes
@@ -189,25 +195,24 @@ func main() {
 	
 	// Set up metrics endpoint
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		metrics := logger.GetMetrics()
+		requestID := getRequestID(r)
+		
+		logger.InfoWithFields("Metrics endpoint accessed", map[string]interface{}{
+			"request_id": requestID,
+			"endpoint":   "/metrics",
+		})
 		
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "# HELP log_messages_total Total log messages\n")
-		fmt.Fprintf(w, "log_messages_total %d\n", metrics.TotalMessages)
+		fmt.Fprintf(w, "# HELP webservice_status Web service status\n")
+		fmt.Fprintf(w, "webservice_status 1\n")
 		
-		fmt.Fprintf(w, "# HELP log_errors_total Total logging errors\n")
-		fmt.Fprintf(w, "log_errors_total %d\n", metrics.ErrorCount)
+		fmt.Fprintf(w, "# HELP webservice_uptime_seconds Service uptime in seconds\n")
+		fmt.Fprintf(w, "webservice_uptime_seconds %d\n", time.Now().Unix())
 		
-		fmt.Fprintf(w, "# HELP log_channel_usage Channel buffer usage ratio\n")
-		fmt.Fprintf(w, "log_channel_usage %f\n", metrics.ChannelUsage)
-		
-		// Per-level metrics
-		for level, count := range metrics.MessageCounts {
-			levelName := flexlog.LevelName(level)
-			fmt.Fprintf(w, "# HELP log_messages_%s_total Total %s messages\n", 
-				levelName, levelName)
-			fmt.Fprintf(w, "log_messages_%s_total %d\n", levelName, count)
-		}
+		// Basic logger info
+		destinations := logger.ListDestinations()
+		fmt.Fprintf(w, "# HELP log_destinations_total Total log destinations\n")
+		fmt.Fprintf(w, "log_destinations_total %d\n", len(destinations))
 	})
 	
 	// Start server
@@ -231,15 +236,24 @@ func main() {
 		defer cancel()
 		
 		if err := server.Shutdown(ctx); err != nil {
-			logger.WithError(err).Error("Could not gracefully shutdown the server")
+			logger.ErrorWithFields("Could not gracefully shutdown the server", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 		close(done)
 	}()
 	
-	logger.WithField("addr", server.Addr).Info("Server starting")
+	logger.InfoWithFields("Server starting", map[string]interface{}{
+		"addr": server.Addr,
+		"pid":  os.Getpid(),
+	})
 	
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.WithError(err).Fatal("Could not listen on", server.Addr)
+		logger.ErrorWithFields("Could not start server", map[string]interface{}{
+			"error": err.Error(),
+			"addr":  server.Addr,
+		})
+		os.Exit(1)
 	}
 	
 	<-done

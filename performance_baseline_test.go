@@ -111,8 +111,8 @@ func BenchmarkAllocationProfile(b *testing.B) {
 	})
 }
 
-// BenchmarkChannelThroughput measures message channel throughput
-func BenchmarkChannelThroughput(b *testing.B) {
+// BenchmarkChannelThroughputBaseline measures message channel throughput
+func BenchmarkChannelThroughputBaseline(b *testing.B) {
 	sizes := []int{100, 1000, 10000}
 
 	for _, size := range sizes {

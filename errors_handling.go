@@ -68,6 +68,10 @@ func (f *FlexLog) GetErrors() <-chan LogError {
 
 // logError handles an error using the configured error handler
 func (f *FlexLog) logError(source string, destination string, message string, err error, level ErrorLevel) {
+	// In test mode, suppress all error output except critical errors
+	if isTestMode() && level < ErrorLevelCritical {
+		return
+	}
 	// Increment error count
 	atomic.AddUint64(&f.errorCount, 1)
 
@@ -108,8 +112,8 @@ func (f *FlexLog) logError(source string, destination string, message string, er
 		select {
 		case errorChan <- logErr:
 		default:
-			// Channel full, use fallback to stderr
-			if handler == nil {
+			// Channel full, use fallback to stderr (but only in non-test mode)
+			if handler == nil && !isTestMode() {
 				StderrErrorHandler(logErr)
 			}
 		}

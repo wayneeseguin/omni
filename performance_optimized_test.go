@@ -192,10 +192,10 @@ func BenchmarkMemoryEfficiency(b *testing.B) {
 		count++
 	}
 
-	// Report allocations per message
+	// Report messages per operation
 	if count > 0 {
-		allocsPerOp := float64(b.Alloc) / float64(count)
-		b.ReportMetric(allocsPerOp, "allocs/msg")
+		msgsPerOp := float64(count) / float64(b.N)
+		b.ReportMetric(msgsPerOp, "msgs/op")
 	}
 }
 

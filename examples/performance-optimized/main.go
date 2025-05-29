@@ -11,16 +11,20 @@ import (
 )
 
 func main() {
-	// Create a performance-optimized logger
-	logger, err := flexlog.New("performance.log")
+	// Create a performance-optimized logger with batching enabled
+	logger, err := flexlog.NewWithOptions(
+		flexlog.WithPath("performance.log"),
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithJSON(),                                                         // JSON format for better performance parsing
+		flexlog.WithDefaultBatching(),                                              // Enable batching with default settings (64KB, 100 entries, 100ms)
+		flexlog.WithChannelSize(10000),                                             // Large channel buffer for high throughput
+		flexlog.WithRotation(100*1024*1024, 5),                                    // 100MB files, keep 5
+		flexlog.WithGzipCompression(),                                              // Compress old files
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.CloseAll()
-
-	// For performance testing, we'll only log INFO and above
-	// TRACE and DEBUG can be very verbose and impact performance
-	logger.SetLevel(flexlog.LevelInfo)
+	defer logger.Close()
 
 	log.Printf("Performance testing with different log levels...")
 	log.Printf("Current level: INFO (TRACE and DEBUG will be filtered)")
@@ -136,6 +140,50 @@ func main() {
 
 	allocatedKB := (m2.TotalAlloc - m1.TotalAlloc) / 1024
 	log.Printf("Memory allocated for 1000 TRACE messages: %d KB", allocatedKB)
+
+	// Test 5: Batching vs Non-batching performance
+	log.Printf("Test 5: Batching performance comparison")
+	
+	// Test without batching first (create new logger)
+	nonBatchLogger, err := flexlog.NewWithOptions(
+		flexlog.WithPath("performance-nobatch.log"),
+		flexlog.WithLevel(flexlog.LevelInfo),
+		flexlog.WithJSON(),
+		flexlog.WithChannelSize(10000),
+	)
+	if err != nil {
+		log.Printf("Error creating non-batch logger: %v", err)
+	} else {
+		start = time.Now()
+		for i := 0; i < 5000; i++ {
+			nonBatchLogger.InfoWithFields("Non-batch test", map[string]interface{}{
+				"iteration": i,
+				"data":      fmt.Sprintf("test-data-%d", i),
+				"timestamp": time.Now().Unix(),
+			})
+		}
+		nonBatchTime := time.Since(start)
+		nonBatchLogger.Close()
+		
+		// Test with batching (use existing logger)
+		start = time.Now()
+		for i := 0; i < 5000; i++ {
+			logger.InfoWithFields("Batch test", map[string]interface{}{
+				"iteration": i,
+				"data":      fmt.Sprintf("test-data-%d", i),
+				"timestamp": time.Now().Unix(),
+			})
+		}
+		batchTime := time.Since(start)
+		
+		log.Printf("Non-batching time: %v", nonBatchTime)
+		log.Printf("Batching time: %v", batchTime)
+		if nonBatchTime > batchTime {
+			log.Printf("Batching improvement: %.2fx faster", float64(nonBatchTime)/float64(batchTime))
+		} else {
+			log.Printf("Batching overhead: %.2fx slower", float64(batchTime)/float64(nonBatchTime))
+		}
+	}
 
 	// Final summary
 	log.Printf("\nPerformance Summary:")

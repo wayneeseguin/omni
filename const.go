@@ -38,7 +38,6 @@ const (
 	// Backend types
 	BackendFlock  = 0 // Default file backend with flock
 	BackendSyslog = 1 // Syslog backend (local or remote)
-	BackendPlugin = 2 // Plugin-based backend
 
 	// SeverityLow for minor errors
 	SeverityLow ErrorLevel = iota

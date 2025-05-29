@@ -186,6 +186,51 @@ func IsRetryable(err error) bool {
 		contains(errStr, "no space left on device")
 }
 
+// FileError represents file-specific errors for backwards compatibility
+type FileError struct {
+	Op   string // Operation that failed
+	Path string // File path
+	Err  error  // Underlying error
+}
+
+func (e *FileError) Error() string {
+	return fmt.Sprintf("file %s error on %s: %v", e.Op, e.Path, e.Err)
+}
+
+func (e *FileError) Unwrap() error {
+	return e.Err
+}
+
+// DestinationError represents destination-specific errors
+type DestinationError struct {
+	Op   string // Operation that failed
+	Name string // Destination name
+	Err  error  // Underlying error
+}
+
+func (e *DestinationError) Error() string {
+	return fmt.Sprintf("destination %s: %s failed: %v", e.Name, e.Op, e.Err)
+}
+
+func (e *DestinationError) Unwrap() error {
+	return e.Err
+}
+
+// ConfigError represents configuration-specific errors
+type ConfigError struct {
+	Field string      // Configuration field that failed
+	Value interface{} // Invalid value
+	Err   error       // Underlying error
+}
+
+func (e *ConfigError) Error() string {
+	return fmt.Sprintf("config error: field %s with value %v: %v", e.Field, e.Value, e.Err)
+}
+
+func (e *ConfigError) Unwrap() error {
+	return e.Err
+}
+
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&

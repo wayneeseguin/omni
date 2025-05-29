@@ -19,10 +19,6 @@ type RateLimiterFilterPlugin struct {
 // RateLimiterFilter implements rate limiting for log messages
 type RateLimiterFilter struct {
 	mu           sync.Mutex
-	rate         float64           // messages per second
-	burst        int               // burst capacity
-	tokens       float64           // current tokens
-	lastRefill   time.Time         // last token refill time
 	perLevel     map[int]*rateLimiter // per-level rate limiters
 	perPattern   map[string]*rateLimiter // per-pattern rate limiters
 	global       *rateLimiter      // global rate limiter
@@ -65,26 +61,28 @@ func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (f
 		return nil, fmt.Errorf("plugin not initialized")
 	}
 	
-	filter := &RateLimiterFilter{
-		rate:       100.0, // default: 100 messages per second
-		burst:      200,   // default: burst of 200 messages
-		perLevel:   make(map[int]*rateLimiter),
-		perPattern: make(map[string]*rateLimiter),
-	}
+	// Set default global rate and burst
+	globalRate := 100.0 // default: 100 messages per second
+	globalBurst := 200  // default: burst of 200 messages
 	
 	// Apply configuration
 	if val, ok := config["rate"].(float64); ok {
-		filter.rate = val
+		globalRate = val
 	}
 	
 	if val, ok := config["burst"].(float64); ok {
-		filter.burst = int(val)
+		globalBurst = int(val)
+	}
+	
+	filter := &RateLimiterFilter{
+		perLevel:   make(map[int]*rateLimiter),
+		perPattern: make(map[string]*rateLimiter),
 	}
 	
 	// Configure per-level limits
 	if levels, ok := config["per_level"].(map[string]interface{}); ok {
 		for levelStr, limitConfig := range levels {
-			level := flexlog.ParseLevel(levelStr)
+			level := parseLevelString(levelStr)
 			if level >= 0 {
 				if limitMap, ok := limitConfig.(map[string]interface{}); ok {
 					limiter := &rateLimiter{
@@ -132,9 +130,9 @@ func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (f
 	
 	// Initialize global rate limiter
 	filter.global = &rateLimiter{
-		rate:       filter.rate,
-		burst:      filter.burst,
-		tokens:     float64(filter.burst),
+		rate:       globalRate,
+		burst:      globalBurst,
+		tokens:     float64(globalBurst),
 		lastRefill: time.Now(),
 	}
 	
@@ -147,7 +145,7 @@ func (p *RateLimiterFilterPlugin) FilterType() string {
 }
 
 // shouldAllow determines if a message should be allowed based on rate limits
-func (f *RateLimiterFilter) shouldAllow(msg flexlog.LogMessage) bool {
+func (f *RateLimiterFilter) shouldAllow(level int, message string, fields map[string]interface{}) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -159,7 +157,7 @@ func (f *RateLimiterFilter) shouldAllow(msg flexlog.LogMessage) bool {
 	}
 	
 	// Check per-level rate limit
-	if limiter, exists := f.perLevel[msg.Level]; exists {
+	if limiter, exists := f.perLevel[level]; exists {
 		if !f.checkRateLimit(limiter, now) {
 			return false
 		}
@@ -167,7 +165,7 @@ func (f *RateLimiterFilter) shouldAllow(msg flexlog.LogMessage) bool {
 	
 	// Check per-pattern rate limits
 	for pattern, limiter := range f.perPattern {
-		if containsPattern(msg.Message, pattern) || containsPatternInFields(msg.Fields, pattern) {
+		if containsPattern(message, pattern) || containsPatternInFields(fields, pattern) {
 			if !f.checkRateLimit(limiter, now) {
 				return false
 			}
@@ -236,6 +234,24 @@ func toLower(c byte) byte {
 	return c
 }
 
+// parseLevelString converts level string to level integer
+func parseLevelString(levelStr string) int {
+	switch levelStr {
+	case "TRACE", "trace":
+		return flexlog.LevelTrace
+	case "DEBUG", "debug":
+		return flexlog.LevelDebug
+	case "INFO", "info":
+		return flexlog.LevelInfo
+	case "WARN", "warn", "WARNING", "warning":
+		return flexlog.LevelWarn
+	case "ERROR", "error":
+		return flexlog.LevelError
+	default:
+		return -1 // Invalid level
+	}
+}
+
 // containsPatternInFields checks if any field contains the pattern
 func containsPatternInFields(fields map[string]interface{}, pattern string) bool {
 	if fields == nil {
@@ -259,9 +275,155 @@ func containsPatternInFields(fields map[string]interface{}, pattern string) bool
 var FlexLogPlugin = &RateLimiterFilterPlugin{}
 
 func main() {
-	// This is a plugin, so main() is not used when loaded as a plugin
+	// Example usage demonstrating the Rate Limiter Filter plugin
 	fmt.Println("Rate Limiter Filter Plugin")
 	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
 	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
 	fmt.Printf("Filter type: %s\n", FlexLogPlugin.FilterType())
+	
+	// Initialize the plugin
+	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+		fmt.Printf("Failed to initialize plugin: %v\n", err)
+		return
+	}
+	
+	// Demo: Create a basic rate limiter filter
+	fmt.Println("\nDemo: Creating basic rate limiter filter...")
+	
+	basicConfig := map[string]interface{}{
+		"rate":  10.0, // 10 messages per second
+		"burst": 5.0,  // burst capacity of 5 (smaller for clearer demo)
+	}
+	
+	basicFilter, err := FlexLogPlugin.CreateFilter(basicConfig)
+	if err != nil {
+		fmt.Printf("Failed to create basic filter: %v\n", err)
+		return
+	}
+	
+	// Test basic rate limiting
+	fmt.Println("Testing basic rate limiting (should allow first 5, then start limiting):")
+	allowed := 0
+	blocked := 0
+	
+	for i := 0; i < 10; i++ {
+		result := basicFilter(flexlog.LevelInfo, fmt.Sprintf("Message %d", i+1), nil)
+		fmt.Printf("  Message %d: %v\n", i+1, result)
+		if result {
+			allowed++
+		} else {
+			blocked++
+		}
+	}
+	
+	fmt.Printf("  Total - Allowed: %d, Blocked: %d\n", allowed, blocked)
+	
+	// Demo: Create advanced rate limiter with per-level limits
+	fmt.Println("\nDemo: Creating advanced rate limiter with per-level limits...")
+	
+	advancedConfig := map[string]interface{}{
+		"rate":  100.0, // Global: 100 messages per second
+		"burst": 200.0, // Global burst capacity
+		"per_level": map[string]interface{}{
+			"ERROR": map[string]interface{}{
+				"rate":  5.0, // ERROR: 5 messages per second
+				"burst": 3.0, // ERROR burst capacity (smaller for demo)
+			},
+			"WARN": map[string]interface{}{
+				"rate":  20.0, // WARN: 20 messages per second  
+				"burst": 5.0,  // WARN burst capacity (smaller for demo)
+			},
+		},
+		"per_pattern": map[string]interface{}{
+			"database": map[string]interface{}{
+				"rate":  2.0, // Database messages: 2 per second
+				"burst": 2.0, // Database burst capacity (smaller for demo)
+			},
+		},
+	}
+	
+	advancedFilter, err := FlexLogPlugin.CreateFilter(advancedConfig)
+	if err != nil {
+		fmt.Printf("Failed to create advanced filter: %v\n", err)
+		return
+	}
+	
+	// Test per-level rate limiting
+	fmt.Println("Testing per-level rate limiting for ERROR messages (should allow 3, then block):")
+	errorAllowed := 0
+	errorBlocked := 0
+	
+	for i := 0; i < 8; i++ {
+		result := advancedFilter(flexlog.LevelError, fmt.Sprintf("Error message %d", i+1), nil)
+		fmt.Printf("  ERROR %d: %v\n", i+1, result)
+		if result {
+			errorAllowed++
+		} else {
+			errorBlocked++
+		}
+	}
+	
+	fmt.Printf("  ERROR Total - Allowed: %d, Blocked: %d\n", errorAllowed, errorBlocked)
+	
+	// Test pattern-based rate limiting
+	fmt.Println("Testing pattern-based rate limiting for 'database' messages (should allow 2, then block):")
+	dbAllowed := 0
+	dbBlocked := 0
+	
+	for i := 0; i < 6; i++ {
+		result := advancedFilter(flexlog.LevelInfo, fmt.Sprintf("Database connection %d failed", i+1), nil)
+		fmt.Printf("  DB %d: %v\n", i+1, result)
+		if result {
+			dbAllowed++
+		} else {
+			dbBlocked++
+		}
+	}
+	
+	fmt.Printf("  Database pattern - Allowed: %d, Blocked: %d\n", dbAllowed, dbBlocked)
+	
+	// Test with fields
+	fmt.Println("Testing rate limiting with structured fields:")
+	fieldsAllowed := 0
+	fieldsBlocked := 0
+	
+	for i := 0; i < 8; i++ {
+		fields := map[string]interface{}{
+			"component": "database",
+			"operation": "query",
+			"user_id":   12345,
+		}
+		
+		if advancedFilter(flexlog.LevelWarn, fmt.Sprintf("Query timeout %d", i+1), fields) {
+			fieldsAllowed++
+		} else {
+			fieldsBlocked++
+		}
+	}
+	
+	fmt.Printf("  With fields - Allowed: %d, Blocked: %d\n", fieldsAllowed, fieldsBlocked)
+	
+	// Wait a bit to allow token bucket to refill
+	fmt.Println("\nWaiting 1 second for token bucket refill...")
+	time.Sleep(1 * time.Second)
+	
+	// Test again after refill
+	fmt.Println("Testing again after token refill:")
+	postRefillAllowed := 0
+	
+	for i := 0; i < 5; i++ {
+		if basicFilter(flexlog.LevelInfo, fmt.Sprintf("Post-refill message %d", i+1), nil) {
+			postRefillAllowed++
+		}
+	}
+	
+	fmt.Printf("  Post-refill allowed: %d\n", postRefillAllowed)
+	
+	// Shutdown the plugin
+	ctx := context.Background()
+	if err := FlexLogPlugin.Shutdown(ctx); err != nil {
+		fmt.Printf("Failed to shutdown plugin: %v\n", err)
+	} else {
+		fmt.Println("\nPlugin shutdown successfully")
+	}
 }
