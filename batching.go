@@ -69,6 +69,17 @@ func (f *FlexLog) SetBatchingForAll(interval time.Duration, size int) error {
 	f.mu.Unlock()
 
 	for i := 0; i < numDests; i++ {
+		// Enable batching for the destination
+		if err := f.EnableBatching(i, true); err != nil {
+			return err
+		}
+		
+		// Set batching configuration
+		if err := f.SetBatchingConfig(i, size, 100, interval); err != nil {
+			return err
+		}
+		
+		// Also set flush parameters for backward compatibility
 		if err := f.SetFlushInterval(i, interval); err != nil {
 			return err
 		}

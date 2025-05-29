@@ -525,6 +525,11 @@ func TestProcessSyslogMessage(t *testing.T) {
 			// Process the syslog message
 			logger.processSyslogMessage(tt.message, dest)
 
+			// Flush the writer to ensure all data is written to the mock buffer
+			if dest.Writer != nil {
+				dest.Writer.Flush()
+			}
+
 			// Restore stderr
 			w.Close()
 			os.Stderr = oldStderr
