@@ -11,6 +11,27 @@ import (
 	"github.com/gofrs/flock"
 )
 
+// Backend interface for pluggable log backends
+type Backend interface {
+	// Write writes a log entry to the backend
+	Write(entry []byte) (int, error)
+	
+	// Flush ensures all buffered data is written
+	Flush() error
+	
+	// Close closes the backend
+	Close() error
+	
+	// SupportsAtomic returns whether the backend supports atomic writes
+	SupportsAtomic() bool
+}
+
+// Formatter interface for pluggable log formatters
+type Formatter interface {
+	// Format formats a log message
+	Format(msg LogMessage) ([]byte, error)
+}
+
 // Lock Ordering Hierarchy:
 // To prevent deadlocks, always acquire locks in this order:
 // 1. f.mu (FlexLog main mutex) - acquire first
@@ -84,19 +105,20 @@ type LogMessage struct {
 
 // Destination represents a log destination with its own worker goroutine.
 // Each destination runs independently with its own configuration, formatting,
-// and output handling. Supports file-based and syslog backends.
+// and output handling. Supports file-based, syslog, and plugin backends.
 type Destination struct {
-	URI        string   // URI for the destination (file path or syslog address)
-	Name       string   // Unique identifier for this destination
-	Backend    int      // Backend type (BackendFlock or BackendSyslog)
-	File       *os.File // File handle (for file backend)
-	Writer     *bufio.Writer
-	Lock       *flock.Flock // Lock (only for flock backend)
-	Size       int64
-	Done       chan struct{}
-	SyslogConn *syslogConn // Connection for syslog backend
-	Enabled    bool        // Whether this destination is enabled
-	mu         sync.RWMutex  // Protects concurrent access to Writer and other fields
+	URI         string   // URI for the destination (file path or syslog address)
+	Name        string   // Unique identifier for this destination
+	Backend     int      // Backend type (BackendFlock, BackendSyslog, or BackendPlugin)
+	File        *os.File // File handle (for file backend)
+	Writer      *bufio.Writer
+	Lock        *flock.Flock // Lock (only for flock backend)
+	Size        int64
+	Done        chan struct{}
+	SyslogConn  *syslogConn // Connection for syslog backend
+	PluginBackend Backend   // Plugin backend instance
+	Enabled     bool        // Whether this destination is enabled
+	mu          sync.RWMutex  // Protects concurrent access to Writer and other fields
 
 	// Batching configuration
 	batchWriter   *BatchWriter  // Batch writer for efficient writes
@@ -182,6 +204,12 @@ type FlexLog struct {
 	samplingRate     float64
 	sampleCounter    uint64
 	sampleKeyFunc    func(int, string, map[string]interface{}) string
+	
+	// Enhanced sampling
+	adaptiveSampler  *AdaptiveSampler
+	levelSampling    map[int]float64
+	patternRules     []PatternSamplingRule
+	samplingMetrics  *SamplingMetrics
 
 	// Non-blocking logging fields
 	msgChan     chan LogMessage
@@ -195,8 +223,9 @@ type FlexLog struct {
 	messageQueue chan *LogMessage
 
 	// Formatting
-	format     int
-	formatOpts FormatOptions
+	format          int
+	formatOpts      FormatOptions
+	customFormatter Formatter // Plugin-based custom formatter
 
 	// Error handling
 	errorHandler   ErrorHandler
@@ -226,6 +255,18 @@ type FlexLog struct {
 
 	// Recovery
 	recoveryManager *RecoveryManager
+
+	// Dynamic configuration
+	configWatcher *ConfigWatcher
+	globalFields  map[string]interface{} // Global fields added to all log entries
+
+	// Structured logging enhancements
+	structuredOpts  StructuredLogOptions
+	parent          *FlexLog                 // Parent logger (for WithFields)
+	parentFields    map[string]interface{}   // Fields from parent logger
+	includeHostname bool                     // Include hostname in logs
+	includeProcess  bool                     // Include process info in logs
+	includeRuntime  bool                     // Include runtime info in logs
 
 	closed        bool
 	workerStarted bool // Track if message dispatcher was started

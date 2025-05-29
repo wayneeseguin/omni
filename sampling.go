@@ -11,32 +11,6 @@ func defaultSampleKeyFunc(level int, message string, fields map[string]interface
 	return message // Use the message as the key by default
 }
 
-// SetSampling configures log sampling
-func (f *FlexLog) SetSampling(strategy SamplingStrategy, rate float64) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	f.samplingStrategy = int(strategy)
-
-	// Validate and normalize rate
-	switch strategy {
-	case SamplingRandom, SamplingConsistent:
-		// Ensure rate is between 0 and 1
-		if rate < 0 {
-			rate = 0
-		} else if rate > 1 {
-			rate = 1
-		}
-	case SamplingInterval:
-		// For interval, rate is the sampling interval
-		if rate < 1 {
-			rate = 1 // Log every message
-		}
-	}
-
-	f.samplingRate = rate
-	atomic.StoreUint64(&f.sampleCounter, 0) // Reset counter when changing sampling
-}
 
 // SetSampleKeyFunc sets the function used to generate the key for consistent sampling
 func (f *FlexLog) SetSampleKeyFunc(keyFunc func(level int, message string, fields map[string]interface{}) string) {
@@ -49,6 +23,10 @@ func (f *FlexLog) SetSampleKeyFunc(keyFunc func(level int, message string, field
 
 // shouldLog determines if a log entry should be logged based on filters and sampling
 func (f *FlexLog) shouldLog(level int, message string, fields map[string]interface{}) bool {
+	// Use enhanced sampling if metrics are initialized
+	if f.samplingMetrics != nil {
+		return f.shouldLogEnhanced(level, message, fields)
+	}
 	// Quick check for log level
 	if level < f.level {
 		return false
@@ -92,3 +70,44 @@ func (f *FlexLog) shouldLog(level int, message string, fields map[string]interfa
 
 	return true
 }
+
+// GetSamplingRate returns the current sampling rate
+func (f *FlexLog) GetSamplingRate() float64 {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.samplingRate
+}
+
+// SetSampling configures log sampling (implements SamplableLogger interface)
+func (f *FlexLog) SetSampling(strategy int, rate float64) error {
+	f.SetSamplingStrategy(SamplingStrategy(strategy), rate)
+	return nil
+}
+
+// SetSamplingStrategy configures log sampling with a typed strategy
+func (f *FlexLog) SetSamplingStrategy(strategy SamplingStrategy, rate float64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.samplingStrategy = int(strategy)
+
+	// Validate and normalize rate
+	switch strategy {
+	case SamplingRandom, SamplingConsistent:
+		// Ensure rate is between 0 and 1
+		if rate < 0 {
+			rate = 0
+		} else if rate > 1 {
+			rate = 1
+		}
+	case SamplingInterval:
+		// For interval, rate is the sampling interval
+		if rate < 1 {
+			rate = 1 // Log every message
+		}
+	}
+
+	f.samplingRate = rate
+	atomic.StoreUint64(&f.sampleCounter, 0) // Reset counter when changing sampling
+}
+

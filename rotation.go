@@ -49,7 +49,7 @@ func (f *FlexLog) rotate() error {
 	// Open new file
 	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return &FileError{Op: "open", Path: f.path, Err: err}
+		return NewFlexLogError(ErrCodeFileOpen, "open", f.path, err)
 	}
 
 	// Create new writer - if this fails, we need to close the file
@@ -352,7 +352,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 
 	// Rename the current file
 	if err := os.Rename(dest.URI, rotatedPath); err != nil {
-		return &FileError{Op: "rename", Path: dest.URI, Err: err}
+		return NewFlexLogError(ErrCodeFileRotate, "rename", dest.URI, err)
 	}
 
 	// Open a new file
@@ -360,10 +360,10 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	if err != nil {
 		// Try to restore the original file
 		if restoreErr := os.Rename(rotatedPath, dest.URI); restoreErr != nil {
-			return &FileError{Op: "open", Path: dest.URI,
-				Err: fmt.Errorf("%w (failed to restore original: %v)", err, restoreErr)}
+			return NewFlexLogError(ErrCodeFileOpen, "open", dest.URI,
+				fmt.Errorf("%w (failed to restore original: %v)", err, restoreErr))
 		}
-		return &FileError{Op: "open", Path: dest.URI, Err: err}
+		return NewFlexLogError(ErrCodeFileOpen, "open", dest.URI, err)
 	}
 
 	// Create new writer - ensure we close file if this somehow fails

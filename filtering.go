@@ -1,14 +1,26 @@
 package flexlog
 
 import (
+	"fmt"
 	"regexp"
 )
 
 // AddFilter adds a filter function that determines whether a log entry should be logged
-func (f *FlexLog) AddFilter(filter Filter) {
+func (f *FlexLog) AddFilter(filter FilterFunc) error {
+	if filter == nil {
+		return fmt.Errorf("filter cannot be nil")
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.filters = append(f.filters, filter)
+	f.filters = append(f.filters, Filter(filter))
+	return nil
+}
+
+// RemoveFilter removes a specific filter (note: this is a no-op since functions can't be compared)
+func (f *FlexLog) RemoveFilter(filter FilterFunc) error {
+	// In Go, functions cannot be compared, so we can't remove a specific filter
+	// This is a limitation of the interface design
+	return nil
 }
 
 // ClearFilters removes all filters

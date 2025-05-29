@@ -1,153 +1,193 @@
 # FlexLog Examples
 
-This directory contains example programs demonstrating various features of FlexLog.
+This directory contains examples demonstrating various features and use cases of FlexLog.
 
-## Examples Overview
+## Examples
 
-### 1. [Basic Usage](basic/main.go)
-- Simple logger creation
-- Different log levels (DEBUG, INFO, WARN, ERROR)
-- Formatted logging
-- Structured logging with fields
+### Core Examples
+
+1. **basic** - Simple logging example showing basic features
+   - Basic logger initialization
+   - Different log levels
+   - Simple structured logging
+
+2. **advanced-features** - Demonstrates advanced features
+   - Multiple destinations
+   - Log filtering
+   - Log rotation and compression
+   - Error handling
+   - Dynamic configuration
+
+3. **context-aware** - Shows context integration for distributed tracing
+   - Context propagation
+   - Trace ID handling
+   - Request correlation
+   - Contextual logging
+
+4. **multiple-destinations** - Logging to multiple outputs simultaneously
+   - File and syslog backends
+   - Destination-specific filtering
+   - Dynamic destination management
+
+5. **performance-optimized** - High-performance configuration
+   - Message batching
+   - Log sampling strategies
+   - Buffer optimization
+   - Metrics monitoring
+
+### Real-World Examples
+
+6. **web-service** - HTTP web service with comprehensive logging
+   - Request/response logging middleware
+   - Structured logging for web requests
+   - Performance monitoring
+   - Graceful shutdown
+   - Metrics endpoint
+
+7. **cli-application** - Command-line application logging
+   - Verbose/debug modes
+   - Progress tracking
+   - File processing with detailed logs
+   - User-friendly console output
+
+8. **microservice** - Microservice with distributed tracing
+   - Trace context propagation
+   - Service mesh integration
+   - Adaptive sampling
+   - Health checks and metrics
+   - External service calls
+
+## Running Examples
+
+Each example can be run directly:
 
 ```bash
-go run examples/basic/main.go
+# Basic example
+cd basic
+go run main.go
+
+# Web service (runs on port 8080)
+cd web-service
+go run main.go
+# Test with: curl http://localhost:8080/health
+
+# CLI application
+cd cli-application
+go run main.go -verbose -op process file1.txt file2.txt
+
+# Microservice
+cd microservice
+go run main.go
+# Test with: curl http://localhost:8080/api/payment -d '{"amount":100,"currency":"USD"}'
 ```
 
-### 2. [Multiple Destinations](multiple-destinations/main.go)
-- Logging to multiple files simultaneously
-- Different formats (JSON/Text) for different destinations
-- Level-based filtering per destination
-- Metrics collection and display
+## Building Examples
+
+To build all examples:
 
 ```bash
-go run examples/multiple-destinations/main.go
-```
-
-### 3. [Context-Aware Logging](context-aware/main.go)
-- Using context for request tracing
-- Context cancellation handling
-- Request ID propagation
-- Simulating request processing
-
-```bash
-go run examples/context-aware/main.go
-```
-
-### 4. [Advanced Features](advanced-features/main.go)
-- Sensitive data redaction
-- Log sampling to reduce volume
-- Error logging with stack traces
-- Lazy evaluation for expensive operations
-- Log filtering
-- Automatic log rotation and compression
-
-```bash
-go run examples/advanced-features/main.go
-```
-
-### 5. [Performance Optimized](performance-optimized/main.go)
-- High-throughput logging configuration
-- Concurrent logging from multiple goroutines
-- Zero-allocation logging patterns
-- Performance benchmarking
-- Object pooling for reduced GC pressure
-
-```bash
-go run examples/performance-optimized/main.go
-```
-
-## Running All Examples
-
-You can run all examples sequentially:
-
-```bash
-for example in basic multiple-destinations context-aware advanced-features performance-optimized; do
-    echo "Running $example example..."
-    go run examples/$example/main.go
-    echo "---"
+for dir in */; do
+    if [ -f "$dir/main.go" ]; then
+        echo "Building $dir"
+        cd "$dir"
+        go build -o "${dir%/}"
+        cd ..
+    fi
 done
 ```
 
-## Common Patterns
+## Example Features by Category
 
-### Creating a Logger
-
-```go
-// Simple logger
-logger, err := flexlog.NewFlexLog()
-
-// With configuration
-config := flexlog.Config{
-    ChannelSize: 2000,
-    DefaultLevel: flexlog.INFO,
-}
-logger, err := flexlog.NewFlexLogWithConfig(config)
-```
-
-### Adding Destinations
-
-```go
-// File destination
-logger.AddDestination("file", flexlog.DestinationConfig{
-    Backend:  flexlog.BackendFile,
-    FilePath: "app.log",
-    Format:   flexlog.FormatJSON,
-})
-
-// Syslog destination
-logger.AddDestination("syslog", flexlog.DestinationConfig{
-    Backend: flexlog.BackendSyslog,
-})
-```
+### Basic Logging
+- basic/main.go - Simple logging operations
+- cli-application/main.go - Console logging with levels
 
 ### Structured Logging
+- advanced-features/main.go - Field-based logging
+- web-service/main.go - HTTP request context
+- microservice/main.go - Service metadata
 
-```go
-logger.Info("User action",
-    "user_id", 123,
-    "action", "login",
-    "ip", "192.168.1.1",
-)
-```
+### Performance
+- performance-optimized/main.go - Batching and sampling
+- web-service/main.go - High-volume endpoint handling
+- microservice/main.go - Adaptive sampling
+
+### Distributed Systems
+- context-aware/main.go - Context propagation
+- microservice/main.go - Trace ID handling
+- web-service/main.go - Request correlation
 
 ### Error Handling
+- advanced-features/main.go - Error callbacks
+- cli-application/main.go - Graceful error logging
+- web-service/main.go - HTTP error responses
 
+### Configuration
+- advanced-features/main.go - Dynamic configuration
+- cli-application/main.go - CLI flags for logging
+- microservice/main.go - Environment-based config
+
+## Best Practices Demonstrated
+
+1. **Logger Initialization**
+   - Single logger instance per application
+   - Proper cleanup with defer
+   - Error handling during setup
+
+2. **Structured Logging**
+   - Consistent field names
+   - Context propagation
+   - Request-scoped loggers
+
+3. **Performance**
+   - Appropriate log levels
+   - Sampling for high-volume logs
+   - Efficient field usage
+
+4. **Production Readiness**
+   - Log rotation
+   - Compression
+   - Metrics exposure
+   - Graceful shutdown
+
+## Common Patterns
+
+### HTTP Middleware
 ```go
-if err != nil {
-    logger.ErrorWithStack("Operation failed", err,
-        "operation", "database_query",
-        "retry_count", 3,
-    )
+func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        // See web-service/main.go
+    }
 }
 ```
 
-## Tips for Production Use
+### CLI Verbosity
+```go
+if *verbose {
+    logger.SetLevel(flexlog.LevelDebug)
+}
+// See cli-application/main.go
+```
 
-1. **Always defer Close()**: Ensure logs are flushed on shutdown
-   ```go
-   defer logger.Close()
-   ```
+### Microservice Context
+```go
+ctx = flexlog.WithTraceID(ctx, traceID)
+logger.StructuredLogWithContext(ctx, level, msg, fields)
+// See microservice/main.go
+```
 
-2. **Use appropriate channel size**: For high-throughput applications
-   ```go
-   config.ChannelSize = 10000
-   ```
+## Testing the Examples
 
-3. **Enable metrics**: Monitor logging performance
-   ```go
-   config.EnableMetrics = true
-   ```
+Most examples include test scenarios:
 
-4. **Configure sampling**: For high-volume debug logs
-   ```go
-   config.Sampling.Enabled = true
-   config.Sampling.Rate = 0.01 // 1%
-   ```
+```bash
+# Web service load test
+ab -n 10000 -c 100 http://localhost:8080/api/user?id=123
 
-5. **Set up rotation**: Prevent disk space issues
-   ```go
-   destConfig.MaxSize = 100 * 1024 * 1024 // 100MB
-   destConfig.MaxBackups = 5
-   destConfig.Compress = true
-   ```
+# CLI application with files
+touch test{1..100}.txt
+go run main.go -op process test*.txt
+
+# Microservice trace propagation
+curl -H "X-Trace-ID: trace-123" http://localhost:8080/api/payment
+```

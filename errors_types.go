@@ -151,13 +151,13 @@ func NewChannelFullError(op string) *FlexLogError {
 	return NewFlexLogError(ErrCodeChannelFull, op, "", fmt.Errorf("message channel full"))
 }
 
-// ErrDestinationNotFound creates a destination not found error
-func ErrDestinationNotFound(name string) *FlexLogError {
+// NewDestinationNotFoundError creates a destination not found error
+func NewDestinationNotFoundError(name string) *FlexLogError {
 	return NewFlexLogError(ErrCodeDestinationNotFound, "find", name, fmt.Errorf("destination not found"))
 }
 
-// ErrShutdownTimeout creates a shutdown timeout error
-func ErrShutdownTimeout(duration time.Duration) *FlexLogError {
+// NewShutdownTimeoutError creates a shutdown timeout error
+func NewShutdownTimeoutError(duration time.Duration) *FlexLogError {
 	err := NewFlexLogError(ErrCodeShutdownTimeout, "shutdown", "", fmt.Errorf("shutdown timed out after %v", duration))
 	err.WithContext("timeout", duration)
 	return err

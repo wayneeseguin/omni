@@ -32,6 +32,9 @@ type Config struct {
 	StackSize    int  // Stack trace buffer size
 	CaptureAll   bool // Capture full stack on errors
 
+	// Filtering settings
+	Filters []FilterFunc // Filter functions
+	
 	// Sampling settings
 	SamplingStrategy int                                              // Sampling strategy
 	SamplingRate     float64                                          // Sampling rate (0.0-1.0)
@@ -50,7 +53,11 @@ type Config struct {
 	BatchMaxSize       int           // Maximum batch size in bytes (default: 64KB)
 	BatchMaxCount      int           // Maximum number of entries in a batch (default: 100)
 	BatchFlushInterval time.Duration // How often to flush batches (default: 100ms)
+	
+	// Recovery settings
+	Recovery *RecoveryConfig // Recovery configuration
 }
+
 
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() *Config {

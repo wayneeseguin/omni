@@ -15,6 +15,7 @@ package flexlog
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -60,10 +61,10 @@ func getDefaultChannelSize() int {
 func New(path string) (*FlexLog, error) {
 	// For backward compatibility, we treat this as a file-based logger
 	// with flock backend by default
-	return NewWithOptions(path, BackendFlock)
+	return NewWithBackend(path, BackendFlock)
 }
 
-// NewWithOptions creates a new logger with specific backend type.
+// NewWithBackend creates a new logger with specific backend type.
 //
 // Parameters:
 //   - uri: The destination URI (file path for file backend, syslog address for syslog backend)
@@ -72,7 +73,7 @@ func New(path string) (*FlexLog, error) {
 // Returns:
 //   - *FlexLog: The logger instance
 //   - error: Any error encountered during creation
-func NewWithOptions(uri string, backendType int) (*FlexLog, error) {
+func NewWithBackend(uri string, backendType int) (*FlexLog, error) {
 	// Get the channel size from environment or use default
 	channelSize := getDefaultChannelSize()
 	formatOptions := defaultFormatOptions()
@@ -216,8 +217,81 @@ func (f *FlexLog) SetMaxFiles(count int) {
 	f.maxFiles = count
 }
 
+// GetMaxFiles returns the maximum number of log files
+func (f *FlexLog) GetMaxFiles() int {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.maxFiles
+}
+
+// SetGlobalFields sets global fields that will be included in all log entries
+func (f *FlexLog) SetGlobalFields(fields map[string]interface{}) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.globalFields = fields
+}
+
+// AddGlobalField adds a single global field
+func (f *FlexLog) AddGlobalField(key string, value interface{}) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.globalFields == nil {
+		f.globalFields = make(map[string]interface{})
+	}
+	f.globalFields[key] = value
+}
+
+// RemoveGlobalField removes a global field
+func (f *FlexLog) RemoveGlobalField(key string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.globalFields != nil {
+		delete(f.globalFields, key)
+	}
+}
+
+// GetGlobalFields returns a copy of the current global fields
+func (f *FlexLog) GetGlobalFields() map[string]interface{} {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if f.globalFields == nil {
+		return nil
+	}
+	// Return a copy to prevent external modification
+	copy := make(map[string]interface{}, len(f.globalFields))
+	for k, v := range f.globalFields {
+		copy[k] = v
+	}
+	return copy
+}
+
+// IsLevelEnabled checks if a log level is enabled
+func (f *FlexLog) IsLevelEnabled(level int) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return level >= f.level
+}
+
+// WithContext returns a new Logger that includes context values in all log entries
+func (f *FlexLog) WithContext(ctx context.Context) Logger {
+	return NewContextLogger(f, ctx)
+}
+
 // writeLogEntry writes a structured log entry
 func (f *FlexLog) writeLogEntry(entry LogEntry) {
+	// Merge global fields with entry fields
+	if f.globalFields != nil && len(f.globalFields) > 0 {
+		if entry.Fields == nil {
+			entry.Fields = make(map[string]interface{})
+		}
+		// Add global fields (entry fields take precedence)
+		for k, v := range f.globalFields {
+			if _, exists := entry.Fields[k]; !exists {
+				entry.Fields[k] = v
+			}
+		}
+	}
+	
 	// Create a message for the structured entry
 	msg := LogMessage{
 		Entry:     &entry,

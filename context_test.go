@@ -247,3 +247,206 @@ func readFile(t *testing.T, path string) string {
 	}
 	return string(content)
 }
+
+func TestContextValueExtraction(t *testing.T) {
+	// Create logger
+	tmpDir := t.TempDir()
+	logPath := tmpDir + "/test.log"
+	logger, err := New(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+	logger.SetFormat(FormatJSON)
+
+	// Create context with values
+	ctx := context.Background()
+	ctx = WithRequestID(ctx, "req-123")
+	ctx = WithTraceID(ctx, "trace-456")
+	ctx = WithUserID(ctx, "user-789")
+	ctx = context.WithValue(ctx, ContextKeySessionID, "session-abc")
+	ctx = context.WithValue(ctx, ContextKeyTenantID, "tenant-xyz")
+
+	// Log with context
+	err = logger.StructuredLogWithContext(ctx, LevelInfo, "Test with context", nil)
+	if err != nil {
+		t.Errorf("StructuredLogWithContext failed: %v", err)
+	}
+
+	// Wait for processing
+	logger.Sync()
+
+	// Verify all context values were extracted
+	content := readFile(t, logPath)
+	expectedValues := []string{
+		`"request_id":"req-123"`,
+		`"trace_id":"trace-456"`,
+		`"user_id":"user-789"`,
+		`"session_id":"session-abc"`,
+		`"tenant_id":"tenant-xyz"`,
+	}
+
+	for _, expected := range expectedValues {
+		if !strings.Contains(content, expected) {
+			t.Errorf("Expected context value %s not found in log", expected)
+		}
+	}
+}
+
+func TestContextLogger(t *testing.T) {
+	// Create logger
+	tmpDir := t.TempDir()
+	logPath := tmpDir + "/test.log"
+	logger, err := New(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+	logger.SetFormat(FormatJSON)
+
+	// Create context with values
+	ctx := context.Background()
+	ctx = WithRequestID(ctx, "req-999")
+	ctx = WithUserID(ctx, "user-123")
+
+	// Create context logger
+	ctxLogger := NewContextLogger(logger, ctx)
+	
+	// Add fields
+	ctxLogger = ctxLogger.WithField("app", "test-app")
+	ctxLogger = ctxLogger.WithFields(map[string]interface{}{
+		"version": "1.0.0",
+		"env":     "test",
+	})
+
+	// Log messages
+	ctxLogger.Info("Info message")
+	ctxLogger.Debug("Debug message")
+	ctxLogger.Warn("Warning message")
+	ctxLogger.Error("Error message")
+
+	// Wait for processing
+	logger.Sync()
+
+	// Verify messages and fields
+	content := readFile(t, logPath)
+	
+	// Check that all messages were logged
+	if !strings.Contains(content, "Info message") {
+		t.Error("Info message not found")
+	}
+	if !strings.Contains(content, "Warning message") {
+		t.Error("Warning message not found")
+	}
+	if !strings.Contains(content, "Error message") {
+		t.Error("Error message not found")
+	}
+
+	// Check that context values and fields are included
+	expectedValues := []string{
+		`"request_id":"req-999"`,
+		`"user_id":"user-123"`,
+		`"app":"test-app"`,
+		`"version":"1.0.0"`,
+		`"env":"test"`,
+	}
+
+	for _, expected := range expectedValues {
+		if !strings.Contains(content, expected) {
+			t.Errorf("Expected field %s not found in log", expected)
+		}
+	}
+}
+
+func TestContextHelpers(t *testing.T) {
+	// Test WithContextFields
+	ctx := context.Background()
+	fields := map[string]interface{}{
+		"field1": "value1",
+		"field2": 123,
+		"field3": true,
+	}
+	ctx = WithContextFields(ctx, fields)
+
+	// Verify values were set
+	for key, expectedValue := range fields {
+		if value := ctx.Value(ContextKey(key)); value != expectedValue {
+			t.Errorf("Expected %s=%v, got %v", key, expectedValue, value)
+		}
+	}
+
+	// Test GetRequestID
+	ctx = WithRequestID(ctx, "req-test")
+	if id, ok := GetRequestID(ctx); !ok || id != "req-test" {
+		t.Errorf("GetRequestID failed, got %s, %v", id, ok)
+	}
+
+	// Test GetTraceID
+	ctx = WithTraceID(ctx, "trace-test")
+	if id, ok := GetTraceID(ctx); !ok || id != "trace-test" {
+		t.Errorf("GetTraceID failed, got %s, %v", id, ok)
+	}
+
+	// Test with missing values
+	emptyCtx := context.Background()
+	if _, ok := GetRequestID(emptyCtx); ok {
+		t.Error("GetRequestID should return false for missing value")
+	}
+	if _, ok := GetTraceID(emptyCtx); ok {
+		t.Error("GetTraceID should return false for missing value")
+	}
+}
+
+func TestStructuredLogWithContextFields(t *testing.T) {
+	// Create logger
+	tmpDir := t.TempDir()
+	logPath := tmpDir + "/test.log"
+	logger, err := New(logPath)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+	logger.SetFormat(FormatJSON)
+
+	// Create context with multiple values
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, ContextKeyRequestID, "req-001")
+	ctx = context.WithValue(ctx, ContextKeyTraceID, "trace-001")
+	ctx = context.WithValue(ctx, ContextKeySpanID, "span-001")
+	ctx = context.WithValue(ctx, ContextKeyOperation, "test-operation")
+	ctx = context.WithValue(ctx, ContextKeyService, "test-service")
+	ctx = context.WithValue(ctx, ContextKeyVersion, "v1.2.3")
+
+	// Log with additional fields
+	fields := map[string]interface{}{
+		"custom_field": "custom_value",
+		"numeric":      42,
+	}
+
+	err = logger.StructuredLogWithContext(ctx, LevelInfo, "Structured message", fields)
+	if err != nil {
+		t.Errorf("StructuredLogWithContext failed: %v", err)
+	}
+
+	// Wait for processing
+	logger.Sync()
+
+	// Verify all values are in the log
+	content := readFile(t, logPath)
+	expectedValues := []string{
+		`"request_id":"req-001"`,
+		`"trace_id":"trace-001"`,
+		`"span_id":"span-001"`,
+		`"operation":"test-operation"`,
+		`"service":"test-service"`,
+		`"version":"v1.2.3"`,
+		`"custom_field":"custom_value"`,
+		`"numeric":42`,
+	}
+
+	for _, expected := range expectedValues {
+		if !strings.Contains(content, expected) {
+			t.Errorf("Expected value %s not found in log", expected)
+		}
+	}
+}

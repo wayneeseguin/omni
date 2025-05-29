@@ -266,3 +266,21 @@ func (dest *Destination) trackError() {
 func (dest *Destination) trackRotation() {
 	atomic.AddUint64(&dest.rotations, 1)
 }
+
+
+// GetMessageCount returns the number of messages logged at a specific level
+func (f *FlexLog) GetMessageCount(level int) uint64 {
+	if val, ok := f.messagesByLevel.Load(level); ok {
+		if counter, ok := val.(*atomic.Uint64); ok {
+			return counter.Load()
+		}
+	}
+	return 0
+}
+
+// GetLastError returns the last error that occurred
+func (f *FlexLog) GetLastError() *LogError {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.lastError
+}

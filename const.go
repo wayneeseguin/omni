@@ -15,8 +15,9 @@ const (
 	LevelError = 4
 
 	// Format types
-	FormatText = 0
-	FormatJSON = 1
+	FormatText   = 0
+	FormatJSON   = 1
+	FormatCustom = 2 // Custom formatter via plugin
 
 	// Compression types
 	CompressionNone = 0
@@ -31,9 +32,13 @@ const (
 	// SamplingInterval samples every Nth message
 	SamplingInterval = 5
 
+	// SamplingAdaptive adjusts sampling rate dynamically based on volume
+	SamplingAdaptive = 6
+
 	// Backend types
 	BackendFlock  = 0 // Default file backend with flock
 	BackendSyslog = 1 // Syslog backend (local or remote)
+	BackendPlugin = 2 // Plugin-based backend
 
 	// SeverityLow for minor errors
 	SeverityLow ErrorLevel = iota

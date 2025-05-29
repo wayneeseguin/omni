@@ -8,19 +8,26 @@ import (
 )
 
 // SetCompression enables or disables compression for rotated log files
-func (f *FlexLog) SetCompression(compressionType CompressionType) {
+func (f *FlexLog) SetCompression(compressionType int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	
+	// Validate compression type
+	if compressionType != CompressionNone && compressionType != CompressionGzip {
+		return fmt.Errorf("invalid compression type: %d", compressionType)
+	}
 
-	previousType := CompressionType(f.compression)
-	f.compression = int(compressionType)
+	previousType := f.compression
+	f.compression = compressionType
 
 	// If we're enabling compression and it wasn't enabled before
-	if f.compression != int(CompressionNone) && int(previousType) == int(CompressionNone) {
+	if f.compression != CompressionNone && previousType == CompressionNone {
 		f.startCompressionWorkers()
-	} else if f.compression == int(CompressionNone) && int(previousType) != int(CompressionNone) {
+	} else if f.compression == CompressionNone && previousType != CompressionNone {
 		f.stopCompressionWorkers()
 	}
+	
+	return nil
 }
 
 // SetCompressMinAge sets the minimum rotation age before compressing logs

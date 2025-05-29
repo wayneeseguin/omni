@@ -447,7 +447,7 @@ func (f *FlexLog) RemoveDestination(uri string) error {
 //	if logger.EnableDestination("error-log") {
 //	    fmt.Println("Error logging re-enabled")
 //	}
-func (f *FlexLog) EnableDestination(name string) bool {
+func (f *FlexLog) EnableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -456,11 +456,11 @@ func (f *FlexLog) EnableDestination(name string) bool {
 			dest.mu.Lock()
 			dest.Enabled = true
 			dest.mu.Unlock()
-			return true
+			return nil
 		}
 	}
 
-	return false
+	return ErrDestinationNotFound
 }
 
 // DisableDestination disables a destination by name.
@@ -478,7 +478,7 @@ func (f *FlexLog) EnableDestination(name string) bool {
 //	if logger.DisableDestination("debug-log") {
 //	    fmt.Println("Debug logging temporarily disabled")
 //	}
-func (f *FlexLog) DisableDestination(name string) bool {
+func (f *FlexLog) DisableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -487,11 +487,11 @@ func (f *FlexLog) DisableDestination(name string) bool {
 			dest.mu.Lock()
 			dest.Enabled = false
 			dest.mu.Unlock()
-			return true
+			return nil
 		}
 	}
 
-	return false
+	return ErrDestinationNotFound
 }
 
 // CloseDestination closes and removes a specific destination by name.
@@ -591,15 +591,30 @@ func (f *FlexLog) closeDestination(dest *Destination) error {
 }
 
 // ListDestinations returns a list of all destinations
-func (f *FlexLog) ListDestinations() []*Destination {
+func (f *FlexLog) ListDestinations() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// Create a copy to avoid race conditions
-	destsCopy := make([]*Destination, len(f.Destinations))
-	copy(destsCopy, f.Destinations)
+	// Create list of destination names
+	names := make([]string, len(f.Destinations))
+	for i, dest := range f.Destinations {
+		names[i] = dest.Name
+	}
 
-	return destsCopy
+	return names
+}
+
+// Flush flushes the primary destination
+func (f *FlexLog) Flush() error {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	
+	if f.defaultDest != nil {
+		return f.FlushDestination(f.defaultDest)
+	}
+	
+	// If no default destination, flush all
+	return f.FlushAll()
 }
 
 // FlushAll flushes all destination buffers to ensure all pending messages are written.
