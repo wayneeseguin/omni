@@ -6,23 +6,40 @@ import (
 
 // Builder provides a fluent interface for constructing FlexLog instances
 // with a clean, intuitive API that guides users through configuration.
+// The builder pattern allows for readable, chainable configuration and
+// performs validation as options are set.
 type Builder struct {
 	config Config
 	destinations []destinationConfig
 	err error
 }
 
-// destinationConfig holds destination configuration during building
+// destinationConfig holds destination configuration during building.
+// This internal type stores destination settings until the logger is built.
 type destinationConfig struct {
 	uri         string
 	backendType int
 	options     []DestinationOption
 }
 
-// DestinationOption configures a destination
+// DestinationOption configures a destination.
+// These options are applied to individual destinations after they are created.
 type DestinationOption func(*Destination) error
 
-// NewBuilder creates a new FlexLog builder
+// NewBuilder creates a new FlexLog builder.
+// The builder starts with sensible defaults that can be customized
+// through the fluent interface.
+//
+// Returns:
+//   - *Builder: A new builder instance with default configuration
+//
+// Example:
+//
+//	logger, err := flexlog.NewBuilder().
+//	    WithLevel(flexlog.LevelInfo).
+//	    WithJSON().
+//	    WithDestination("/var/log/app.log").
+//	    Build()
 func NewBuilder() *Builder {
 	return &Builder{
 		config: Config{
@@ -43,7 +60,14 @@ func NewBuilder() *Builder {
 	}
 }
 
-// WithLevel sets the minimum log level
+// WithLevel sets the minimum log level.
+// Messages below this level will not be logged.
+//
+// Parameters:
+//   - level: The minimum log level (LevelTrace to LevelError)
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithLevel(level int) *Builder {
 	if b.err != nil {
 		return b
@@ -57,7 +81,14 @@ func (b *Builder) WithLevel(level int) *Builder {
 	return b
 }
 
-// WithFormat sets the output format
+// WithFormat sets the output format.
+// Supported formats are FormatText and FormatJSON.
+//
+// Parameters:
+//   - format: The output format constant
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithFormat(format int) *Builder {
 	if b.err != nil {
 		return b
@@ -71,7 +102,16 @@ func (b *Builder) WithFormat(format int) *Builder {
 	return b
 }
 
-// WithDestination adds a file destination
+// WithDestination adds a file destination.
+// The first destination becomes the primary log path.
+// Additional destinations can be added for multi-destination logging.
+//
+// Parameters:
+//   - path: The file path for the destination
+//   - options: Optional destination-specific configuration
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithDestination(path string, options ...DestinationOption) *Builder {
 	if b.err != nil {
 		return b
@@ -88,7 +128,15 @@ func (b *Builder) WithDestination(path string, options ...DestinationOption) *Bu
 	return b
 }
 
-// WithSyslogDestination adds a syslog destination
+// WithSyslogDestination adds a syslog destination.
+// Supports standard syslog URIs like "syslog://localhost:514".
+//
+// Parameters:
+//   - uri: The syslog URI
+//   - options: Optional destination-specific configuration
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithSyslogDestination(uri string, options ...DestinationOption) *Builder {
 	if b.err != nil {
 		return b
@@ -101,7 +149,14 @@ func (b *Builder) WithSyslogDestination(uri string, options ...DestinationOption
 	return b
 }
 
-// WithBufferSize sets the channel buffer size
+// WithBufferSize sets the channel buffer size.
+// A larger buffer can handle burst traffic better but uses more memory.
+//
+// Parameters:
+//   - size: The buffer size (must be positive)
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithBufferSize(size int) *Builder {
 	if b.err != nil {
 		return b
@@ -115,7 +170,15 @@ func (b *Builder) WithBufferSize(size int) *Builder {
 	return b
 }
 
-// WithRotation configures log rotation
+// WithRotation configures log rotation.
+// Files are rotated when they reach maxSize bytes.
+//
+// Parameters:
+//   - maxSize: Maximum file size in bytes before rotation
+//   - maxFiles: Maximum number of rotated files to keep
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithRotation(maxSize int64, maxFiles int) *Builder {
 	if b.err != nil {
 		return b
@@ -125,7 +188,15 @@ func (b *Builder) WithRotation(maxSize int64, maxFiles int) *Builder {
 	return b
 }
 
-// WithCompression enables compression
+// WithCompression enables compression.
+// Rotated log files will be compressed to save disk space.
+//
+// Parameters:
+//   - compressionType: Type of compression (e.g., CompressionGzip)
+//   - workers: Number of compression workers
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithCompression(compressionType int, workers int) *Builder {
 	if b.err != nil {
 		return b
@@ -137,7 +208,15 @@ func (b *Builder) WithCompression(compressionType int, workers int) *Builder {
 	return b
 }
 
-// WithStackTrace enables stack trace capture
+// WithStackTrace enables stack trace capture.
+// When enabled, error logs will include stack trace information.
+//
+// Parameters:
+//   - capture: Whether to enable stack traces
+//   - size: Stack buffer size in bytes
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithStackTrace(capture bool, size int) *Builder {
 	if b.err != nil {
 		return b
@@ -149,7 +228,15 @@ func (b *Builder) WithStackTrace(capture bool, size int) *Builder {
 	return b
 }
 
-// WithSampling configures log sampling
+// WithSampling configures log sampling.
+// Sampling reduces log volume by only logging a percentage of messages.
+//
+// Parameters:
+//   - strategy: Sampling strategy (e.g., SamplingRandom)
+//   - rate: Sampling rate from 0.0 to 1.0
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithSampling(strategy int, rate float64) *Builder {
 	if b.err != nil {
 		return b
@@ -159,7 +246,15 @@ func (b *Builder) WithSampling(strategy int, rate float64) *Builder {
 	return b
 }
 
-// WithFilter adds a filter function
+// WithFilter adds a filter function.
+// Filters determine whether a message should be logged.
+// Multiple filters can be added and all must pass.
+//
+// Parameters:
+//   - filter: The filter function
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithFilter(filter FilterFunc) *Builder {
 	if b.err != nil {
 		return b
@@ -171,7 +266,14 @@ func (b *Builder) WithFilter(filter FilterFunc) *Builder {
 	return b
 }
 
-// WithErrorHandler sets the error handler
+// WithErrorHandler sets the error handler.
+// The error handler is called when logging operations fail.
+//
+// Parameters:
+//   - handler: The error handler function
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithErrorHandler(handler ErrorHandler) *Builder {
 	if b.err != nil {
 		return b
@@ -180,7 +282,14 @@ func (b *Builder) WithErrorHandler(handler ErrorHandler) *Builder {
 	return b
 }
 
-// WithMaxAge sets the maximum age for log files
+// WithMaxAge sets the maximum age for log files.
+// Files older than this duration will be automatically deleted.
+//
+// Parameters:
+//   - duration: Maximum age for log files
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithMaxAge(duration time.Duration) *Builder {
 	if b.err != nil {
 		return b
@@ -189,7 +298,14 @@ func (b *Builder) WithMaxAge(duration time.Duration) *Builder {
 	return b
 }
 
-// WithCleanupInterval sets the cleanup interval
+// WithCleanupInterval sets the cleanup interval.
+// This controls how often old log files are checked and removed.
+//
+// Parameters:
+//   - interval: Cleanup check interval
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithCleanupInterval(interval time.Duration) *Builder {
 	if b.err != nil {
 		return b
@@ -198,7 +314,14 @@ func (b *Builder) WithCleanupInterval(interval time.Duration) *Builder {
 	return b
 }
 
-// WithTimezone sets the timezone for timestamps
+// WithTimezone sets the timezone for timestamps.
+// By default, local time is used.
+//
+// Parameters:
+//   - tz: The timezone location
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithTimezone(tz *time.Location) *Builder {
 	if b.err != nil {
 		return b
@@ -207,7 +330,14 @@ func (b *Builder) WithTimezone(tz *time.Location) *Builder {
 	return b
 }
 
-// WithTimestampFormat sets the timestamp format
+// WithTimestampFormat sets the timestamp format.
+// Uses Go's time format syntax.
+//
+// Parameters:
+//   - format: Time format string
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithTimestampFormat(format string) *Builder {
 	if b.err != nil {
 		return b
@@ -216,17 +346,39 @@ func (b *Builder) WithTimestampFormat(format string) *Builder {
 	return b
 }
 
-// WithJSON is a convenience method to set JSON format
+// WithJSON is a convenience method to set JSON format.
+// Equivalent to WithFormat(FormatJSON).
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithJSON() *Builder {
 	return b.WithFormat(FormatJSON)
 }
 
-// WithDebugLevel is a convenience method to set debug level
+// WithDebugLevel is a convenience method to set debug level.
+// Equivalent to WithLevel(LevelDebug).
+//
+// Returns:
+//   - *Builder: The builder for method chaining
 func (b *Builder) WithDebugLevel() *Builder {
 	return b.WithLevel(LevelDebug)
 }
 
-// Build creates the FlexLog instance
+// Build creates the FlexLog instance.
+// This finalizes the configuration and creates the logger.
+// Any errors encountered during building will be returned here.
+//
+// Returns:
+//   - *FlexLog: The configured logger instance
+//   - error: Any configuration or initialization error
+//
+// Example:
+//
+//	logger, err := builder.Build()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer logger.Close()
 func (b *Builder) Build() (*FlexLog, error) {
 	// Check for errors during building
 	if b.err != nil {
@@ -279,7 +431,15 @@ func (b *Builder) Build() (*FlexLog, error) {
 
 // Destination options
 
-// WithBatching configures batching for a destination
+// WithBatching configures batching for a destination.
+// Messages are batched to improve write performance.
+//
+// Parameters:
+//   - maxSize: Maximum batch size in bytes
+//   - interval: Maximum time before flushing a batch
+//
+// Returns:
+//   - DestinationOption: The option function
 func WithBatching(maxSize int, interval time.Duration) DestinationOption {
 	return func(d *Destination) error {
 		d.batchEnabled = true
@@ -289,7 +449,14 @@ func WithBatching(maxSize int, interval time.Duration) DestinationOption {
 	}
 }
 
-// WithDestinationName sets a custom name for the destination
+// WithDestinationName sets a custom name for the destination.
+// This name is used in metrics and error messages.
+//
+// Parameters:
+//   - name: The destination name
+//
+// Returns:
+//   - DestinationOption: The option function
 func WithDestinationName(name string) DestinationOption {
 	return func(d *Destination) error {
 		d.Name = name
@@ -297,17 +464,3 @@ func WithDestinationName(name string) DestinationOption {
 	}
 }
 
-// Example usage:
-//
-// logger, err := flexlog.NewBuilder().
-//     WithLevel(flexlog.LevelInfo).
-//     WithJSON().
-//     WithDestination("/var/log/app.log",
-//         flexlog.WithBatching(8192, 100*time.Millisecond),
-//         flexlog.WithDestinationName("primary")).
-//     WithSyslogDestination("syslog://localhost:514",
-//         flexlog.WithDestinationName("syslog")).
-//     WithRotation(100*1024*1024, 10).
-//     WithCompression(flexlog.CompressionGzip, 2).
-//     WithErrorHandler(flexlog.StderrErrorHandler).
-//     Build()

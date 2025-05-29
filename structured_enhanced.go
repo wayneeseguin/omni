@@ -8,37 +8,75 @@ import (
 	"time"
 )
 
-// FieldType represents the type of a structured field
+// FieldType represents the type of a structured field.
+// This is used for type-aware field handling and validation.
 type FieldType int
 
 const (
+	// FieldTypeString represents a string value
 	FieldTypeString FieldType = iota
+	// FieldTypeInt represents an integer value
 	FieldTypeInt
+	// FieldTypeFloat represents a floating-point value
 	FieldTypeFloat
+	// FieldTypeBool represents a boolean value
 	FieldTypeBool
+	// FieldTypeTime represents a time.Time value
 	FieldTypeTime
+	// FieldTypeDuration represents a time.Duration value
 	FieldTypeDuration
+	// FieldTypeError represents an error value
 	FieldTypeError
+	// FieldTypeStringer represents a type that implements fmt.Stringer
 	FieldTypeStringer
+	// FieldTypeObject represents a complex object (struct, map, etc.)
 	FieldTypeObject
+	// FieldTypeArray represents an array or slice
 	FieldTypeArray
+	// FieldTypeNil represents a nil value
 	FieldTypeNil
 )
 
-// StructuredField represents a field with type information
+// StructuredField represents a field with type information.
+// It provides type-aware handling of structured log fields.
 type StructuredField struct {
-	Key   string
-	Value interface{}
-	Type  FieldType
+	Key   string      // The field name
+	Value interface{} // The field value
+	Type  FieldType   // The detected or specified type
 }
 
-// FieldValidator is a function that validates a field value
+// FieldValidator is a function that validates a field value.
+// It returns an error if the field is invalid.
+//
+// Example:
+//
+//	validator := func(key string, value interface{}) error {
+//	    if key == "user_id" {
+//	        if id, ok := value.(int); !ok || id <= 0 {
+//	            return fmt.Errorf("user_id must be a positive integer")
+//	        }
+//	    }
+//	    return nil
+//	}
 type FieldValidator func(key string, value interface{}) error
 
-// FieldNormalizer is a function that normalizes a field value
+// FieldNormalizer is a function that normalizes a field value.
+// It returns the normalized value, which may be of a different type.
+//
+// Example:
+//
+//	normalizer := func(key string, value interface{}) interface{} {
+//	    if key == "email" {
+//	        if email, ok := value.(string); ok {
+//	            return strings.ToLower(strings.TrimSpace(email))
+//	        }
+//	    }
+//	    return value
+//	}
 type FieldNormalizer func(key string, value interface{}) interface{}
 
-// StructuredLogOptions contains options for structured logging
+// StructuredLogOptions contains options for structured logging.
+// These options control field validation, normalization, and formatting.
 type StructuredLogOptions struct {
 	// SortFields controls whether fields are sorted alphabetically
 	SortFields bool
@@ -71,21 +109,46 @@ type StructuredLogOptions struct {
 	FieldOrder []string
 }
 
-// SetStructuredLogOptions sets options for structured logging
+// SetStructuredLogOptions sets options for structured logging.
+// These options control field validation, normalization, sorting, and other behaviors.
+//
+// Parameters:
+//   - opts: The structured logging options to apply
+//
+// Example:
+//
+//	logger.SetStructuredLogOptions(flexlog.StructuredLogOptions{
+//	    SortFields:     true,
+//	    MaxFieldSize:   1024,
+//	    TruncateFields: true,
+//	    RequiredFields: []string{"request_id", "user_id"},
+//	})
 func (f *FlexLog) SetStructuredLogOptions(opts StructuredLogOptions) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.structuredOpts = opts
 }
 
-// GetStructuredLogOptions returns the current structured logging options
+// GetStructuredLogOptions returns the current structured logging options.
+// This method is thread-safe.
+//
+// Returns:
+//   - StructuredLogOptions: A copy of the current options
 func (f *FlexLog) GetStructuredLogOptions() StructuredLogOptions {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.structuredOpts
 }
 
-// ValidateAndNormalizeFields validates and normalizes structured fields
+// ValidateAndNormalizeFields validates and normalizes structured fields.
+// It applies validators, normalizers, size limits, and other rules defined in StructuredLogOptions.
+//
+// Parameters:
+//   - fields: The fields to validate and normalize
+//
+// Returns:
+//   - map[string]interface{}: The processed fields with defaults applied
+//   - error: Validation error if any field fails validation
 func (f *FlexLog) ValidateAndNormalizeFields(fields map[string]interface{}) (map[string]interface{}, error) {
 	if fields == nil {
 		fields = make(map[string]interface{})
@@ -145,7 +208,22 @@ func (f *FlexLog) ValidateAndNormalizeFields(fields map[string]interface{}) (map
 	return result, nil
 }
 
-// WithFields returns a new logger that will include the given fields in all log entries
+// WithFields returns a new logger that will include the given fields in all log entries.
+// The returned logger is a lightweight wrapper that adds fields without modifying the parent.
+//
+// Parameters:
+//   - fields: Fields to include in all log entries from the returned logger
+//
+// Returns:
+//   - Logger: A new logger instance with the additional fields
+//
+// Example:
+//
+//	requestLogger := logger.WithFields(map[string]interface{}{
+//	    "request_id": "123-456",
+//	    "user_id":    42,
+//	})
+//	requestLogger.Info("Processing request")  // Includes request_id and user_id
 func (f *FlexLog) WithFields(fields map[string]interface{}) Logger {
 	// This creates a lightweight wrapper that includes fields
 	return &fieldsLogger{
@@ -154,12 +232,39 @@ func (f *FlexLog) WithFields(fields map[string]interface{}) Logger {
 	}
 }
 
-// WithField returns a new logger that will include the given field in all log entries
+// WithField returns a new logger that will include the given field in all log entries.
+// This is a convenience method for WithFields with a single field.
+//
+// Parameters:
+//   - key: The field name
+//   - value: The field value
+//
+// Returns:
+//   - Logger: A new logger instance with the additional field
+//
+// Example:
+//
+//	userLogger := logger.WithField("user_id", 12345)
+//	userLogger.Info("User logged in")  // Includes user_id field
 func (f *FlexLog) WithField(key string, value interface{}) Logger {
 	return f.WithFields(map[string]interface{}{key: value})
 }
 
-// WithError returns a new logger that includes an error field
+// WithError returns a new logger that includes an error field.
+// If the error is nil, returns the original logger unchanged.
+//
+// Parameters:
+//   - err: The error to include (can be nil)
+//
+// Returns:
+//   - Logger: A new logger with the error field, or self if err is nil
+//
+// Example:
+//
+//	err := db.Query(query)
+//	if err != nil {
+//	    logger.WithError(err).Error("Database query failed")
+//	}
 func (f *FlexLog) WithError(err error) Logger {
 	if err == nil {
 		return f
@@ -167,7 +272,17 @@ func (f *FlexLog) WithError(err error) Logger {
 	return f.WithField("error", err.Error())
 }
 
-// StructuredLogEntry creates a structured log entry with enhanced features
+// StructuredLogEntry creates a structured log entry with enhanced features.
+// It merges parent fields, validates and normalizes fields, and creates a properly formatted entry.
+//
+// Parameters:
+//   - level: The log level
+//   - message: The log message
+//   - fields: Structured fields to include
+//
+// Returns:
+//   - *LogEntry: The created log entry
+//   - error: Any validation error
 func (f *FlexLog) StructuredLogEntry(level int, message string, fields map[string]interface{}) (*LogEntry, error) {
 	// Merge parent fields if this is a child logger
 	if f.parent != nil && f.parentFields != nil {
@@ -201,7 +316,27 @@ func (f *FlexLog) StructuredLogEntry(level int, message string, fields map[strin
 	return entry, nil
 }
 
-// GetFieldType determines the type of a field value
+// GetFieldType determines the type of a field value.
+// It uses type switches and reflection to classify values into appropriate FieldType categories.
+//
+// Parameters:
+//   - value: The value to classify
+//
+// Returns:
+//   - FieldType: The determined field type
+//
+// Type mappings:
+//   - nil -> FieldTypeNil
+//   - string -> FieldTypeString
+//   - numeric types -> FieldTypeInt or FieldTypeFloat
+//   - bool -> FieldTypeBool
+//   - time.Time -> FieldTypeTime
+//   - time.Duration -> FieldTypeDuration
+//   - error -> FieldTypeError
+//   - fmt.Stringer -> FieldTypeStringer
+//   - arrays/slices -> FieldTypeArray
+//   - maps/structs -> FieldTypeObject
+//   - others -> FieldTypeString (default)
 func GetFieldType(value interface{}) FieldType {
 	if value == nil {
 		return FieldTypeNil
@@ -237,7 +372,16 @@ func GetFieldType(value interface{}) FieldType {
 	}
 }
 
-// truncateFieldValue truncates a field value if it exceeds the maximum size
+// truncateFieldValue truncates a field value if it exceeds the maximum size.
+// It handles strings, byte slices, and arrays/slices of other types.
+//
+// Parameters:
+//   - value: The value to potentially truncate
+//   - maxSize: Maximum allowed size
+//   - truncate: If true, truncate the value; if false, replace with placeholder
+//
+// Returns:
+//   - interface{}: The original or truncated value
 func truncateFieldValue(value interface{}, maxSize int, truncate bool) interface{} {
 	switch v := value.(type) {
 	case string:

@@ -6,7 +6,9 @@ import (
 	"time"
 )
 
-// BatchWriter implements efficient batched writing with configurable flush triggers
+// BatchWriter implements efficient batched writing with configurable flush triggers.
+// It accumulates multiple write operations into a single batch to improve I/O performance.
+// Batches are flushed when size/count limits are reached or after a timeout.
 type BatchWriter struct {
 	writer        *bufio.Writer
 	mu            sync.Mutex
@@ -19,7 +21,21 @@ type BatchWriter struct {
 	closed        bool
 }
 
-// NewBatchWriter creates a new batch writer with the specified configuration
+// NewBatchWriter creates a new batch writer with the specified configuration.
+// The batch writer improves write performance by reducing the number of system calls.
+//
+// Parameters:
+//   - writer: The underlying buffered writer
+//   - maxSize: Maximum batch size in bytes before auto-flush
+//   - maxCount: Maximum number of entries before auto-flush
+//   - flushInterval: Time interval for periodic flushes (0 disables timer)
+//
+// Returns:
+//   - *BatchWriter: A new batch writer instance
+//
+// Example:
+//
+//	bw := NewBatchWriter(bufWriter, 64*1024, 100, 100*time.Millisecond)
 func NewBatchWriter(writer *bufio.Writer, maxSize, maxCount int, flushInterval time.Duration) *BatchWriter {
 	bw := &BatchWriter{
 		writer:        writer,
@@ -39,7 +55,16 @@ func NewBatchWriter(writer *bufio.Writer, maxSize, maxCount int, flushInterval t
 	return bw
 }
 
-// Write adds data to the batch buffer and flushes if necessary
+// Write adds data to the batch buffer and flushes if necessary.
+// Data is copied to avoid race conditions. The batch is automatically
+// flushed when size or count limits are exceeded.
+//
+// Parameters:
+//   - data: The data to write
+//
+// Returns:
+//   - int: Number of bytes accepted (always len(data) unless closed)
+//   - error: Write or flush error
 func (bw *BatchWriter) Write(data []byte) (int, error) {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
@@ -71,19 +96,32 @@ func (bw *BatchWriter) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// WriteString is a convenience method for string data
+// WriteString is a convenience method for string data.
+// Equivalent to Write([]byte(data)).
+//
+// Parameters:
+//   - data: The string to write
+//
+// Returns:
+//   - int: Number of bytes written
+//   - error: Write or flush error
 func (bw *BatchWriter) WriteString(data string) (int, error) {
 	return bw.Write([]byte(data))
 }
 
-// Flush forces all buffered data to be written
+// Flush forces all buffered data to be written.
+// This method blocks until all pending data is written to the underlying writer.
+//
+// Returns:
+//   - error: Flush error if write fails
 func (bw *BatchWriter) Flush() error {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
 	return bw.flushLocked()
 }
 
-// flushLocked performs the actual flush (must be called with lock held)
+// flushLocked performs the actual flush (must be called with lock held).
+// This internal method writes all buffered data and resets the batch state.
 func (bw *BatchWriter) flushLocked() error {
 	if len(bw.buffer) == 0 {
 		return nil
@@ -108,7 +146,8 @@ func (bw *BatchWriter) flushLocked() error {
 	return nil
 }
 
-// timedFlush is called by the timer to flush periodically
+// timedFlush is called by the timer to flush periodically.
+// This ensures data doesn't remain buffered indefinitely even with low write volume.
 func (bw *BatchWriter) timedFlush() {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
@@ -128,7 +167,11 @@ func (bw *BatchWriter) timedFlush() {
 	}
 }
 
-// Close flushes any remaining data and stops the timer
+// Close flushes any remaining data and stops the timer.
+// After closing, all write operations will fail with ErrLoggerClosed.
+//
+// Returns:
+//   - error: Final flush error if write fails
 func (bw *BatchWriter) Close() error {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
@@ -148,7 +191,11 @@ func (bw *BatchWriter) Close() error {
 	return bw.flushLocked()
 }
 
-// Stats returns current batch writer statistics
+// Stats returns current batch writer statistics.
+// Useful for monitoring buffer utilization and tuning batch parameters.
+//
+// Returns:
+//   - BatchWriterStats: Current statistics snapshot
 func (bw *BatchWriter) Stats() BatchWriterStats {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
@@ -162,7 +209,8 @@ func (bw *BatchWriter) Stats() BatchWriterStats {
 	}
 }
 
-// BatchWriterStats contains statistics about the batch writer
+// BatchWriterStats contains statistics about the batch writer.
+// These metrics help monitor batching effectiveness and buffer utilization.
 type BatchWriterStats struct {
 	BufferedEntries int           `json:"buffered_entries"`
 	BufferedBytes   int           `json:"buffered_bytes"`
@@ -171,7 +219,12 @@ type BatchWriterStats struct {
 	FlushInterval   time.Duration `json:"flush_interval"`
 }
 
-// SetFlushInterval updates the flush interval
+// SetFlushInterval updates the flush interval.
+// This allows dynamic adjustment of the flush timer based on workload.
+// Setting interval to 0 disables periodic flushing.
+//
+// Parameters:
+//   - interval: New flush interval duration
 func (bw *BatchWriter) SetFlushInterval(interval time.Duration) {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()
@@ -190,7 +243,13 @@ func (bw *BatchWriter) SetFlushInterval(interval time.Duration) {
 	}
 }
 
-// SetBatchSize updates the maximum batch size
+// SetBatchSize updates the maximum batch size.
+// If the current buffer exceeds the new limits, it will be flushed immediately.
+// This allows dynamic tuning of batch parameters based on system conditions.
+//
+// Parameters:
+//   - maxSize: New maximum batch size in bytes
+//   - maxCount: New maximum number of entries
 func (bw *BatchWriter) SetBatchSize(maxSize, maxCount int) {
 	bw.mu.Lock()
 	defer bw.mu.Unlock()

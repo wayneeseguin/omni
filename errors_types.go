@@ -5,62 +5,65 @@ import (
 	"time"
 )
 
-// ErrorCode represents specific error types in flexlog
+// ErrorCode represents specific error types in flexlog.
+// These codes help categorize and handle errors systematically.
 type ErrorCode int
 
 const (
-	// ErrCodeUnknown represents an unknown error
+	// ErrCodeUnknown represents an unknown or unclassified error
 	ErrCodeUnknown ErrorCode = iota
 
 	// File operation errors
-	ErrCodeFileOpen
-	ErrCodeFileClose
-	ErrCodeFileWrite
-	ErrCodeFileFlush
-	ErrCodeFileRotate
-	ErrCodeFileLock
-	ErrCodeFileUnlock
-	ErrCodeFileStat
+	ErrCodeFileOpen      // Failed to open log file
+	ErrCodeFileClose     // Failed to close log file
+	ErrCodeFileWrite     // Failed to write to log file
+	ErrCodeFileFlush     // Failed to flush file buffer
+	ErrCodeFileRotate    // Failed to rotate log file
+	ErrCodeFileLock      // Failed to acquire file lock
+	ErrCodeFileUnlock    // Failed to release file lock
+	ErrCodeFileStat      // Failed to stat file
 
 	// Destination errors
-	ErrCodeDestinationNotFound
-	ErrCodeDestinationDisabled
-	ErrCodeDestinationNil
+	ErrCodeDestinationNotFound // Destination not found
+	ErrCodeDestinationDisabled // Destination is disabled
+	ErrCodeDestinationNil      // Destination is nil
 
 	// Channel errors
-	ErrCodeChannelFull
-	ErrCodeChannelClosed
+	ErrCodeChannelFull   // Message channel is full
+	ErrCodeChannelClosed // Message channel is closed
 
 	// Configuration errors
-	ErrCodeInvalidConfig
-	ErrCodeInvalidLevel
-	ErrCodeInvalidFormat
+	ErrCodeInvalidConfig // Invalid configuration
+	ErrCodeInvalidLevel  // Invalid log level
+	ErrCodeInvalidFormat // Invalid format specified
 
 	// Compression errors
-	ErrCodeCompressionFailed
-	ErrCodeCompressionQueueFull
+	ErrCodeCompressionFailed    // Compression operation failed
+	ErrCodeCompressionQueueFull // Compression queue is full
 
 	// Syslog errors
-	ErrCodeSyslogConnection
-	ErrCodeSyslogWrite
+	ErrCodeSyslogConnection // Failed to connect to syslog
+	ErrCodeSyslogWrite      // Failed to write to syslog
 
 	// Shutdown errors
-	ErrCodeShutdownTimeout
-	ErrCodeAlreadyClosed
+	ErrCodeShutdownTimeout // Shutdown operation timed out
+	ErrCodeAlreadyClosed   // Logger already closed
 )
 
-// FlexLogError represents a structured error with context
+// FlexLogError represents a structured error with context.
+// It provides detailed information about what went wrong and where.
 type FlexLogError struct {
-	Code        ErrorCode
+	Code        ErrorCode              // The error code indicating the type of error
 	Op          string                 // Operation that failed (e.g., "rotate", "write", "compress")
 	Path        string                 // File path or destination name
 	Err         error                  // Underlying error
 	Time        time.Time              // When the error occurred
 	Destination string                 // Destination name if applicable
-	Context     map[string]interface{} // Additional context
+	Context     map[string]interface{} // Additional context information
 }
 
-// Error implements the error interface
+// Error implements the error interface.
+// Returns a formatted error message with all available context.
 func (e *FlexLogError) Error() string {
 	if e.Destination != "" {
 		return fmt.Sprintf("[%s] %s operation failed on %s (destination: %s): %v",
@@ -77,12 +80,15 @@ func (e *FlexLogError) Error() string {
 		e.Err)
 }
 
-// Unwrap returns the underlying error
+// Unwrap returns the underlying error.
+// Implements the error unwrapping interface for error chain support.
 func (e *FlexLogError) Unwrap() error {
 	return e.Err
 }
 
-// Is checks if the error matches a target error
+// Is checks if the error matches a target error.
+// Implements the errors.Is interface for error comparison.
+// Two FlexLogErrors are considered equal if they have the same ErrorCode.
 func (e *FlexLogError) Is(target error) bool {
 	if target == nil {
 		return false
@@ -97,7 +103,16 @@ func (e *FlexLogError) Is(target error) bool {
 	return e.Err != nil && e.Err == target
 }
 
-// NewFlexLogError creates a new FlexLogError
+// NewFlexLogError creates a new FlexLogError with the specified details.
+//
+// Parameters:
+//   - code: The error code
+//   - op: The operation that failed
+//   - path: The file path or resource identifier
+//   - err: The underlying error
+//
+// Returns:
+//   - *FlexLogError: A new error instance
 func NewFlexLogError(code ErrorCode, op, path string, err error) *FlexLogError {
 	return &FlexLogError{
 		Code:    code,
@@ -109,13 +124,35 @@ func NewFlexLogError(code ErrorCode, op, path string, err error) *FlexLogError {
 	}
 }
 
-// WithDestination adds destination information to the error
+// WithDestination adds destination information to the error.
+// This method supports method chaining for building detailed errors.
+//
+// Parameters:
+//   - dest: The destination name
+//
+// Returns:
+//   - *FlexLogError: The error instance for chaining
 func (e *FlexLogError) WithDestination(dest string) *FlexLogError {
 	e.Destination = dest
 	return e
 }
 
-// WithContext adds context to the error
+// WithContext adds context to the error.
+// This method supports method chaining for building detailed errors.
+//
+// Parameters:
+//   - key: The context key
+//   - value: The context value
+//
+// Returns:
+//   - *FlexLogError: The error instance for chaining
+//
+// Example:
+//
+//	err := NewFlexLogError(ErrCodeFileWrite, "write", "/var/log/app.log", ioErr).
+//	    WithDestination("primary").
+//	    WithContext("bytes_written", 1024).
+//	    WithContext("retry_count", 3)
 func (e *FlexLogError) WithContext(key string, value interface{}) *FlexLogError {
 	if e.Context == nil {
 		e.Context = make(map[string]interface{})
@@ -126,44 +163,67 @@ func (e *FlexLogError) WithContext(key string, value interface{}) *FlexLogError 
 
 // Helper functions for creating common errors
 
-// ErrFileOpen creates a file open error
+// ErrFileOpen creates a file open error.
+// Use this when a log file cannot be opened.
 func ErrFileOpen(path string, err error) *FlexLogError {
 	return NewFlexLogError(ErrCodeFileOpen, "open", path, err)
 }
 
-// ErrFileWrite creates a file write error
+// ErrFileWrite creates a file write error.
+// Use this when writing to a log file fails.
 func ErrFileWrite(path string, err error) *FlexLogError {
 	return NewFlexLogError(ErrCodeFileWrite, "write", path, err)
 }
 
-// ErrFileFlush creates a file flush error
+// ErrFileFlush creates a file flush error.
+// Use this when flushing file buffers fails.
 func ErrFileFlush(path string, err error) *FlexLogError {
 	return NewFlexLogError(ErrCodeFileFlush, "flush", path, err)
 }
 
-// ErrFileRotate creates a file rotation error
+// ErrFileRotate creates a file rotation error.
+// Use this when log rotation fails.
 func ErrFileRotate(path string, err error) *FlexLogError {
 	return NewFlexLogError(ErrCodeFileRotate, "rotate", path, err)
 }
 
-// NewChannelFullError creates a channel full error
+// NewChannelFullError creates a channel full error.
+// Use this when the message channel buffer is full.
+//
+// Parameters:
+//   - op: The operation that failed due to full channel
 func NewChannelFullError(op string) *FlexLogError {
 	return NewFlexLogError(ErrCodeChannelFull, op, "", fmt.Errorf("message channel full"))
 }
 
-// NewDestinationNotFoundError creates a destination not found error
+// NewDestinationNotFoundError creates a destination not found error.
+// Use this when a requested destination doesn't exist.
+//
+// Parameters:
+//   - name: The name of the missing destination
 func NewDestinationNotFoundError(name string) *FlexLogError {
 	return NewFlexLogError(ErrCodeDestinationNotFound, "find", name, fmt.Errorf("destination not found"))
 }
 
-// NewShutdownTimeoutError creates a shutdown timeout error
+// NewShutdownTimeoutError creates a shutdown timeout error.
+// Use this when graceful shutdown doesn't complete within the timeout.
+//
+// Parameters:
+//   - duration: The timeout duration that was exceeded
 func NewShutdownTimeoutError(duration time.Duration) *FlexLogError {
 	err := NewFlexLogError(ErrCodeShutdownTimeout, "shutdown", "", fmt.Errorf("shutdown timed out after %v", duration))
 	err.WithContext("timeout", duration)
 	return err
 }
 
-// IsRetryable returns true if the error is retryable
+// IsRetryable returns true if the error is retryable.
+// Certain errors like temporary network issues or file locks can be retried.
+//
+// Parameters:
+//   - err: The error to check
+//
+// Returns:
+//   - bool: true if the error can be retried
 func IsRetryable(err error) bool {
 	if err == nil {
 		return false

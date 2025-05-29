@@ -1,16 +1,3 @@
-// Package flexlog provides a flexible, high-performance logging library for Go applications.
-// It supports multiple concurrent destinations, structured logging, log rotation, compression,
-// filtering, sampling, and process-safe file logging using Unix file locks.
-//
-// Example:
-//
-//	logger, err := flexlog.NewFlexLog()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	defer logger.Close()
-//
-//	logger.Info("Application started", "version", "1.0.0")
 package flexlog
 
 import (

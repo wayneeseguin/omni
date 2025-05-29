@@ -4,10 +4,31 @@ import (
 	"time"
 )
 
-// Option is a functional option for configuring FlexLog
+// Option is a functional option for configuring FlexLog.
+// Options provide a clean, extensible way to configure logger instances
+// using the functional options pattern.
 type Option func(*Config) error
 
-// NewWithOptions creates a new FlexLog instance with the provided options
+// NewWithOptions creates a new FlexLog instance with the provided options.
+// This is an alternative to NewWithConfig that uses functional options
+// for a more ergonomic API.
+//
+// Parameters:
+//   - options: Variable number of Option functions
+//
+// Returns:
+//   - *FlexLog: The configured logger instance
+//   - error: Configuration or initialization error
+//
+// Example:
+//
+//	logger, err := flexlog.NewWithOptions(
+//	    flexlog.WithPath("/var/log/app.log"),
+//	    flexlog.WithLevel(flexlog.LevelInfo),
+//	    flexlog.WithJSON(),
+//	    flexlog.WithRotation(100*1024*1024, 10),
+//	    flexlog.WithGzipCompression(),
+//	)
 func NewWithOptions(options ...Option) (*FlexLog, error) {
 	// Start with default config
 	config := &Config{
@@ -35,7 +56,14 @@ func NewWithOptions(options ...Option) (*FlexLog, error) {
 	return NewWithConfig(config)
 }
 
-// WithPath sets the primary log file path
+// WithPath sets the primary log file path.
+// This option is required for file-based logging.
+//
+// Parameters:
+//   - path: The log file path (cannot be empty)
+//
+// Returns:
+//   - Option: The configuration option
 func WithPath(path string) Option {
 	return func(c *Config) error {
 		if path == "" {
@@ -47,7 +75,14 @@ func WithPath(path string) Option {
 	}
 }
 
-// WithLevel sets the minimum log level
+// WithLevel sets the minimum log level.
+// Only messages at or above this level will be logged.
+//
+// Parameters:
+//   - level: The minimum log level (LevelTrace to LevelError)
+//
+// Returns:
+//   - Option: The configuration option
 func WithLevel(level int) Option {
 	return func(c *Config) error {
 		if level < LevelTrace || level > LevelError {
@@ -59,7 +94,14 @@ func WithLevel(level int) Option {
 	}
 }
 
-// WithFormat sets the output format
+// WithFormat sets the output format.
+// Supported formats are FormatText and FormatJSON.
+//
+// Parameters:
+//   - format: The output format constant
+//
+// Returns:
+//   - Option: The configuration option
 func WithFormat(format int) Option {
 	return func(c *Config) error {
 		if format != FormatText && format != FormatJSON {
@@ -71,17 +113,32 @@ func WithFormat(format int) Option {
 	}
 }
 
-// WithJSON sets JSON output format
+// WithJSON sets JSON output format.
+// This is a convenience method for WithFormat(FormatJSON).
+//
+// Returns:
+//   - Option: The configuration option
 func WithJSON() Option {
 	return WithFormat(FormatJSON)
 }
 
-// WithText sets text output format
+// WithText sets text output format.
+// This is a convenience method for WithFormat(FormatText).
+//
+// Returns:
+//   - Option: The configuration option
 func WithText() Option {
 	return WithFormat(FormatText)
 }
 
-// WithChannelSize sets the message channel buffer size
+// WithChannelSize sets the message channel buffer size.
+// A larger buffer can handle burst traffic better but uses more memory.
+//
+// Parameters:
+//   - size: The buffer size (must be positive)
+//
+// Returns:
+//   - Option: The configuration option
 func WithChannelSize(size int) Option {
 	return func(c *Config) error {
 		if size <= 0 {
@@ -93,7 +150,15 @@ func WithChannelSize(size int) Option {
 	}
 }
 
-// WithRotation configures log rotation
+// WithRotation configures log rotation.
+// Files are rotated when they reach maxSize bytes.
+//
+// Parameters:
+//   - maxSize: Maximum file size in bytes before rotation
+//   - maxFiles: Maximum number of rotated files to keep (0 = unlimited)
+//
+// Returns:
+//   - Option: The configuration option
 func WithRotation(maxSize int64, maxFiles int) Option {
 	return func(c *Config) error {
 		c.MaxSize = maxSize
@@ -102,7 +167,15 @@ func WithRotation(maxSize int64, maxFiles int) Option {
 	}
 }
 
-// WithCompression enables compression with specified type and workers
+// WithCompression enables compression with specified type and workers.
+// Rotated log files will be compressed to save disk space.
+//
+// Parameters:
+//   - compressionType: Type of compression (e.g., CompressionGzip)
+//   - workers: Number of compression workers (0 uses default)
+//
+// Returns:
+//   - Option: The configuration option
 func WithCompression(compressionType int, workers int) Option {
 	return func(c *Config) error {
 		c.Compression = compressionType
@@ -113,12 +186,23 @@ func WithCompression(compressionType int, workers int) Option {
 	}
 }
 
-// WithGzipCompression enables gzip compression
+// WithGzipCompression enables gzip compression.
+// This is a convenience method for WithCompression(CompressionGzip, 1).
+//
+// Returns:
+//   - Option: The configuration option
 func WithGzipCompression() Option {
 	return WithCompression(CompressionGzip, 1)
 }
 
-// WithStackTrace enables stack trace capture
+// WithStackTrace enables stack trace capture.
+// Stack traces will be included in error-level logs.
+//
+// Parameters:
+//   - size: Stack buffer size in bytes (0 uses default of 4096)
+//
+// Returns:
+//   - Option: The configuration option
 func WithStackTrace(size int) Option {
 	return func(c *Config) error {
 		c.IncludeTrace = true
@@ -129,7 +213,15 @@ func WithStackTrace(size int) Option {
 	}
 }
 
-// WithSampling configures log sampling
+// WithSampling configures log sampling.
+// Sampling reduces log volume by only logging a percentage of messages.
+//
+// Parameters:
+//   - strategy: Sampling strategy (e.g., SamplingRandom)
+//   - rate: Sampling rate from 0.0 to 1.0 (1.0 = log all messages)
+//
+// Returns:
+//   - Option: The configuration option
 func WithSampling(strategy int, rate float64) Option {
 	return func(c *Config) error {
 		if rate < 0 || rate > 1 {
@@ -143,12 +235,27 @@ func WithSampling(strategy int, rate float64) Option {
 	}
 }
 
-// WithRateSampling enables rate-based sampling
+// WithRateSampling enables rate-based sampling.
+// This is a convenience method for WithSampling(SamplingRandom, rate).
+//
+// Parameters:
+//   - rate: Percentage of messages to log (0.0 to 1.0)
+//
+// Returns:
+//   - Option: The configuration option
 func WithRateSampling(rate float64) Option {
 	return WithSampling(SamplingRandom, rate)
 }
 
-// WithFilter adds a filter function
+// WithFilter adds a filter function.
+// Filters determine whether a message should be logged.
+// Multiple filters can be added and all must pass for a message to be logged.
+//
+// Parameters:
+//   - filter: The filter function (cannot be nil)
+//
+// Returns:
+//   - Option: The configuration option
 func WithFilter(filter FilterFunc) Option {
 	return func(c *Config) error {
 		if filter == nil {
@@ -163,14 +270,28 @@ func WithFilter(filter FilterFunc) Option {
 	}
 }
 
-// WithLevelFilter creates a filter that only allows messages at or above the specified level
+// WithLevelFilter creates a filter that only allows messages at or above the specified level.
+// This provides more granular control than the global log level.
+//
+// Parameters:
+//   - minLevel: Minimum level to allow through the filter
+//
+// Returns:
+//   - Option: The configuration option
 func WithLevelFilter(minLevel int) Option {
 	return WithFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return level >= minLevel
 	})
 }
 
-// WithErrorHandler sets the error handler
+// WithErrorHandler sets the error handler.
+// The error handler is called when logging operations fail.
+//
+// Parameters:
+//   - handler: The error handler function (cannot be nil)
+//
+// Returns:
+//   - Option: The configuration option
 func WithErrorHandler(handler ErrorHandler) Option {
 	return func(c *Config) error {
 		if handler == nil {
@@ -182,7 +303,14 @@ func WithErrorHandler(handler ErrorHandler) Option {
 	}
 }
 
-// WithMaxAge sets the maximum age for log files
+// WithMaxAge sets the maximum age for log files.
+// Files older than this duration will be automatically deleted.
+//
+// Parameters:
+//   - duration: Maximum age (must be non-negative)
+//
+// Returns:
+//   - Option: The configuration option
 func WithMaxAge(duration time.Duration) Option {
 	return func(c *Config) error {
 		if duration < 0 {
@@ -195,7 +323,14 @@ func WithMaxAge(duration time.Duration) Option {
 	}
 }
 
-// WithCleanupInterval sets the cleanup interval
+// WithCleanupInterval sets the cleanup interval.
+// This controls how often old log files are checked and removed.
+//
+// Parameters:
+//   - interval: Cleanup check interval (must be positive)
+//
+// Returns:
+//   - Option: The configuration option
 func WithCleanupInterval(interval time.Duration) Option {
 	return func(c *Config) error {
 		if interval <= 0 {
@@ -208,7 +343,14 @@ func WithCleanupInterval(interval time.Duration) Option {
 	}
 }
 
-// WithTimezone sets the timezone for timestamps
+// WithTimezone sets the timezone for timestamps.
+// By default, local time is used.
+//
+// Parameters:
+//   - tz: The timezone location (cannot be nil)
+//
+// Returns:
+//   - Option: The configuration option
 func WithTimezone(tz *time.Location) Option {
 	return func(c *Config) error {
 		if tz == nil {
@@ -220,12 +362,27 @@ func WithTimezone(tz *time.Location) Option {
 	}
 }
 
-// WithUTC sets UTC timezone
+// WithUTC sets UTC timezone.
+// This is a convenience method for WithTimezone(time.UTC).
+//
+// Returns:
+//   - Option: The configuration option
 func WithUTC() Option {
 	return WithTimezone(time.UTC)
 }
 
-// WithTimestampFormat sets the timestamp format
+// WithTimestampFormat sets the timestamp format.
+// Uses Go's time format syntax.
+//
+// Parameters:
+//   - format: Time format string (cannot be empty)
+//
+// Returns:
+//   - Option: The configuration option
+//
+// Example:
+//
+//	WithTimestampFormat("2006-01-02 15:04:05.000")
 func WithTimestampFormat(format string) Option {
 	return func(c *Config) error {
 		if format == "" {
@@ -237,7 +394,15 @@ func WithTimestampFormat(format string) Option {
 	}
 }
 
-// WithRecovery enables recovery with fallback
+// WithRecovery enables recovery with fallback.
+// If the primary log destination fails, logging will fall back to the specified path.
+//
+// Parameters:
+//   - fallbackPath: Path to use when primary fails
+//   - maxRetries: Maximum retry attempts
+//
+// Returns:
+//   - Option: The configuration option
 func WithRecovery(fallbackPath string, maxRetries int) Option {
 	return func(c *Config) error {
 		if c.Recovery == nil {
@@ -252,7 +417,15 @@ func WithRecovery(fallbackPath string, maxRetries int) Option {
 	}
 }
 
-// WithRedaction enables sensitive data redaction
+// WithRedaction enables sensitive data redaction.
+// Patterns matching sensitive data will be replaced in log output.
+//
+// Parameters:
+//   - patterns: Regex patterns to match sensitive data
+//   - replacement: String to replace matched patterns
+//
+// Returns:
+//   - Option: The configuration option
 func WithRedaction(patterns []string, replacement string) Option {
 	return func(c *Config) error {
 		c.RedactionPatterns = patterns
@@ -261,7 +434,16 @@ func WithRedaction(patterns []string, replacement string) Option {
 	}
 }
 
-// WithBatchProcessing enables batch processing for writes
+// WithBatchProcessing enables batch processing for writes.
+// Messages are batched to improve write performance.
+//
+// Parameters:
+//   - maxSize: Maximum batch size in bytes
+//   - maxCount: Maximum number of messages per batch
+//   - flushInterval: Maximum time before flushing a batch
+//
+// Returns:
+//   - Option: The configuration option
 func WithBatchProcessing(maxSize, maxCount int, flushInterval time.Duration) Option {
 	return func(c *Config) error {
 		if maxSize <= 0 || maxCount <= 0 {
@@ -280,14 +462,29 @@ func WithBatchProcessing(maxSize, maxCount int, flushInterval time.Duration) Opt
 	}
 }
 
-// WithDefaultBatching enables batching with default settings
+// WithDefaultBatching enables batching with default settings.
+// Uses 64KB max size, 100 message max count, and 100ms flush interval.
+//
+// Returns:
+//   - Option: The configuration option
 func WithDefaultBatching() Option {
 	return WithBatchProcessing(64*1024, 100, 100*time.Millisecond) // 64KB, 100 entries, 100ms
 }
 
 // Preset configurations
 
-// WithProductionDefaults sets recommended production settings
+// WithProductionDefaults sets recommended production settings.
+// Configures the logger with:
+// - Info level logging
+// - JSON format
+// - Large buffer (10000)
+// - 100MB rotation with 10 files
+// - Gzip compression
+// - UTC timestamps
+// - Stderr error handling
+//
+// Returns:
+//   - Option: The configuration option
 func WithProductionDefaults() Option {
 	return func(c *Config) error {
 		c.Level = LevelInfo
@@ -303,7 +500,17 @@ func WithProductionDefaults() Option {
 	}
 }
 
-// WithDevelopmentDefaults sets recommended development settings
+// WithDevelopmentDefaults sets recommended development settings.
+// Configures the logger with:
+// - Debug level logging
+// - Text format
+// - Moderate buffer (1000)
+// - Stack traces enabled
+// - Local timestamps
+// - Stderr error handling
+//
+// Returns:
+//   - Option: The configuration option
 func WithDevelopmentDefaults() Option {
 	return func(c *Config) error {
 		c.Level = LevelDebug
@@ -316,14 +523,3 @@ func WithDevelopmentDefaults() Option {
 	}
 }
 
-// Example usage:
-//
-// logger, err := flexlog.NewWithOptions(
-//     flexlog.WithPath("/var/log/app.log"),
-//     flexlog.WithLevel(flexlog.LevelInfo),
-//     flexlog.WithJSON(),
-//     flexlog.WithRotation(100*1024*1024, 10),
-//     flexlog.WithGzipCompression(),
-//     flexlog.WithUTC(),
-//     flexlog.WithErrorHandler(flexlog.StderrErrorHandler),
-// )

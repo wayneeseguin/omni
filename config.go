@@ -4,7 +4,10 @@ import (
 	"time"
 )
 
-// Config contains all configuration options for FlexLog
+// Config contains all configuration options for FlexLog.
+// This struct provides a comprehensive way to configure all aspects of the logger,
+// from basic settings like log level and format to advanced features like compression,
+// sampling, and batch processing.
 type Config struct {
 	// Core settings
 	Path          string        // Primary log file path
@@ -63,7 +66,22 @@ type Config struct {
 }
 
 
-// DefaultConfig returns a Config with sensible defaults
+// DefaultConfig returns a Config with sensible defaults.
+// These defaults are designed to work well for most applications:
+// - Info level logging
+// - Text format output
+// - No compression or rotation by default
+// - Reasonable buffer sizes
+//
+// Returns:
+//   - *Config: A configuration with default values
+//
+// Example:
+//
+//	config := flexlog.DefaultConfig()
+//	config.Path = "/var/log/app.log"
+//	config.Level = flexlog.LevelDebug
+//	logger, err := flexlog.NewWithConfig(config)
 func DefaultConfig() *Config {
 	return &Config{
 		Path:               "",
@@ -96,7 +114,21 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Validate checks if the configuration is valid
+// Validate checks if the configuration is valid.
+// This method ensures all configuration values are within acceptable ranges
+// and applies defaults where necessary. It's called automatically by NewWithConfig.
+//
+// Returns:
+//   - error: Validation error if configuration is invalid
+//
+// The following validations are performed:
+// - ChannelSize > 0
+// - MaxSize >= 0
+// - MaxFiles >= 0
+// - CleanupInterval >= 1 minute
+// - CompressWorkers > 0
+// - StackSize > 0
+// - SamplingRate between 0.0 and 1.0
 func (c *Config) Validate() error {
 	if c.ChannelSize <= 0 {
 		c.ChannelSize = getDefaultChannelSize()
@@ -141,7 +173,28 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// NewWithConfig creates a new logger with the given configuration
+// NewWithConfig creates a new logger with the given configuration.
+// This is the recommended way to create a logger with custom settings.
+// The configuration is validated and defaults are applied where necessary.
+//
+// Parameters:
+//   - config: The configuration to use
+//
+// Returns:
+//   - *FlexLog: The configured logger instance
+//   - error: Configuration or initialization error
+//
+// Example:
+//
+//	config := &flexlog.Config{
+//	    Path:     "/var/log/app.log",
+//	    Level:    flexlog.LevelDebug,
+//	    MaxSize:  100 * 1024 * 1024, // 100MB
+//	    MaxFiles: 5,
+//	    Compression: flexlog.CompressionGzip,
+//	    EnableBatching: true,
+//	}
+//	logger, err := flexlog.NewWithConfig(config)
 func NewWithConfig(config *Config) (*FlexLog, error) {
 	// Validate and apply defaults
 	if err := config.Validate(); err != nil {
@@ -251,7 +304,18 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 	return f, nil
 }
 
-// GetConfig returns the current configuration of the logger
+// GetConfig returns the current configuration of the logger.
+// This creates a snapshot of the current configuration settings.
+// Note that some settings may have been modified at runtime.
+//
+// Returns:
+//   - *Config: A copy of the current configuration
+//
+// Example:
+//
+//	config := logger.GetConfig()
+//	fmt.Printf("Current log level: %d\n", config.Level)
+//	fmt.Printf("Compression enabled: %v\n", config.Compression != flexlog.CompressionNone)
 func (f *FlexLog) GetConfig() *Config {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -287,8 +351,31 @@ func (f *FlexLog) GetConfig() *Config {
 	return config
 }
 
-// UpdateConfig updates the logger configuration
-// Note: Some settings like ChannelSize cannot be changed after creation
+// UpdateConfig updates the logger configuration.
+// This allows runtime changes to most configuration settings.
+// Note: Some settings like ChannelSize cannot be changed after creation.
+//
+// Parameters:
+//   - config: The new configuration to apply
+//
+// Returns:
+//   - error: Validation error if configuration is invalid
+//
+// Changeable settings:
+// - Level, Format, FormatOptions
+// - MaxSize, MaxFiles, MaxAge
+// - Compression settings
+// - Sampling settings
+// - Error handler
+// - Stack trace settings
+// - Redaction patterns
+//
+// Example:
+//
+//	config := logger.GetConfig()
+//	config.Level = flexlog.LevelDebug  // Enable debug logging
+//	config.Compression = flexlog.CompressionGzip  // Enable compression
+//	err := logger.UpdateConfig(config)
 func (f *FlexLog) UpdateConfig(config *Config) error {
 	if err := config.Validate(); err != nil {
 		return err

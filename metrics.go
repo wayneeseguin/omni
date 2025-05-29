@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-// LoggerMetrics contains runtime metrics for the logger
+// LoggerMetrics contains runtime metrics for the logger.
+// It provides a comprehensive view of logger performance and health,
+// including message counts, queue status, file operations, and errors.
 type LoggerMetrics struct {
 	// Message counts by level
 	MessagesLogged  map[int]uint64 `json:"messages_logged"`
@@ -36,7 +38,9 @@ type LoggerMetrics struct {
 	Destinations     []DestinationMetrics `json:"destinations"`
 }
 
-// DestinationMetrics contains metrics for a single destination
+// DestinationMetrics contains metrics for a single destination.
+// It tracks performance and health metrics for each logging destination,
+// including write statistics, errors, and average latency.
 type DestinationMetrics struct {
 	Name           string        `json:"name"`
 	Type           string        `json:"type"`
@@ -49,7 +53,19 @@ type DestinationMetrics struct {
 	AverageLatency time.Duration `json:"average_latency"`
 }
 
-// GetMetrics returns current logger metrics
+// GetMetrics returns current logger metrics.
+// This method provides a snapshot of all logger statistics including message counts,
+// queue depth, error counts, and performance metrics. It's thread-safe and designed
+// to avoid lock contention by copying data before processing.
+//
+// Returns:
+//   - LoggerMetrics: A complete snapshot of current logger metrics
+//
+// Example:
+//
+//	metrics := logger.GetMetrics()
+//	fmt.Printf("Messages logged: %d\n", metrics.MessagesLogged[flexlog.LevelInfo])
+//	fmt.Printf("Queue utilization: %.2f%%\n", metrics.QueueUtilization*100)
 func (f *FlexLog) GetMetrics() LoggerMetrics {
 	// Collect data that requires f.mu lock
 	f.mu.RLock()
@@ -160,7 +176,13 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 	return metrics
 }
 
-// ResetMetrics resets all metrics counters
+// ResetMetrics resets all metrics counters.
+// This clears all accumulated statistics including message counts, error counts,
+// performance metrics, and destination-specific metrics. Use this to start fresh
+// metric collection, for example after a configuration change or at regular intervals.
+//
+// Note: This operation is thread-safe but may briefly impact metric collection accuracy
+// during the reset process.
 func (f *FlexLog) ResetMetrics() {
 	// Get a copy of destinations to avoid holding f.mu while locking dest.mu
 	f.mu.Lock()
@@ -208,7 +230,11 @@ func (f *FlexLog) ResetMetrics() {
 	}
 }
 
-// trackMessageLogged increments the message counter for a level
+// trackMessageLogged increments the message counter for a level.
+// This internal method atomically updates the message count for the specified log level.
+//
+// Parameters:
+//   - level: The log level to track
 func (f *FlexLog) trackMessageLogged(level int) {
 	// Use LoadOrStore to ensure the counter exists
 	val, _ := f.messagesByLevel.LoadOrStore(level, &atomic.Uint64{})
@@ -216,22 +242,31 @@ func (f *FlexLog) trackMessageLogged(level int) {
 	counter.Add(1)
 }
 
-// trackMessageDropped increments the dropped message counter
+// trackMessageDropped increments the dropped message counter.
+// Called when a message cannot be sent to the processing channel due to backpressure.
 func (f *FlexLog) trackMessageDropped() {
 	atomic.AddUint64(&f.messagesDropped, 1)
 }
 
-// trackRotation increments the rotation counter
+// trackRotation increments the rotation counter.
+// Called when a log file is successfully rotated.
 func (f *FlexLog) trackRotation() {
 	atomic.AddUint64(&f.rotationCount, 1)
 }
 
-// trackCompression increments the compression counter
+// trackCompression increments the compression counter.
+// Called when a log file is successfully compressed.
 func (f *FlexLog) trackCompression() {
 	atomic.AddUint64(&f.compressionCount, 1)
 }
 
-// trackWrite records write metrics
+// trackWrite records write metrics.
+// This method updates write statistics including bytes written, write count,
+// total write time, and maximum write time.
+//
+// Parameters:
+//   - bytes: Number of bytes written
+//   - duration: Time taken for the write operation
 func (f *FlexLog) trackWrite(bytes int64, duration time.Duration) {
 	atomic.AddUint64(&f.bytesWritten, uint64(bytes))
 	atomic.AddUint64(&f.writeCount, 1)
@@ -249,7 +284,13 @@ func (f *FlexLog) trackWrite(bytes int64, duration time.Duration) {
 	}
 }
 
-// trackDestinationWrite records destination-specific write metrics
+// trackDestinationWrite records destination-specific write metrics.
+// Updates write statistics for a specific destination including bytes written,
+// write count, total latency, and last write timestamp.
+//
+// Parameters:
+//   - bytes: Number of bytes written
+//   - duration: Time taken for the write operation
 func (dest *Destination) trackWrite(bytes int64, duration time.Duration) {
 	atomic.AddUint64(&dest.bytesWritten, uint64(bytes))
 	atomic.AddUint64(&dest.writeCount, 1)
@@ -257,18 +298,34 @@ func (dest *Destination) trackWrite(bytes int64, duration time.Duration) {
 	dest.lastWrite = time.Now()
 }
 
-// trackDestinationError increments the destination error counter
+// trackDestinationError increments the destination error counter.
+// Called when an error occurs while writing to this destination.
 func (dest *Destination) trackError() {
 	atomic.AddUint64(&dest.errors, 1)
 }
 
-// trackDestinationRotation increments the destination rotation counter
+// trackDestinationRotation increments the destination rotation counter.
+// Called when this destination's log file is rotated.
 func (dest *Destination) trackRotation() {
 	atomic.AddUint64(&dest.rotations, 1)
 }
 
 
-// GetMessageCount returns the number of messages logged at a specific level
+// GetMessageCount returns the number of messages logged at a specific level.
+// This is a convenience method for accessing level-specific message counts.
+//
+// Parameters:
+//   - level: The log level to query (e.g., LevelInfo, LevelError)
+//
+// Returns:
+//   - uint64: The number of messages logged at the specified level
+//
+// Example:
+//
+//	count := logger.GetMessageCount(flexlog.LevelError)
+//	if count > threshold {
+//	    // Alert on high error rate
+//	}
 func (f *FlexLog) GetMessageCount(level int) uint64 {
 	if val, ok := f.messagesByLevel.Load(level); ok {
 		if counter, ok := val.(*atomic.Uint64); ok {
@@ -278,7 +335,17 @@ func (f *FlexLog) GetMessageCount(level int) uint64 {
 	return 0
 }
 
-// GetLastError returns the last error that occurred
+// GetLastError returns the last error that occurred.
+// This is useful for debugging and monitoring the logger's health.
+//
+// Returns:
+//   - *LogError: The last error that occurred, or nil if no errors
+//
+// Example:
+//
+//	if err := logger.GetLastError(); err != nil {
+//	    fmt.Printf("Last error: %v at %v\n", err.Message, err.Time)
+//	}
 func (f *FlexLog) GetLastError() *LogError {
 	f.mu.RLock()
 	defer f.mu.RUnlock()

@@ -10,11 +10,17 @@ import (
 	"time"
 )
 
-// RotationTimeFormat is the timestamp format used for rotated log files
-// Format is sortable and includes millisecond precision
+// RotationTimeFormat is the timestamp format used for rotated log files.
+// The format is sortable and includes millisecond precision to avoid collisions.
+// Example: "20060102-150405.000" produces "20240115-143052.123"
 const RotationTimeFormat = "20060102-150405.000"
 
-// rotate rotates log files using timestamp-based naming
+// rotate rotates the primary log file when it reaches the maximum size.
+// It creates a new file with a timestamp suffix and continues logging to a fresh file.
+// This method assumes the logger mutex is already locked by the caller.
+//
+// Returns:
+//   - error: Any error encountered during rotation
 func (f *FlexLog) rotate() error {
 	// Lock already acquired in flocklogf
 
@@ -89,9 +95,20 @@ func (f *FlexLog) rotate() error {
 	return nil
 }
 
-// SetMaxAge sets the maximum age for log files
-// Logs older than this will be deleted during cleanup
-// Use 0 to disable age-based cleanup
+// SetMaxAge sets the maximum age for log files.
+// Log files older than this duration will be deleted during cleanup.
+// Use 0 to disable age-based cleanup.
+//
+// Parameters:
+//   - duration: Maximum age for log files
+//
+// Returns:
+//   - error: Always returns nil (kept for API compatibility)
+//
+// Example:
+//
+//	logger.SetMaxAge(7 * 24 * time.Hour)  // Keep logs for 7 days
+//	logger.SetMaxAge(0)                    // Disable age-based cleanup
 func (f *FlexLog) SetMaxAge(duration time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -107,8 +124,15 @@ func (f *FlexLog) SetMaxAge(duration time.Duration) error {
 	return nil
 }
 
-// SetCleanupInterval sets how often to check for and remove old log files
-// Default is 1 hour
+// SetCleanupInterval sets how often to check for and remove old log files.
+// The default interval is 1 hour. The minimum allowed interval is 1 minute.
+//
+// Parameters:
+//   - interval: How often to run cleanup (minimum 1 minute)
+//
+// Example:
+//
+//	logger.SetCleanupInterval(30 * time.Minute)  // Check every 30 minutes
 func (f *FlexLog) SetCleanupInterval(interval time.Duration) {
 	if interval < time.Minute {
 		interval = time.Minute // Enforce a reasonable minimum
@@ -127,7 +151,9 @@ func (f *FlexLog) SetCleanupInterval(interval time.Duration) {
 	}
 }
 
-// startCleanupRoutine starts the background goroutine for age-based pruning
+// startCleanupRoutine starts the background goroutine for age-based log file cleanup.
+// This method is called automatically when SetMaxAge is set to a non-zero value.
+// It will not start if already running or if maxAge is 0.
 func (f *FlexLog) startCleanupRoutine() {
 	// Don't start if already running or max age is 0
 	if f.cleanupTicker != nil || f.maxAge == 0 {
@@ -159,7 +185,8 @@ func (f *FlexLog) startCleanupRoutine() {
 	}()
 }
 
-// stopCleanupRoutine stops the background cleanup goroutine
+// stopCleanupRoutine stops the background cleanup goroutine.
+// It waits for the goroutine to finish before returning.
 func (f *FlexLog) stopCleanupRoutine() {
 	if f.cleanupTicker == nil {
 		return
@@ -177,7 +204,12 @@ func (f *FlexLog) stopCleanupRoutine() {
 	f.cleanupDone = nil
 }
 
-// cleanupOldLogs removes log files older than maxAge
+// cleanupOldLogs removes log files older than maxAge.
+// It runs periodically in the background when age-based cleanup is enabled.
+// The method uses a timeout to avoid blocking if the mutex cannot be acquired.
+//
+// Returns:
+//   - error: Any error encountered during cleanup
 func (f *FlexLog) cleanupOldLogs() error {
 	if f.maxAge == 0 {
 		return nil // Age-based cleanup disabled
@@ -269,7 +301,12 @@ func (f *FlexLog) cleanupOldLogs() error {
 	return nil
 }
 
-// cleanupOldFiles removes old rotated files based on maxFiles count
+// cleanupOldFiles removes old rotated files based on maxFiles count.
+// It keeps the most recent files up to the maxFiles limit and removes older ones.
+// Files are identified by their timestamp suffix and sorted chronologically.
+//
+// Returns:
+//   - error: Any error encountered during cleanup
 func (f *FlexLog) cleanupOldFiles() error {
 	if f.maxFiles <= 0 {
 		return nil // No file count limit
@@ -333,13 +370,25 @@ func (f *FlexLog) cleanupOldFiles() error {
 	return nil
 }
 
-// RunCleanup immediately runs the cleanup process for old log files
+// RunCleanup immediately runs the cleanup process for old log files.
+// This can be called manually to trigger cleanup outside of the regular schedule.
+//
+// Returns:
+//   - error: Any error encountered during cleanup
 func (f *FlexLog) RunCleanup() error {
 	// Don't call cleanupOldLogs with lock held, as it tries to acquire lock itself
 	return f.cleanupOldLogs()
 }
 
-// rotateDestination rotates a specific destination's log file
+// rotateDestination rotates a specific destination's log file.
+// It renames the current log file with a timestamp suffix and creates a new file
+// for continued logging. Only applies to file-based destinations.
+//
+// Parameters:
+//   - dest: The destination to rotate
+//
+// Returns:
+//   - error: Any error encountered during rotation
 func (f *FlexLog) rotateDestination(dest *Destination) error {
 	// Only rotate file-based destinations
 	if dest.Backend != BackendFlock {
@@ -427,7 +476,14 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	return nil
 }
 
-// cleanupOldFilesForDestination removes old rotated files for a specific destination
+// cleanupOldFilesForDestination removes old rotated files for a specific destination.
+// It keeps the most recent files up to the maxFiles limit for the given path.
+//
+// Parameters:
+//   - path: The log file path to cleanup rotated files for
+//
+// Returns:
+//   - error: Any error encountered during cleanup
 func (f *FlexLog) cleanupOldFilesForDestination(path string) error {
 	if f.maxFiles <= 0 {
 		return nil // No file count limit

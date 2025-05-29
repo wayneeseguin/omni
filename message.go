@@ -8,7 +8,15 @@ import (
 	"time"
 )
 
-// writeToDestination writes data to a destination using batch writer if enabled, otherwise direct write
+// writeToDestination writes binary data to a destination using batch writer if enabled, otherwise direct write.
+// This method assumes dest.mu is already locked by the caller.
+//
+// Parameters:
+//   - dest: The destination to write to
+//   - data: The binary data to write
+//
+// Returns:
+//   - error: Any error encountered during writing
 func (f *FlexLog) writeToDestination(dest *Destination, data []byte) error {
 	// This function is called with dest.mu already locked
 	if dest.batchEnabled && dest.batchWriter != nil {
@@ -28,7 +36,16 @@ func (f *FlexLog) writeToDestination(dest *Destination, data []byte) error {
 	}
 }
 
-// writeStringToDestination writes string data to a destination using batch writer if enabled, otherwise direct write
+// writeStringToDestination writes string data to a destination using batch writer if enabled, otherwise direct write.
+// This method assumes dest.mu is already locked by the caller. It handles automatic flushing based on
+// buffer size and flush intervals.
+//
+// Parameters:
+//   - dest: The destination to write to
+//   - data: The string data to write
+//
+// Returns:
+//   - error: Any error encountered during writing
 func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error {
 	// This function is called with dest.mu already locked
 	if dest.batchEnabled && dest.batchWriter != nil {
@@ -57,7 +74,12 @@ func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error
 	}
 }
 
-// processMessage processes a single log message
+// processMessage processes a single log message and routes it to the appropriate backend handler.
+// It performs defensive checks and handles file-based, syslog, and custom backends.
+//
+// Parameters:
+//   - msg: The log message to process
+//   - dest: The destination to send the message to
 func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 	// Defensive check - should never happen in normal operation
 	if dest == nil {
@@ -88,7 +110,13 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 	}
 }
 
-// processCustomMessage processes a message for a custom backend (used in testing)
+// processCustomMessage processes a message for a custom backend (primarily used in testing).
+// It formats the message according to the configured format options and writes it to the
+// custom writer without file locking.
+//
+// Parameters:
+//   - msg: The log message to process
+//   - dest: The destination with custom backend
 func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
@@ -204,7 +232,15 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	}
 }
 
-// processFileMessage processes a message for a file backend
+// processFileMessage processes a message for a file backend with Unix file locking.
+// It handles log rotation, formatting, redaction, and metrics tracking. The function
+// follows the lock ordering hierarchy: f.mu -> dest.mu -> dest.Lock to prevent deadlocks.
+//
+// Parameters:
+//   - msg: The log message to process
+//   - dest: The file destination
+//   - entryPtr: Pointer to store the formatted entry string
+//   - entrySizePtr: Pointer to store the entry size in bytes
 func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr *string, entrySizePtr *int64) {
 	// Get all needed values before acquiring any locks to avoid deadlock
 	// Following lock ordering hierarchy: f.mu -> dest.mu -> dest.Lock
@@ -484,7 +520,13 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 	*entrySizePtr = entrySize
 }
 
-// processSyslogMessage processes a message for a syslog backend
+// processSyslogMessage processes a message for a syslog backend.
+// It formats messages according to RFC3164/RFC5424 syslog format and maps
+// log levels to appropriate syslog priorities.
+//
+// Parameters:
+//   - msg: The log message to process
+//   - dest: The syslog destination
 func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 	// Quick check without lock first
 	if dest.SyslogConn == nil {

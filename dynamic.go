@@ -58,7 +58,16 @@ type ConfigWatcher struct {
 	errorHandler func(error)
 }
 
-// NewConfigWatcher creates a new configuration watcher
+// NewConfigWatcher creates a new configuration watcher that monitors a config file for changes.
+// The watcher periodically checks the file and applies configuration updates to the logger.
+//
+// Parameters:
+//   - logger: The FlexLog instance to update
+//   - configPath: Path to the configuration file
+//   - interval: How often to check for changes
+//
+// Returns:
+//   - *ConfigWatcher: The created watcher instance
 func NewConfigWatcher(logger *FlexLog, configPath string, interval time.Duration) *ConfigWatcher {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ConfigWatcher{
@@ -74,7 +83,12 @@ func NewConfigWatcher(logger *FlexLog, configPath string, interval time.Duration
 	}
 }
 
-// Start begins watching for configuration changes
+// Start begins watching for configuration changes.
+// It loads the initial configuration from the file (if it exists) and starts
+// a goroutine to monitor for file modifications.
+//
+// Returns:
+//   - error: Any error encountered during initial configuration loading
 func (w *ConfigWatcher) Start() error {
 	// Get initial mod time
 	info, err := os.Stat(w.configPath)
@@ -99,7 +113,8 @@ func (w *ConfigWatcher) Start() error {
 	return nil
 }
 
-// Stop stops watching for configuration changes
+// Stop stops watching for configuration changes.
+// It cancels the watch goroutine and waits for it to complete.
 func (w *ConfigWatcher) Stop() {
 	w.cancel()
 	w.wg.Wait()
@@ -189,7 +204,11 @@ func (w *ConfigWatcher) loadAndApplyConfig() error {
 	return nil
 }
 
-// loadConfig loads the configuration from file
+// loadConfig loads the configuration from the JSON file.
+//
+// Returns:
+//   - *DynamicConfig: The loaded configuration
+//   - error: Any error encountered during loading or parsing
 func (w *ConfigWatcher) loadConfig() (*DynamicConfig, error) {
 	data, err := ioutil.ReadFile(w.configPath)
 	if err != nil {
@@ -204,7 +223,15 @@ func (w *ConfigWatcher) loadConfig() (*DynamicConfig, error) {
 	return &config, nil
 }
 
-// ApplyDynamicConfig applies dynamic configuration changes to the logger
+// ApplyDynamicConfig applies dynamic configuration changes to the logger.
+// It validates and applies changes to log level, format, sampling, destinations,
+// and other runtime-configurable settings without requiring a restart.
+//
+// Parameters:
+//   - config: The configuration to apply
+//
+// Returns:
+//   - error: Any validation or application error
 func (f *FlexLog) ApplyDynamicConfig(config *DynamicConfig) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

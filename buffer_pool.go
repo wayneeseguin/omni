@@ -8,6 +8,7 @@ import (
 
 // BufferPool manages a pool of reusable byte buffers to reduce allocations
 // during log message formatting and writing operations.
+// This significantly improves performance by reducing garbage collection pressure.
 type BufferPool struct {
 	pool     sync.Pool
 	capacity int
@@ -15,11 +16,22 @@ type BufferPool struct {
 
 // NewBufferPool creates a new buffer pool with a default buffer size.
 // The pool automatically grows and shrinks based on usage patterns.
+// The default capacity is 512 bytes, suitable for most log messages.
+//
+// Returns:
+//   - *BufferPool: A new buffer pool instance
 func NewBufferPool() *BufferPool {
 	return NewBufferPoolWithCapacity(512)
 }
 
-// NewBufferPoolWithCapacity creates a buffer pool with a specific initial capacity
+// NewBufferPoolWithCapacity creates a buffer pool with a specific initial capacity.
+// Use this when you know the typical size of your log messages.
+//
+// Parameters:
+//   - capacity: Initial buffer capacity in bytes
+//
+// Returns:
+//   - *BufferPool: A new buffer pool with the specified capacity
 func NewBufferPoolWithCapacity(capacity int) *BufferPool {
 	bp := &BufferPool{
 		capacity: capacity,
@@ -36,6 +48,10 @@ func NewBufferPoolWithCapacity(capacity int) *BufferPool {
 
 // Get retrieves a buffer from the pool or creates a new one if the pool is empty.
 // The caller is responsible for returning the buffer to the pool using Put().
+// The buffer is automatically reset before being returned.
+//
+// Returns:
+//   - *bytes.Buffer: A clean buffer ready for use
 func (bp *BufferPool) Get() *bytes.Buffer {
 	v := bp.pool.Get()
 	if v == nil {
@@ -53,6 +69,10 @@ func (bp *BufferPool) Get() *bytes.Buffer {
 
 // Put returns a buffer to the pool for reuse.
 // The buffer is reset before being pooled to prevent data leaks.
+// Extremely large buffers (>32KB) are not pooled to prevent memory bloat.
+//
+// Parameters:
+//   - buf: The buffer to return to the pool
 func (bp *BufferPool) Put(buf *bytes.Buffer) {
 	if buf == nil {
 		return
@@ -68,12 +88,17 @@ func (bp *BufferPool) Put(buf *bytes.Buffer) {
 	bp.pool.Put(buf)
 }
 
-// StringBuilderPool manages a pool of reusable string builders
+// StringBuilderPool manages a pool of reusable string builders.
+// String builders are more efficient than buffers for string concatenation.
 type StringBuilderPool struct {
 	pool sync.Pool
 }
 
-// NewStringBuilderPool creates a new string builder pool
+// NewStringBuilderPool creates a new string builder pool.
+// Builders are pre-allocated with 256 bytes capacity.
+//
+// Returns:
+//   - *StringBuilderPool: A new string builder pool
 func NewStringBuilderPool() *StringBuilderPool {
 	return &StringBuilderPool{
 		pool: sync.Pool{
@@ -86,14 +111,22 @@ func NewStringBuilderPool() *StringBuilderPool {
 	}
 }
 
-// Get retrieves a string builder from the pool
+// Get retrieves a string builder from the pool.
+// The builder is automatically reset before being returned.
+//
+// Returns:
+//   - *strings.Builder: A clean string builder ready for use
 func (sbp *StringBuilderPool) Get() *strings.Builder {
 	sb := sbp.pool.Get().(*strings.Builder)
 	sb.Reset()
 	return sb
 }
 
-// Put returns a string builder to the pool
+// Put returns a string builder to the pool.
+// Large builders (>32KB) are not pooled to prevent memory bloat.
+//
+// Parameters:
+//   - sb: The string builder to return to the pool
 func (sbp *StringBuilderPool) Put(sb *strings.Builder) {
 	if sb == nil {
 		return
@@ -108,42 +141,64 @@ func (sbp *StringBuilderPool) Put(sb *strings.Builder) {
 	sbp.pool.Put(sb)
 }
 
-// Global buffer pools for different use cases
+// Global buffer pools for different use cases.
+// These are shared across all logger instances to maximize reuse.
 var (
-	// Small buffers for short messages (timestamps, levels, etc.)
+	// smallBufferPool holds buffers for short messages (timestamps, levels, etc.)
 	smallBufferPool = NewBufferPoolWithCapacity(128)
 
-	// Medium buffers for typical log messages
+	// mediumBufferPool holds buffers for typical log messages
 	mediumBufferPool = NewBufferPoolWithCapacity(512)
 
-	// Large buffers for complex structured logging
+	// largeBufferPool holds buffers for complex structured logging
 	largeBufferPool = NewBufferPoolWithCapacity(2048)
 
-	// String builder pool for efficient string construction
+	// stringBuilderPool holds string builders for efficient string construction
 	stringBuilderPool = NewStringBuilderPool()
 )
 
-// GetBuffer retrieves a buffer from the appropriate global pool based on size hint
+// GetBuffer retrieves a buffer from the appropriate global pool based on size hint.
+// This is the default function to use when you need a general-purpose buffer.
+//
+// Returns:
+//   - *bytes.Buffer: A medium-sized buffer (512 bytes capacity)
 func GetBuffer() *bytes.Buffer {
 	return mediumBufferPool.Get()
 }
 
-// GetSmallBuffer retrieves a small buffer optimized for short content
+// GetSmallBuffer retrieves a small buffer optimized for short content.
+// Use this for formatting timestamps, log levels, and other small strings.
+//
+// Returns:
+//   - *bytes.Buffer: A small buffer (128 bytes capacity)
 func GetSmallBuffer() *bytes.Buffer {
 	return smallBufferPool.Get()
 }
 
-// GetLargeBuffer retrieves a large buffer optimized for complex content
+// GetLargeBuffer retrieves a large buffer optimized for complex content.
+// Use this for structured logging with many fields or large messages.
+//
+// Returns:
+//   - *bytes.Buffer: A large buffer (2048 bytes capacity)
 func GetLargeBuffer() *bytes.Buffer {
 	return largeBufferPool.Get()
 }
 
-// GetStringBuilder retrieves a string builder from the global pool
+// GetStringBuilder retrieves a string builder from the global pool.
+// Use this for efficient string concatenation operations.
+//
+// Returns:
+//   - *strings.Builder: A string builder with 256 bytes initial capacity
 func GetStringBuilder() *strings.Builder {
 	return stringBuilderPool.Get()
 }
 
-// PutBuffer returns a buffer to the appropriate global pool
+// PutBuffer returns a buffer to the appropriate global pool.
+// The pool is automatically selected based on the buffer's capacity.
+// Always call this when done with a buffer obtained from GetBuffer.
+//
+// Parameters:
+//   - buf: The buffer to return (can be nil)
 func PutBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
@@ -161,7 +216,11 @@ func PutBuffer(buf *bytes.Buffer) {
 	}
 }
 
-// PutStringBuilder returns a string builder to the global pool
+// PutStringBuilder returns a string builder to the global pool.
+// Always call this when done with a builder obtained from GetStringBuilder.
+//
+// Parameters:
+//   - sb: The string builder to return (can be nil)
 func PutStringBuilder(sb *strings.Builder) {
 	stringBuilderPool.Put(sb)
 }

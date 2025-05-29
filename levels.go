@@ -40,7 +40,13 @@ func (f *FlexLog) GetLevel() int {
 	return f.level
 }
 
-// TraceWithFormat logs a trace message with formatting
+// TraceWithFormat logs a trace message with formatting.
+// This is an internal method that handles level checking, sampling, and channel management.
+// For public API, use Trace() or Tracef() instead.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -75,7 +81,13 @@ func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
 	}
 }
 
-// DebugWithFormat logs a debug message with formatting
+// DebugWithFormat logs a debug message with formatting.
+// This is an internal method that handles level checking, sampling, and channel management.
+// For public API, use Debug() or Debugf() instead.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -110,7 +122,13 @@ func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 	}
 }
 
-// InfoWithFormat logs an info message with formatting
+// InfoWithFormat logs an info message with formatting.
+// This is an internal method that handles level checking, sampling, and channel management.
+// For public API, use Info() or Infof() instead.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -145,7 +163,13 @@ func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 	}
 }
 
-// WarnWithFormat logs a warning message with formatting
+// WarnWithFormat logs a warning message with formatting.
+// This is an internal method that handles level checking, sampling, and channel management.
+// For public API, use Warn() or Warnf() instead.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -180,7 +204,13 @@ func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 	}
 }
 
-// ErrorWithFormat logs an error message with formatting
+// ErrorWithFormat logs an error message with formatting.
+// This is an internal method that handles level checking, sampling, and channel management.
+// For public API, use Error() or Errorf() instead.
+//
+// Parameters:
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -220,7 +250,12 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 	}
 }
 
-// log delegates to the appropriate level method
+// log is an internal helper that delegates to the appropriate level method.
+// It provides a unified interface for logging at any level.
+//
+// Parameters:
+//   - level: The log level
+//   - message: The message to log
 func (f *FlexLog) log(level int, message string) {
 	switch level {
 	case LevelDebug:
@@ -236,6 +271,13 @@ func (f *FlexLog) log(level int, message string) {
 	}
 }
 
+// logf is an internal helper for formatted logging at any level.
+// It handles level checking, filtering, sampling, and channel management.
+//
+// Parameters:
+//   - level: The log level
+//   - format: Printf-style format string
+//   - args: Arguments for the format string
 func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
@@ -466,9 +508,22 @@ func (f *FlexLog) Errorf(format string, args ...interface{}) {
 	}
 }
 
-// Function to look up log level based on string
-// how to set defaultLevel as optional parameter argument
-
+// GetLogLevel converts a string representation of a log level to its numeric constant.
+// It accepts level names in any case (e.g., "debug", "DEBUG", "Debug").
+// If the level string is empty or unrecognized, it falls back to a default.
+//
+// Parameters:
+//   - level: The level name ("debug", "info", "warn", "error")
+//   - defaultLevel: Optional default level name if level is empty (defaults to "debug")
+//
+// Returns:
+//   - int: The numeric log level constant
+//
+// Example:
+//
+//	level := GetLogLevel("INFO")           // Returns LevelInfo
+//	level := GetLogLevel("", "warn")       // Returns LevelWarn (using default)
+//	level := GetLogLevel("invalid")        // Returns LevelInfo (fallback)
 func GetLogLevel(level string, defaultLevel ...string) int {
 	l := strings.ToLower(level)
 	if l == "" {

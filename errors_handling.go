@@ -7,17 +7,27 @@ import (
 	"time"
 )
 
-// LogError represents an error that occurred during logging operations
+// LogError represents an error that occurred during logging operations.
+// It provides detailed context about when and where the error occurred.
 type LogError struct {
-	Time        time.Time
-	Level       ErrorLevel
-	Source      string // "write", "rotate", "compress", "lock", etc.
-	Message     string
-	Err         error
-	Destination string // Name of the destination where error occurred
+	Time        time.Time  // When the error occurred
+	Level       ErrorLevel // Severity level of the error
+	Source      string     // Operation that failed ("write", "rotate", "compress", "lock", etc.)
+	Message     string     // Human-readable error message
+	Err         error      // The underlying error
+	Destination string     // Name of the destination where error occurred
 }
 
-// ErrorHandler is a function that handles logging errors
+// ErrorHandler is a function that handles logging errors.
+// Implement custom error handlers to control how logging errors are reported.
+//
+// Example:
+//
+//	emailHandler := func(err LogError) {
+//	    if err.Level >= flexlog.ErrorLevelHigh {
+//	        sendEmail("admin@example.com", "Logging Error", err.Error())
+//	    }
+//	}
 type ErrorHandler func(LogError)
 
 // Define error levels using the existing ErrorLevel constants
@@ -28,7 +38,11 @@ const (
 	ErrorLevelCritical = SeverityCritical
 )
 
-// Error returns the string representation of the LogError
+// Error returns the string representation of the LogError.
+// Implements the error interface, allowing LogError to be used as a standard error.
+//
+// Returns:
+//   - string: Formatted error message with timestamp, source, and details
 func (le LogError) Error() string {
 	if le.Destination != "" {
 		return fmt.Sprintf("[%s] %s error in %s: %s - %v",
@@ -40,20 +54,46 @@ func (le LogError) Error() string {
 		le.Source, le.Message, le.Err)
 }
 
-// SetErrorHandler sets the error handler for the logger
+// SetErrorHandler sets the error handler for the logger.
+// The error handler is called whenever an error occurs during logging operations.
+//
+// Parameters:
+//   - handler: The error handler function to use
+//
+// Example:
+//
+//	logger.SetErrorHandler(flexlog.StderrErrorHandler)  // Log errors to stderr
+//	logger.SetErrorHandler(flexlog.SilentErrorHandler)  // Suppress error output
+//	logger.SetErrorHandler(customHandler)               // Use custom handler
 func (f *FlexLog) SetErrorHandler(handler ErrorHandler) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.errorHandler = handler
 }
 
-// GetErrorCount returns the total number of errors encountered
+// GetErrorCount returns the total number of errors encountered.
+// This is useful for monitoring and alerting on logging system health.
+//
+// Returns:
+//   - uint64: Total number of errors since logger creation
 func (f *FlexLog) GetErrorCount() uint64 {
 	return atomic.LoadUint64(&f.errorCount)
 }
 
-// GetErrors returns a read-only channel for receiving errors
-// The channel will be closed when the logger is closed
+// GetErrors returns a read-only channel for receiving errors.
+// The channel will be closed when the logger is closed.
+// This allows external monitoring of logging errors as they occur.
+//
+// Returns:
+//   - <-chan LogError: Read-only channel for error notifications (buffer size: 100)
+//
+// Example:
+//
+//	go func() {
+//	    for err := range logger.GetErrors() {
+//	        fmt.Printf("Logging error: %v\n", err)
+//	    }
+//	}()
 func (f *FlexLog) GetErrors() <-chan LogError {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -66,7 +106,15 @@ func (f *FlexLog) GetErrors() <-chan LogError {
 	return f.errorChan
 }
 
-// logError handles an error using the configured error handler
+// logError is an internal method that handles errors using the configured error handler.
+// It tracks error metrics and sends errors to the error channel if available.
+//
+// Parameters:
+//   - source: The operation that failed (e.g., "write", "rotate", "compress")
+//   - destination: The destination name where the error occurred
+//   - message: Human-readable error message
+//   - err: The underlying error (can be nil)
+//   - level: The error severity level
 func (f *FlexLog) logError(source string, destination string, message string, err error, level ErrorLevel) {
 	// Always increment error count
 	atomic.AddUint64(&f.errorCount, 1)
@@ -118,17 +166,31 @@ func (f *FlexLog) logError(source string, destination string, message string, er
 
 // Predefined error handlers
 
-// StderrErrorHandler writes errors to stderr (default behavior)
+// StderrErrorHandler writes errors to stderr (default behavior).
+// This is the default error handler for production environments.
 func StderrErrorHandler(err LogError) {
 	fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 }
 
-// SilentErrorHandler discards all errors
+// SilentErrorHandler discards all errors without any output.
+// Useful for testing or when error logging needs to be completely suppressed.
 func SilentErrorHandler(err LogError) {
 	// Do nothing
 }
 
-// ChannelErrorHandler returns an error handler that sends errors to a channel
+// ChannelErrorHandler returns an error handler that sends errors to a channel.
+// If the channel is full, errors are written to stderr as a fallback.
+//
+// Parameters:
+//   - ch: The channel to send errors to
+//
+// Returns:
+//   - ErrorHandler: An error handler function
+//
+// Example:
+//
+//	errChan := make(chan flexlog.LogError, 100)
+//	logger.SetErrorHandler(flexlog.ChannelErrorHandler(errChan))
 func ChannelErrorHandler(ch chan<- LogError) ErrorHandler {
 	return func(err LogError) {
 		select {
@@ -140,7 +202,23 @@ func ChannelErrorHandler(ch chan<- LogError) ErrorHandler {
 	}
 }
 
-// MultiErrorHandler combines multiple error handlers
+// MultiErrorHandler combines multiple error handlers.
+// All provided handlers will be called for each error.
+//
+// Parameters:
+//   - handlers: Variable number of error handlers to combine
+//
+// Returns:
+//   - ErrorHandler: A combined error handler
+//
+// Example:
+//
+//	handler := flexlog.MultiErrorHandler(
+//	    flexlog.StderrErrorHandler,
+//	    flexlog.ChannelErrorHandler(errChan),
+//	    customAlertHandler,
+//	)
+//	logger.SetErrorHandler(handler)
 func MultiErrorHandler(handlers ...ErrorHandler) ErrorHandler {
 	return func(err LogError) {
 		for _, handler := range handlers {
@@ -151,7 +229,24 @@ func MultiErrorHandler(handlers ...ErrorHandler) ErrorHandler {
 	}
 }
 
-// ThresholdErrorHandler only handles errors above a certain severity
+// ThresholdErrorHandler only handles errors at or above a certain severity level.
+// Errors below the threshold are ignored.
+//
+// Parameters:
+//   - threshold: Minimum severity level to handle
+//   - handler: The handler to call for errors meeting the threshold
+//
+// Returns:
+//   - ErrorHandler: A filtered error handler
+//
+// Example:
+//
+//	// Only handle high and critical errors
+//	handler := flexlog.ThresholdErrorHandler(
+//	    flexlog.ErrorLevelHigh,
+//	    flexlog.StderrErrorHandler,
+//	)
+//	logger.SetErrorHandler(handler)
 func ThresholdErrorHandler(threshold ErrorLevel, handler ErrorHandler) ErrorHandler {
 	return func(err LogError) {
 		if err.Level >= threshold {

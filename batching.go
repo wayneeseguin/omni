@@ -5,7 +5,8 @@ import (
 	"time"
 )
 
-// Default batching configuration
+// Default batching configuration constants.
+// These provide reasonable defaults for most use cases.
 const (
 	defaultFlushInterval = 100 * time.Millisecond // Default flush every 100ms
 	defaultFlushSize     = 8192                   // Default flush at 8KB
@@ -14,6 +15,18 @@ const (
 // SetFlushInterval sets the flush interval for a specific destination.
 // Messages are automatically flushed when this interval elapses.
 // A zero duration disables time-based flushing.
+//
+// Parameters:
+//   - destIndex: Index of the destination to configure
+//   - interval: Flush interval duration
+//
+// Returns:
+//   - error: If destination index is invalid
+//
+// Example:
+//
+//	// Flush every 50ms
+//	err := logger.SetFlushInterval(0, 50*time.Millisecond)
 func (f *FlexLog) SetFlushInterval(destIndex int, interval time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -46,6 +59,18 @@ func (f *FlexLog) SetFlushInterval(destIndex int, interval time.Duration) error 
 // SetFlushSize sets the buffer size threshold for automatic flushing.
 // When the buffer reaches this size, it's automatically flushed.
 // A zero or negative value disables size-based flushing.
+//
+// Parameters:
+//   - destIndex: Index of the destination to configure
+//   - size: Buffer size threshold in bytes
+//
+// Returns:
+//   - error: If destination index is invalid
+//
+// Example:
+//
+//	// Flush when buffer reaches 16KB
+//	err := logger.SetFlushSize(0, 16*1024)
 func (f *FlexLog) SetFlushSize(destIndex int, size int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -62,7 +87,16 @@ func (f *FlexLog) SetFlushSize(destIndex int, size int) error {
 	return nil
 }
 
-// SetBatchingForAll configures batching for all destinations
+// SetBatchingForAll configures batching for all destinations.
+// This is a convenience method to enable and configure batching
+// uniformly across all log destinations.
+//
+// Parameters:
+//   - interval: Flush interval for all destinations
+//   - size: Flush size threshold for all destinations
+//
+// Returns:
+//   - error: If any configuration fails
 func (f *FlexLog) SetBatchingForAll(interval time.Duration, size int) error {
 	f.mu.Lock()
 	numDests := len(f.Destinations)
@@ -91,7 +125,9 @@ func (f *FlexLog) SetBatchingForAll(interval time.Duration, size int) error {
 	return nil
 }
 
-// flushDestination flushes a specific destination
+// flushDestination flushes a specific destination.
+// This internal method handles the actual flush operation and
+// reschedules the flush timer if periodic flushing is enabled.
 func (f *FlexLog) flushDestination(dest *Destination) {
 	dest.mu.Lock()
 	defer dest.mu.Unlock()
@@ -108,7 +144,9 @@ func (f *FlexLog) flushDestination(dest *Destination) {
 	}
 }
 
-// checkFlushSize checks if the buffer size warrants a flush
+// checkFlushSize checks if the buffer size warrants a flush.
+// This internal method monitors buffer utilization and triggers
+// a flush when the buffer is sufficiently full.
 func (f *FlexLog) checkFlushSize(dest *Destination) {
 	// This is called with dest.mu already locked
 	if dest.flushSize > 0 && dest.Writer != nil {
@@ -122,7 +160,8 @@ func (f *FlexLog) checkFlushSize(dest *Destination) {
 	}
 }
 
-// stopFlushTimers stops all flush timers (called during shutdown)
+// stopFlushTimers stops all flush timers (called during shutdown).
+// This ensures clean shutdown by stopping all background flush operations.
 func (f *FlexLog) stopFlushTimers() {
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
@@ -139,7 +178,8 @@ func (f *FlexLog) stopFlushTimers() {
 	}
 }
 
-// initializeDestinationBatching sets up default batching for a destination
+// initializeDestinationBatching sets up default batching for a destination.
+// This internal function initializes batching parameters with sensible defaults.
 func initializeDestinationBatching(dest *Destination) {
 	dest.flushInterval = defaultFlushInterval
 	dest.flushSize = defaultFlushSize
@@ -153,7 +193,21 @@ func initializeDestinationBatching(dest *Destination) {
 	// to ensure we have access to the logger's flushDestination method
 }
 
-// EnableBatching enables or disables batch processing for a destination
+// EnableBatching enables or disables batch processing for a destination.
+// When enabled, writes are accumulated in batches for improved performance.
+// When disabled, writes go directly to the underlying writer.
+//
+// Parameters:
+//   - destIndex: Index of the destination to configure
+//   - enabled: true to enable batching, false to disable
+//
+// Returns:
+//   - error: If destination index is invalid or writer is nil
+//
+// Example:
+//
+//	// Enable batching for the primary destination
+//	err := logger.EnableBatching(0, true)
 func (f *FlexLog) EnableBatching(destIndex int, enabled bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -191,7 +245,23 @@ func (f *FlexLog) EnableBatching(destIndex int, enabled bool) error {
 	return nil
 }
 
-// SetBatchingConfig configures batch settings for a destination
+// SetBatchingConfig configures batch settings for a destination.
+// This allows fine-tuning of batch parameters for optimal performance.
+// Changes take effect immediately if batching is currently enabled.
+//
+// Parameters:
+//   - destIndex: Index of the destination to configure
+//   - maxSize: Maximum batch size in bytes
+//   - maxCount: Maximum number of entries per batch
+//   - flushInterval: Time interval for periodic flushes
+//
+// Returns:
+//   - error: If destination index is invalid
+//
+// Example:
+//
+//	// Configure aggressive batching for high-throughput logging
+//	err := logger.SetBatchingConfig(0, 128*1024, 1000, 50*time.Millisecond)
 func (f *FlexLog) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushInterval time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -216,7 +286,15 @@ func (f *FlexLog) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushI
 	return nil
 }
 
-// IsBatchingEnabled returns whether batching is enabled for the specified destination
+// IsBatchingEnabled returns whether batching is enabled for the specified destination.
+// Useful for checking the current batching state of a destination.
+//
+// Parameters:
+//   - destIndex: Index of the destination to check
+//
+// Returns:
+//   - bool: true if batching is enabled
+//   - error: If destination index is invalid
 func (f *FlexLog) IsBatchingEnabled(destIndex int) (bool, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()

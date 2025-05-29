@@ -15,10 +15,24 @@ import (
 	"github.com/gofrs/flock"
 )
 
+// KeepLogFile indicates that log files should be preserved during rotation.
+// When used with rotation operations, the original log file remains in place.
 const KeepLogFile = false
+
+// MoveLogFile indicates that log files should be moved/renamed during rotation.
+// When used with rotation operations, the original log file is renamed with a suffix.
 const MoveLogFile = true
 
-// createDestination creates a new destination based on URI and backend type
+// createDestination creates a new destination based on URI and backend type.
+// It initializes the destination with appropriate settings for file-based or syslog backends.
+//
+// Parameters:
+//   - uri: The destination URI (file path for file backend, syslog address for syslog backend)
+//   - backendType: The backend type (BackendFlock or BackendSyslog)
+//
+// Returns:
+//   - *Destination: The created destination
+//   - error: Any error encountered during creation
 func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, error) {
 	dest := &Destination{
 		URI:     uri,
@@ -50,7 +64,15 @@ func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, 
 	return dest, nil
 }
 
-// setupFlockDestination sets up a file destination with flock
+// setupFlockDestination sets up a file destination with Unix file locking.
+// It creates the necessary directories, acquires a shared lock on the log file,
+// and initializes the file writer and metrics.
+//
+// Parameters:
+//   - dest: The destination to setup
+//
+// Returns:
+//   - error: Any error encountered during setup
 func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	// Ensure directory exists
 	dir := filepath.Dir(dest.URI)
@@ -111,7 +133,20 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	return nil
 }
 
-// setupSyslogDestination sets up a syslog destination
+// setupSyslogDestination sets up a syslog destination.
+// It parses the URI to determine the network type (Unix socket, UDP, or TCP)
+// and establishes a connection to the syslog server.
+//
+// Supported URI formats:
+//   - syslog:///dev/log (Unix socket)
+//   - syslog://127.0.0.1:514 (UDP)
+//   - syslog+tcp://127.0.0.1:514 (TCP)
+//
+// Parameters:
+//   - dest: The destination to setup
+//
+// Returns:
+//   - error: Any error encountered during setup
 func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
 	// Parse the URI to determine the network type and address
 	// Supported formats:
@@ -156,10 +191,13 @@ func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
 	return nil
 }
 
-// The logWorker method is implemented in logger.go
-// Here we declare additional methods for destination management
-
-// writeMessage formats and writes a log message to a destination
+// writeMessage formats and writes a log message to a destination.
+// It handles both raw byte messages and formatted messages, applying
+// the appropriate formatting based on the logger configuration.
+//
+// Parameters:
+//   - dest: The destination to write to
+//   - msg: The message to write
 func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 	var err error
 	var bytes []byte
@@ -265,7 +303,15 @@ func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
 	return result, nil
 }
 
-// getLevelString converts a numeric level to a string representation
+// getLevelString converts a numeric log level to its string representation.
+// It supports different formatting options including uppercase, lowercase, and symbol formats.
+//
+// Parameters:
+//   - level: The numeric log level
+//   - format: The desired format for the level string
+//
+// Returns:
+//   - string: The formatted level string
 func getLevelString(level int, format LevelFormat) string {
 	var levelStr string
 	switch level {

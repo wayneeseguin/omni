@@ -8,21 +8,23 @@ import (
 	"time"
 )
 
-// RecoveryStrategy defines how to handle errors
+// RecoveryStrategy defines how to handle errors.
+// Different strategies provide flexibility in error handling based on the situation.
 type RecoveryStrategy int
 
 const (
-	// RecoveryRetry attempts to retry the operation
+	// RecoveryRetry attempts to retry the operation with exponential backoff
 	RecoveryRetry RecoveryStrategy = iota
-	// RecoveryFallback falls back to an alternative destination
+	// RecoveryFallback falls back to an alternative destination (e.g., local file)
 	RecoveryFallback
-	// RecoveryDrop drops the message
+	// RecoveryDrop drops the message without retrying
 	RecoveryDrop
-	// RecoveryBuffer buffers messages temporarily
+	// RecoveryBuffer buffers messages temporarily for later processing
 	RecoveryBuffer
 )
 
-// RecoveryConfig configures error recovery behavior
+// RecoveryConfig configures error recovery behavior.
+// It provides comprehensive options for handling logging failures gracefully.
 type RecoveryConfig struct {
 	// Maximum retry attempts
 	MaxRetries int
@@ -40,7 +42,11 @@ type RecoveryConfig struct {
 	Strategy RecoveryStrategy
 }
 
-// DefaultRecoveryConfig returns default recovery configuration
+// DefaultRecoveryConfig returns default recovery configuration.
+// These defaults provide a reasonable balance between reliability and performance.
+//
+// Returns:
+//   - *RecoveryConfig: Configuration with sensible defaults
 func DefaultRecoveryConfig() *RecoveryConfig {
 	return &RecoveryConfig{
 		MaxRetries:        3,
@@ -53,7 +59,9 @@ func DefaultRecoveryConfig() *RecoveryConfig {
 	}
 }
 
-// RecoveryManager handles error recovery for the logger
+// RecoveryManager handles error recovery for the logger.
+// It implements various strategies to ensure log messages are not lost
+// even when the primary logging destination fails.
 type RecoveryManager struct {
 	config   *RecoveryConfig
 	buffer   []LogMessage
@@ -63,7 +71,14 @@ type RecoveryManager struct {
 	retryMu  sync.Mutex
 }
 
-// NewRecoveryManager creates a new recovery manager
+// NewRecoveryManager creates a new recovery manager.
+// If config is nil, default configuration is used.
+//
+// Parameters:
+//   - config: Recovery configuration (can be nil)
+//
+// Returns:
+//   - *RecoveryManager: A new recovery manager instance
 func NewRecoveryManager(config *RecoveryConfig) *RecoveryManager {
 	if config == nil {
 		config = DefaultRecoveryConfig()
@@ -93,7 +108,14 @@ func NewRecoveryManager(config *RecoveryConfig) *RecoveryManager {
 	}
 }
 
-// HandleError handles an error with the configured recovery strategy
+// HandleError handles an error with the configured recovery strategy.
+// It analyzes the error type and applies the appropriate recovery action.
+//
+// Parameters:
+//   - f: The logger instance
+//   - err: The error that occurred
+//   - msg: The log message that failed
+//   - dest: The destination that failed
 func (rm *RecoveryManager) HandleError(f *FlexLog, err error, msg LogMessage, dest *Destination) {
 	// Determine recovery strategy based on error type
 	strategy := rm.determineStrategy(err)
@@ -111,7 +133,8 @@ func (rm *RecoveryManager) HandleError(f *FlexLog, err error, msg LogMessage, de
 	}
 }
 
-// determineStrategy determines the recovery strategy based on error type
+// determineStrategy determines the recovery strategy based on error type.
+// This internal method maps specific error types to appropriate recovery strategies.
 func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 	if err == nil {
 		return RecoveryDrop
@@ -138,7 +161,8 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 	return rm.config.Strategy
 }
 
-// retryOperation retries an operation with exponential backoff
+// retryOperation retries an operation with exponential backoff.
+// It tracks retry counts per destination and schedules retries with increasing delays.
 func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage, dest *Destination) {
 	destName := dest.Name
 
@@ -184,7 +208,9 @@ func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage,
 	})
 }
 
-// fallbackWrite writes to a fallback destination
+// fallbackWrite writes to a fallback destination.
+// This ensures critical log messages are preserved even when the primary destination fails.
+// Messages are written with a [FALLBACK] prefix for easy identification.
 func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 	// Ensure fallback file is open
 	if rm.fallback == nil {
@@ -225,7 +251,8 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 	}
 }
 
-// bufferMessage buffers a message for later processing
+// bufferMessage buffers a message for later processing.
+// When the buffer is full, the oldest message is dropped (FIFO).
 func (rm *RecoveryManager) bufferMessage(msg LogMessage) {
 	rm.bufferMu.Lock()
 	defer rm.bufferMu.Unlock()
@@ -244,7 +271,9 @@ func (rm *RecoveryManager) bufferMessage(msg LogMessage) {
 	rm.buffer = append(rm.buffer, msg)
 }
 
-// FlushBuffer attempts to flush buffered messages
+// FlushBuffer attempts to flush buffered messages.
+// This is typically called when the primary destination recovers.
+// Messages that still can't be sent are re-buffered.
 func (rm *RecoveryManager) FlushBuffer(f *FlexLog) {
 	rm.bufferMu.Lock()
 	messages := make([]LogMessage, len(rm.buffer))
@@ -264,7 +293,11 @@ func (rm *RecoveryManager) FlushBuffer(f *FlexLog) {
 	}
 }
 
-// Close closes the recovery manager
+// Close closes the recovery manager.
+// This ensures any open fallback files are properly closed.
+//
+// Returns:
+//   - error: Close error if fallback file fails to close
 func (rm *RecoveryManager) Close() error {
 	if rm.fallback != nil {
 		return rm.fallback.Close()
@@ -272,7 +305,11 @@ func (rm *RecoveryManager) Close() error {
 	return nil
 }
 
-// SetRecoveryConfig sets the recovery configuration for the logger
+// SetRecoveryConfig sets the recovery configuration for the logger.
+// This allows runtime changes to recovery behavior.
+//
+// Parameters:
+//   - config: The new recovery configuration
 func (f *FlexLog) SetRecoveryConfig(config *RecoveryConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -285,7 +322,13 @@ func (f *FlexLog) SetRecoveryConfig(config *RecoveryConfig) {
 	f.recoveryManager = NewRecoveryManager(config)
 }
 
-// RecoverFromError attempts to recover from an error
+// RecoverFromError attempts to recover from an error.
+// This is the main entry point for error recovery in the logging system.
+//
+// Parameters:
+//   - err: The error that occurred
+//   - msg: The log message that failed
+//   - dest: The destination that failed
 func (f *FlexLog) RecoverFromError(err error, msg LogMessage, dest *Destination) {
 	if f.recoveryManager == nil {
 		// No recovery configured, just drop the message
@@ -296,5 +339,3 @@ func (f *FlexLog) RecoverFromError(err error, msg LogMessage, dest *Destination)
 	f.recoveryManager.HandleError(f, err, msg, dest)
 }
 
-// Add recoveryManager field to FlexLog struct in types.go:
-// recoveryManager *RecoveryManager
