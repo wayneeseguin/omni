@@ -98,14 +98,20 @@ func TestDynamicConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Enable dynamic config with short interval for testing
-		if err := logger.EnableDynamicConfig(configPath, 100*time.Millisecond); err != nil {
+		// Enable dynamic config with very short interval for testing
+		if err := logger.EnableDynamicConfig(configPath, 10*time.Millisecond); err != nil {
 			t.Fatal(err)
 		}
 		defer logger.DisableDynamicConfig()
 
-		// Wait for initial load
-		time.Sleep(200 * time.Millisecond)
+		// Poll for initial load instead of sleeping
+		deadline := time.Now().Add(100 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			if logger.GetLevel() == LevelInfo {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 
 		// Update config file
 		level = LevelDebug
@@ -118,11 +124,19 @@ func TestDynamicConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Wait for watcher to pick up change
-		time.Sleep(300 * time.Millisecond)
+		// Poll for change instead of sleeping
+		deadline = time.Now().Add(100 * time.Millisecond)
+		changed := false
+		for time.Now().Before(deadline) {
+			if logger.GetLevel() == LevelDebug {
+				changed = true
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 
 		// Verify change was applied
-		if logger.GetLevel() != LevelDebug {
+		if !changed {
 			t.Errorf("Expected level to change to %d, got %d", LevelDebug, logger.GetLevel())
 		}
 	})
@@ -259,18 +273,24 @@ func TestDynamicConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Wait for async operation
-		time.Sleep(100 * time.Millisecond)
-
-		// Verify destination was added
-		dests := logger.ListDestinations()
+		// Poll for destination to be added
+		deadline := time.Now().Add(50 * time.Millisecond)
 		found := false
-		for _, d := range dests {
-			if d == destPath {
-				found = true
+		for time.Now().Before(deadline) {
+			dests := logger.ListDestinations()
+			for _, d := range dests {
+				if d == destPath {
+					found = true
+					break
+				}
+			}
+			if found {
 				break
 			}
+			time.Sleep(5 * time.Millisecond)
 		}
+
+		// Verify destination was added
 		if !found {
 			t.Errorf("Expected destination %s to be added", destPath)
 		}

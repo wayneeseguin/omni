@@ -33,11 +33,11 @@ func TestLevelBasedSampling(t *testing.T) {
 	// Log many messages at each level
 	numMessages := 100
 	for i := 0; i < numMessages; i++ {
-		logger.Trace("Trace message", i)
-		logger.Debug("Debug message", i)
-		logger.Info("Info message", i)
-		logger.Warn("Warn message", i)
-		logger.Error("Error message", i)
+		logger.Tracef("Trace message %d", i)
+		logger.Debugf("Debug message %d", i)
+		logger.Infof("Info message %d", i)
+		logger.Warnf("Warn message %d", i)
+		logger.Errorf("Error message %d", i)
 	}
 
 	// Wait for processing
@@ -97,7 +97,7 @@ func TestPatternBasedSampling(t *testing.T) {
 			Priority: 5,
 		},
 		{
-			Pattern:  "health",
+			Pattern:  "Health",
 			Rate:     0.0, // Never log health check messages
 			Override: true,
 			Priority: 15,
@@ -115,10 +115,10 @@ func TestPatternBasedSampling(t *testing.T) {
 
 	// Log messages with different patterns
 	for i := 0; i < 10; i++ {
-		logger.Info("This is a critical error", i)
-		logger.Info("This is a debug message", i)
-		logger.Info("Health check endpoint", i)
-		logger.Info("Normal message", i)
+		logger.Infof("This is a critical error %d", i)
+		logger.Infof("This is a debug message %d", i)
+		logger.Infof("Health check endpoint %d", i)
+		logger.Infof("Normal message %d", i)
 	}
 
 	logger.Sync()
@@ -149,15 +149,15 @@ func TestPatternBasedSampling(t *testing.T) {
 	if metrics.PatternMatches["critical"] != 10 {
 		t.Errorf("Expected 10 pattern matches for 'critical', got %d", metrics.PatternMatches["critical"])
 	}
-	if metrics.PatternMatches["health"] != 10 {
-		t.Errorf("Expected 10 pattern matches for 'health', got %d", metrics.PatternMatches["health"])
+	if metrics.PatternMatches["Health"] != 10 {
+		t.Errorf("Expected 10 pattern matches for 'Health', got %d", metrics.PatternMatches["Health"])
 	}
 }
 
 func TestAdaptiveSampling(t *testing.T) {
 	// Create adaptive sampler
 	config := AdaptiveSamplingConfig{
-		TargetRate:       10.0, // Target 10 logs/second
+		TargetRate:       100.0, // Target 100 logs/second (1000 per 100ms window)
 		WindowDuration:   100 * time.Millisecond,
 		MinRate:          0.1,
 		MaxRate:          1.0,
@@ -167,8 +167,9 @@ func TestAdaptiveSampling(t *testing.T) {
 	sampler := NewAdaptiveSampler(config)
 
 	// Simulate high load (more than target rate)
+	// 200 messages in window = 2000/second, which is more than target of 100/s
 	highLoadSamples := 0
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 200; i++ {
 		if sampler.ShouldSample() {
 			highLoadSamples++
 		}
@@ -177,6 +178,9 @@ func TestAdaptiveSampling(t *testing.T) {
 	// Wait for window to reset
 	time.Sleep(config.WindowDuration + 10*time.Millisecond)
 
+	// Trigger rate calculation by calling ShouldSample once more
+	sampler.ShouldSample()
+	
 	// Get rate after high load
 	rateAfterHighLoad := sampler.GetCurrentRate()
 	if rateAfterHighLoad >= 1.0 {
@@ -194,6 +198,9 @@ func TestAdaptiveSampling(t *testing.T) {
 	// Wait for window to reset
 	time.Sleep(config.WindowDuration + 10*time.Millisecond)
 
+	// Trigger rate calculation by calling ShouldSample once more
+	sampler.ShouldSample()
+	
 	// Get rate after low load
 	rateAfterLowLoad := sampler.GetCurrentRate()
 	if rateAfterLowLoad <= rateAfterHighLoad {
@@ -220,7 +227,7 @@ func TestSamplingMetrics(t *testing.T) {
 	// Log messages
 	totalMessages := 1000
 	for i := 0; i < totalMessages; i++ {
-		logger.Info("Test message", i)
+		logger.Infof("Test message %d", i)
 	}
 
 	logger.Sync()

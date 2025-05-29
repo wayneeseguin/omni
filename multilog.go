@@ -63,9 +63,16 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	lockPath := dest.URI + ".lock"
 	dest.Lock = flock.New(lockPath)
 
-	// Temporarily lock while we're setting up the file
-	if err := dest.Lock.Lock(); err != nil {
+	// Try to acquire shared lock for this log file
+	// This allows multiple processes to write to the same file
+	// The OS will handle write serialization at the syscall level
+	locked, err := dest.Lock.TryRLock()
+	if err != nil {
 		return NewFlexLogError(ErrCodeFileLock, "lock", lockPath, err).
+			WithDestination(dest.Name)
+	} else if !locked {
+		return NewFlexLogError(ErrCodeFileLock, "lock", lockPath,
+			fmt.Errorf("file lock could not be acquired")).
 			WithDestination(dest.Name)
 	}
 
@@ -73,8 +80,10 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	file, err := os.OpenFile(dest.URI, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		// Best effort unlock
-		if unlockErr := dest.Lock.Unlock(); unlockErr != nil {
-			return fmt.Errorf("opening log file: %w (also failed to unlock: %v)", err, unlockErr)
+		if dest.Lock != nil {
+			if unlockErr := dest.Lock.Unlock(); unlockErr != nil {
+				return fmt.Errorf("opening log file: %w (also failed to unlock: %v)", err, unlockErr)
+			}
 		}
 		return fmt.Errorf("opening log file: %w", err)
 	}
@@ -84,8 +93,10 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	if err != nil {
 		file.Close()
 		// Best effort unlock
-		if unlockErr := dest.Lock.Unlock(); unlockErr != nil {
-			return fmt.Errorf("getting file info: %w (also failed to unlock: %v)", err, unlockErr)
+		if dest.Lock != nil {
+			if unlockErr := dest.Lock.Unlock(); unlockErr != nil {
+				return fmt.Errorf("getting file info: %w (also failed to unlock: %v)", err, unlockErr)
+			}
 		}
 		return fmt.Errorf("getting file info: %w", err)
 	}
@@ -94,8 +105,8 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	dest.Writer = bufio.NewWriterSize(file, defaultBufferSize)
 	dest.Size = info.Size()
 
-	// Release the lock now that we've set up the file
-	dest.Lock.Unlock()
+	// Keep the lock held for the lifetime of the logger
+	// It will be released when the destination is closed
 
 	return nil
 }
@@ -608,11 +619,11 @@ func (f *FlexLog) ListDestinations() []string {
 func (f *FlexLog) Flush() error {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	if f.defaultDest != nil {
 		return f.FlushDestination(f.defaultDest)
 	}
-	
+
 	// If no default destination, flush all
 	return f.FlushAll()
 }
@@ -777,7 +788,7 @@ func (f *FlexLog) performShutdown() error {
 	// Stop background workers
 	f.stopCompressionWorkers()
 	f.stopCleanupRoutine()
-	
+
 	// Close recovery manager if present
 	recoveryManager := f.recoveryManager
 	f.mu.Unlock()
@@ -986,7 +997,9 @@ func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
 	// Open new file
 	file, err := os.OpenFile(newPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		dest.Lock.Unlock() // Release lock on error
+		if dest.Lock != nil {
+			dest.Lock.Unlock() // Release lock on error
+		}
 		return fmt.Errorf("opening new log file: %w", err)
 	}
 
@@ -994,7 +1007,9 @@ func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
 	info, err := file.Stat()
 	if err != nil {
 		file.Close()
-		dest.Lock.Unlock()
+		if dest.Lock != nil {
+			dest.Lock.Unlock()
+		}
 		return fmt.Errorf("getting file info: %w", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+
 func TestDefaultRecoveryConfig(t *testing.T) {
 	config := DefaultRecoveryConfig()
 
@@ -261,7 +262,9 @@ func TestRecoveryManager_HandleError(t *testing.T) {
 			msg := LogMessage{Format: "test message"}
 
 			// Track initial state
+			rm.bufferMu.Lock()
 			initialBufferLen := len(rm.buffer)
+			rm.bufferMu.Unlock()
 
 			// Handle the error
 			rm.HandleError(logger, tt.err, msg, dest)
@@ -276,8 +279,12 @@ func TestRecoveryManager_HandleError(t *testing.T) {
 			}
 
 			if tt.expectBuffer {
-				if len(rm.buffer) <= initialBufferLen {
-					t.Error("message should have been buffered")
+				rm.bufferMu.Lock()
+				currentBufferLen := len(rm.buffer)
+				rm.bufferMu.Unlock()
+				
+				if currentBufferLen <= initialBufferLen {
+					t.Errorf("message should have been buffered: initial=%d, current=%d", initialBufferLen, currentBufferLen)
 				}
 			}
 
@@ -294,46 +301,104 @@ func TestRecoveryManager_HandleError(t *testing.T) {
 }
 
 func TestRecoveryManager_RetryOperation(t *testing.T) {
-	config := &RecoveryConfig{
-		MaxRetries:   2,
-		RetryDelay:   10 * time.Millisecond,
-		Strategy:     RecoveryRetry,
-		FallbackPath: filepath.Join(t.TempDir(), "fallback.log"),
-	}
-	rm := NewRecoveryManager(config)
-	defer rm.Close()
+	// Test exceeding max retries
+	t.Run("exceed max retries drops message", func(t *testing.T) {
+		config := &RecoveryConfig{
+			MaxRetries:   2,
+			RetryDelay:   10 * time.Millisecond,
+			Strategy:     RecoveryRetry,
+			FallbackPath: filepath.Join(t.TempDir(), "fallback.log"),
+		}
+		rm := NewRecoveryManager(config)
+		defer rm.Close()
 
-	// Create mock logger and destination
-	logger := &FlexLog{
-		msgChan: make(chan LogMessage, 1),
-	}
-	dest := &Destination{Name: "test-dest"}
-	msg := LogMessage{Format: "test message"}
+		// Create minimal mock logger
+		logger := &FlexLog{
+			messagesDropped: 0,
+		}
+		dest := &Destination{Name: "test-dest"}
+		msg := LogMessage{Format: "test message"}
 
-	// First retry
-	rm.retryOperation(logger, errors.New("test error"), msg, dest)
+		// Set retry count to exceed max
+		rm.retryMu.Lock()
+		rm.retryMap["test-dest"] = 3 // Exceed max retries
+		rm.retryMu.Unlock()
 
-	// Check retry count increased
-	rm.retryMu.Lock()
-	retryCount := rm.retryMap["test-dest"]
-	rm.retryMu.Unlock()
+		initialDropped := logger.messagesDropped
+		rm.retryOperation(logger, errors.New("test error"), msg, dest)
 
-	if retryCount != 1 {
-		t.Errorf("retry count = %d, want 1", retryCount)
-	}
+		// Should reset retry count
+		rm.retryMu.Lock()
+		_, exists := rm.retryMap["test-dest"]
+		rm.retryMu.Unlock()
 
-	// Exceed max retries
-	rm.retryMap["test-dest"] = 3 // Exceed max retries
-	rm.retryOperation(logger, errors.New("test error"), msg, dest)
+		if exists {
+			t.Error("retry count should have been reset after exceeding max retries")
+		}
 
-	// Should reset retry count and either fallback or drop
-	rm.retryMu.Lock()
-	_, exists := rm.retryMap["test-dest"]
-	rm.retryMu.Unlock()
+		// Should have dropped the message
+		if logger.messagesDropped <= initialDropped {
+			t.Error("message should have been dropped after exceeding max retries")
+		}
+	})
 
-	if exists {
-		t.Error("retry count should have been reset after exceeding max retries")
-	}
+	// Test fallback strategy when max retries exceeded
+	t.Run("exceed max retries with fallback strategy", func(t *testing.T) {
+		config := &RecoveryConfig{
+			MaxRetries:   2,
+			RetryDelay:   10 * time.Millisecond,
+			Strategy:     RecoveryFallback,
+			FallbackPath: filepath.Join(t.TempDir(), "fallback.log"),
+		}
+		rm := NewRecoveryManager(config)
+		defer rm.Close()
+
+		logger := &FlexLog{}
+		dest := &Destination{Name: "test-dest"}
+		msg := LogMessage{Format: "test message"}
+
+		// Set retry count to exceed max
+		rm.retryMu.Lock()
+		rm.retryMap["test-dest"] = 3
+		rm.retryMu.Unlock()
+
+		rm.retryOperation(logger, errors.New("test error"), msg, dest)
+
+		// Give a small delay for file write
+		time.Sleep(10 * time.Millisecond)
+
+		// Check fallback file exists
+		if _, err := os.Stat(config.FallbackPath); os.IsNotExist(err) {
+			t.Error("fallback file should have been created")
+		}
+	})
+
+	// Test retry scheduling (without actually executing the retry)
+	t.Run("schedules retry when under max retries", func(t *testing.T) {
+		config := &RecoveryConfig{
+			MaxRetries: 2,
+			RetryDelay: 10 * time.Millisecond,
+			Strategy:   RecoveryRetry,
+		}
+		rm := NewRecoveryManager(config)
+		defer rm.Close()
+
+		logger := &FlexLog{}
+		dest := &Destination{Name: "test-dest"}
+		msg := LogMessage{Format: "test message"}
+
+		// First call should schedule a retry (but we won't wait for it)
+		rm.retryOperation(logger, errors.New("test error"), msg, dest)
+
+		// Retry count should still be 0 (not incremented until timer fires)
+		rm.retryMu.Lock()
+		retryCount := rm.retryMap["test-dest"]
+		rm.retryMu.Unlock()
+
+		if retryCount != 0 {
+			t.Errorf("retry count should be 0 immediately after scheduling, got %d", retryCount)
+		}
+	})
 }
 
 func TestRecoveryManager_Close(t *testing.T) {

@@ -63,6 +63,9 @@ func TestRotateOperation(t *testing.T) {
 	// Write after rotation
 	logger.Info("After rotation")
 	logger.FlushAll()
+	
+	// Give time for the message to be processed
+	time.Sleep(50 * time.Millisecond)
 
 	// Check that we have a rotated file
 	files, err := os.ReadDir(tmpDir)
@@ -72,7 +75,7 @@ func TestRotateOperation(t *testing.T) {
 
 	rotatedCount := 0
 	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "test_rotate.log.") {
+		if strings.HasPrefix(f.Name(), "test_rotate.log.") && !strings.HasSuffix(f.Name(), ".lock") {
 			rotatedCount++
 		}
 	}
@@ -110,7 +113,8 @@ func TestCleanupOldFilesOperation(t *testing.T) {
 	logger.SetMaxFiles(3)
 
 	// Create mock rotated files with different timestamps
-	baseTime := time.Now()
+	// Use UTC to match how rotation creates timestamps
+	baseTime := time.Now().UTC()
 	for i := 0; i < 5; i++ {
 		timestamp := baseTime.Add(time.Duration(i) * time.Minute).Format(RotationTimeFormat)
 		rotatedPath := filepath.Join(tmpDir, "test_cleanup.log."+timestamp)
@@ -133,7 +137,7 @@ func TestCleanupOldFilesOperation(t *testing.T) {
 
 	rotatedCount := 0
 	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "test_cleanup.log.") {
+		if strings.HasPrefix(f.Name(), "test_cleanup.log.") && !strings.HasSuffix(f.Name(), ".lock") {
 			rotatedCount++
 		}
 	}
@@ -156,24 +160,41 @@ func TestCleanupOldLogsOperation(t *testing.T) {
 
 	// Set max age to 1 hour
 	logger.SetMaxAge(1 * time.Hour)
+	
+	// Stop the background cleanup routine to avoid interference
+	logger.mu.Lock()
+	if logger.cleanupTicker != nil {
+		logger.stopCleanupRoutine()
+	}
+	logger.mu.Unlock()
 
-	// Create old and new files
-	now := time.Now()
-	oldTime := now.Add(-2 * time.Hour)    // 2 hours old
-	newTime := now.Add(-30 * time.Minute) // 30 minutes old
-
-	// Create old file
+	// Create old and new files with timestamps that reflect their intended age
+	// Use UTC to match how rotation creates timestamps
+	now := time.Now().UTC()
+	
+	// For testing, we need files that appear to have been rotated at specific times
+	// Create an old file that should be deleted (2 hours old)
+	oldTime := now.Add(-2 * time.Hour)
 	oldTimestamp := oldTime.Format(RotationTimeFormat)
 	oldPath := filepath.Join(tmpDir, "test_age_cleanup.log."+oldTimestamp)
 	if err := os.WriteFile(oldPath, []byte("old"), 0644); err != nil {
 		t.Fatalf("Failed to create old file: %v", err)
 	}
-
-	// Create new file
+	
+	// Create a new file that should NOT be deleted (30 minutes old)
+	newTime := now.Add(-30 * time.Minute)
 	newTimestamp := newTime.Format(RotationTimeFormat)
 	newPath := filepath.Join(tmpDir, "test_age_cleanup.log."+newTimestamp)
 	if err := os.WriteFile(newPath, []byte("new"), 0644); err != nil {
 		t.Fatalf("Failed to create new file: %v", err)
+	}
+	
+	// Also create a very recent file to ensure it's not deleted
+	recentTime := now.Add(-5 * time.Minute)
+	recentTimestamp := recentTime.Format(RotationTimeFormat)
+	recentPath := filepath.Join(tmpDir, "test_age_cleanup.log."+recentTimestamp)
+	if err := os.WriteFile(recentPath, []byte("recent"), 0644); err != nil {
+		t.Fatalf("Failed to create recent file: %v", err)
 	}
 
 	// Run cleanup
@@ -181,6 +202,9 @@ func TestCleanupOldLogsOperation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
 	}
+
+	// Give a small delay for filesystem operations
+	time.Sleep(10 * time.Millisecond)
 
 	// Old file should be deleted
 	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
@@ -190,6 +214,11 @@ func TestCleanupOldLogsOperation(t *testing.T) {
 	// New file should remain
 	if _, err := os.Stat(newPath); err != nil {
 		t.Error("New file was deleted")
+	}
+	
+	// Recent file should also remain
+	if _, err := os.Stat(recentPath); err != nil {
+		t.Error("Recent file was deleted")
 	}
 }
 
@@ -236,6 +265,9 @@ func TestRotateDestinationOperation(t *testing.T) {
 	// Write after rotation
 	logger.Info("After destination rotation")
 	logger.FlushAll()
+	
+	// Give time for the message to be processed
+	time.Sleep(50 * time.Millisecond)
 
 	// Check for rotated file
 	files, err := os.ReadDir(tmpDir)

@@ -68,11 +68,7 @@ func (f *FlexLog) GetErrors() <-chan LogError {
 
 // logError handles an error using the configured error handler
 func (f *FlexLog) logError(source string, destination string, message string, err error, level ErrorLevel) {
-	// In test mode, suppress all error output except critical errors
-	if isTestMode() && level < ErrorLevelCritical {
-		return
-	}
-	// Increment error count
+	// Always increment error count
 	atomic.AddUint64(&f.errorCount, 1)
 
 	// Track errors by source using thread-safe sync.Map with atomic counters

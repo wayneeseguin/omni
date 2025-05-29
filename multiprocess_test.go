@@ -286,6 +286,12 @@ func TestMultiProcessRecovery(t *testing.T) {
 		logger1.Info(fmt.Sprintf("Logger1_Message_%d", i))
 	}
 
+	// Flush to ensure messages are written
+	logger1.FlushAll()
+	
+	// Small delay to ensure lock state is stable
+	time.Sleep(50 * time.Millisecond)
+
 	// Start second process while first is still active
 	logger2, err := New(logFile)
 	if err != nil {

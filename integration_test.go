@@ -167,6 +167,17 @@ func TestDestinationEnableDisable(t *testing.T) {
 func TestConcurrentMultiDestination(t *testing.T) {
 	tempDir := t.TempDir()
 
+	// Set a larger channel size for this test
+	oldSize := os.Getenv("FLEXLOG_CHANNEL_SIZE")
+	os.Setenv("FLEXLOG_CHANNEL_SIZE", "1000")
+	defer func() {
+		if oldSize != "" {
+			os.Setenv("FLEXLOG_CHANNEL_SIZE", oldSize)
+		} else {
+			os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
+		}
+	}()
+
 	// Create logger with multiple destinations
 	logger, err := New(filepath.Join(tempDir, "concurrent1.log"))
 	if err != nil {
@@ -200,10 +211,19 @@ func TestConcurrentMultiDestination(t *testing.T) {
 
 	wg.Wait()
 
+	// Give time for messages to be processed
+	time.Sleep(500 * time.Millisecond)
+
 	// Flush and verify
 	if err := logger.FlushAll(); err != nil {
 		t.Fatalf("Failed to flush: %v", err)
 	}
+
+	// Check metrics first
+	metrics := logger.GetMetrics()
+	t.Logf("Messages logged: %+v", metrics.MessagesLogged)
+	t.Logf("Messages dropped: %d", metrics.MessagesDropped)
+	t.Logf("Error count: %d", metrics.ErrorCount)
 
 	// Check that all files have expected number of lines
 	expectedLines := numGoroutines * messagesPerGoroutine
@@ -234,20 +254,34 @@ func TestDestinationFailureRecovery(t *testing.T) {
 	}
 	defer logger.Close()
 
-	// Add a destination that will fail (non-existent directory)
-	badFile := filepath.Join(tempDir, "nonexistent", "bad.log")
+	// Create a read-only directory to test failure handling
+	readOnlyDir := filepath.Join(tempDir, "readonly")
+	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+		t.Fatalf("Failed to create read-only directory: %v", err)
+	}
+	badFile := filepath.Join(readOnlyDir, "bad.log")
+	
+	// Try to add destination - this should fail due to permissions
 	err = logger.AddDestination(badFile)
-	if err == nil {
-		t.Log("Warning: Expected AddDestination to fail, but it didn't")
+	if err != nil {
+		t.Logf("AddDestination failed as expected: %v", err)
+	} else {
+		t.Log("AddDestination succeeded unexpectedly")
 	}
 
 	// Log messages - should still work for good destination
 	logger.Info("Test message 1")
 	logger.Info("Test message 2")
 
+	// Give time for messages to be processed
+	time.Sleep(100 * time.Millisecond)
+
 	if err := logger.FlushAll(); err != nil {
 		t.Fatalf("Failed to flush: %v", err)
 	}
+
+	// Additional wait after flush
+	time.Sleep(100 * time.Millisecond)
 
 	// Verify good file has content
 	content, err := os.ReadFile(goodFile)
@@ -351,6 +385,9 @@ func TestDestinationMetrics(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		logger.Info(fmt.Sprintf("Metrics test message %d", i))
 	}
+
+	// Wait for messages to be processed
+	time.Sleep(100 * time.Millisecond)
 
 	if err := logger.FlushAll(); err != nil {
 		t.Fatalf("Failed to flush: %v", err)

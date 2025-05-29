@@ -248,25 +248,31 @@ func TestMetricsErrorTracking(t *testing.T) {
 	}
 
 	// Close the underlying file to force write errors
+	logger.defaultDest.mu.Lock()
 	logger.defaultDest.File.Close()
+	logger.defaultDest.mu.Unlock()
 
-	// Try to log, which should fail
-	logger.Info("this should fail")
+	// Try to log multiple times to ensure error is triggered
+	for i := 0; i < 5; i++ {
+		logger.Info("this should fail %d", i)
+	}
 
 	// Wait for processing
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Close logger
 	logger.Close()
 
 	metrics := logger.GetMetrics()
 	if metrics.ErrorCount == 0 {
-		t.Error("Expected error count to be greater than 0")
+		t.Errorf("Expected error count to be greater than 0, got %d", metrics.ErrorCount)
 	}
 	if len(metrics.ErrorsBySource) == 0 {
-		t.Error("Expected errors by source to be populated")
+		t.Errorf("Expected errors by source to be populated, got %v", metrics.ErrorsBySource)
 	}
 	if metrics.LastError == nil {
 		t.Error("Expected last error to be set")
+	} else {
+		t.Logf("Last error: %v", metrics.LastError)
 	}
 }

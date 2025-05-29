@@ -233,9 +233,16 @@ func (e *ConfigError) Unwrap() error {
 
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr || len(s) > 0 && len(substr) > 0 &&
-			containsHelper(s, substr))
+	// Empty substring is contained in any string
+	if len(substr) == 0 {
+		return true
+	}
+	// If substring is longer than s, it can't be contained
+	if len(s) < len(substr) {
+		return false
+	}
+	// Check if s equals substr or if substr is contained in s
+	return s == substr || containsHelper(s, substr)
 }
 
 // containsHelper is a helper function for case-insensitive contains

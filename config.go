@@ -78,7 +78,7 @@ func DefaultConfig() *Config {
 		Compression:        CompressionNone,
 		CompressMinAge:     1,
 		CompressWorkers:    1,
-		ErrorHandler:       StderrErrorHandler,
+		ErrorHandler:       getDefaultErrorHandler(),
 		IncludeTrace:       false,
 		StackSize:          4096,
 		CaptureAll:         false,
@@ -127,7 +127,7 @@ func (c *Config) Validate() error {
 	}
 
 	if c.ErrorHandler == nil {
-		c.ErrorHandler = StderrErrorHandler
+		c.ErrorHandler = getDefaultErrorHandler()
 	}
 
 	if c.FormatOptions.TimestampFormat == "" {

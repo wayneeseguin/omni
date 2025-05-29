@@ -347,6 +347,11 @@ func TestProcessFileMessage(t *testing.T) {
 			var entry string
 			var entrySize int64
 			logger.processFileMessage(tt.message, dest, &entry, &entrySize)
+			
+			// Flush the writer to ensure all data is written
+			if dest.Writer != nil && !tt.flushError {
+				dest.Writer.Flush()
+			}
 
 			// Restore stderr
 			w.Close()

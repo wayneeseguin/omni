@@ -2,6 +2,7 @@ package flexlog
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -234,43 +235,54 @@ type fieldsLogger struct {
 
 // Implement all Logger methods for fieldsLogger
 func (f *fieldsLogger) Trace(args ...interface{}) {
-	f.logger.WithFields(f.fields).Trace(args...)
+	// Convert args to message
+	message := fmt.Sprint(args...)
+	f.logger.TraceWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Tracef(format string, args ...interface{}) {
-	f.logger.WithFields(f.fields).Tracef(format, args...)
+	message := fmt.Sprintf(format, args...)
+	f.logger.TraceWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Debug(args ...interface{}) {
-	f.logger.WithFields(f.fields).Debug(args...)
+	message := fmt.Sprint(args...)
+	f.logger.DebugWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Debugf(format string, args ...interface{}) {
-	f.logger.WithFields(f.fields).Debugf(format, args...)
+	message := fmt.Sprintf(format, args...)
+	f.logger.DebugWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Info(args ...interface{}) {
-	f.logger.WithFields(f.fields).Info(args...)
+	message := fmt.Sprint(args...)
+	f.logger.InfoWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Infof(format string, args ...interface{}) {
-	f.logger.WithFields(f.fields).Infof(format, args...)
+	message := fmt.Sprintf(format, args...)
+	f.logger.InfoWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Warn(args ...interface{}) {
-	f.logger.WithFields(f.fields).Warn(args...)
+	message := fmt.Sprint(args...)
+	f.logger.WarnWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Warnf(format string, args ...interface{}) {
-	f.logger.WithFields(f.fields).Warnf(format, args...)
+	message := fmt.Sprintf(format, args...)
+	f.logger.WarnWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Error(args ...interface{}) {
-	f.logger.WithFields(f.fields).Error(args...)
+	message := fmt.Sprint(args...)
+	f.logger.ErrorWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) Errorf(format string, args ...interface{}) {
-	f.logger.WithFields(f.fields).Errorf(format, args...)
+	message := fmt.Sprintf(format, args...)
+	f.logger.ErrorWithFields(message, f.fields)
 }
 
 func (f *fieldsLogger) WithFields(newFields map[string]interface{}) Logger {

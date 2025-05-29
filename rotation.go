@@ -18,6 +18,15 @@ const RotationTimeFormat = "20060102-150405.000"
 func (f *FlexLog) rotate() error {
 	// Lock already acquired in flocklogf
 
+	// Find the primary destination (if any)
+	var primaryDest *Destination
+	for _, dest := range f.Destinations {
+		if dest.URI == f.path && dest.Backend == BackendFlock {
+			primaryDest = dest
+			break
+		}
+	}
+
 	// Flush current file
 	if f.writer != nil {
 		if err := f.writer.Flush(); err != nil {
@@ -32,14 +41,14 @@ func (f *FlexLog) rotate() error {
 		}
 	}
 
-	// Generate timestamp for rotation
-	timestamp := time.Now().Format(RotationTimeFormat)
+	// Generate timestamp for rotation (always use UTC for consistency)
+	timestamp := time.Now().UTC().Format(RotationTimeFormat)
 	rotatedPath := fmt.Sprintf("%s.%s", f.path, timestamp)
 
 	// Rename current file to timestamped name
 	if err := os.Rename(f.path, rotatedPath); err != nil {
 		return fmt.Errorf("rotating current log: %w", err)
-	}
+		}
 
 	// Queue for compression if enabled
 	if f.compression != CompressionNone {
@@ -59,6 +68,15 @@ func (f *FlexLog) rotate() error {
 	f.file = file
 	f.writer = newWriter
 	f.currentSize = 0
+
+	// Also update the primary destination if it exists
+	if primaryDest != nil {
+		primaryDest.mu.Lock()
+		primaryDest.File = file
+		primaryDest.Writer = newWriter
+		primaryDest.Size = 0
+		primaryDest.mu.Unlock()
+	}
 
 	// Clean up old files if needed
 	if f.maxFiles > 0 {
@@ -199,9 +217,6 @@ func (f *FlexLog) cleanupOldLogs() error {
 	dir := filepath.Dir(f.path)
 	base := filepath.Base(f.path)
 
-	// Start the timestamp for comparison
-	cutoff := time.Now().Add(-f.maxAge)
-
 	// List directory
 	files, err := os.ReadDir(dir)
 	if err != nil {
@@ -239,7 +254,8 @@ func (f *FlexLog) cleanupOldLogs() error {
 		}
 
 		// Check if file is older than cutoff
-		if fileTime.Before(cutoff) {
+		// Using the timestamp when the file was rotated (from filename)
+		if time.Since(fileTime) > f.maxAge {
 			// Remove the file
 			if err := os.Remove(filePath); err != nil {
 				f.logError("cleanup", "", fmt.Sprintf("Error removing old log file %s", filePath), err, ErrorLevelLow)
@@ -340,15 +356,10 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	}
 	dest.mu.Unlock()
 
-	// Close the file
-	if dest.File != nil {
-		if err := dest.File.Close(); err != nil {
-			return fmt.Errorf("closing log file: %w", err)
-		}
-	}
+	// Note: We'll close the file after updating references to avoid race conditions
 
-	// Generate timestamp for rotation
-	timestamp := time.Now().Format(RotationTimeFormat)
+	// Generate timestamp for rotation (always use UTC for consistency)
+	timestamp := time.Now().UTC().Format(RotationTimeFormat)
 	rotatedPath := fmt.Sprintf("%s.%s", dest.URI, timestamp)
 
 	// Rename the current file

@@ -44,21 +44,33 @@ func getDefaultChannelSize() int {
 
 // isTestMode detects if we're running under go test
 func isTestMode() bool {
-	// Check if we're running under go test
-	if exe, err := os.Executable(); err == nil {
-		if filepath.Base(exe) == "go" || strings.Contains(exe, ".test") {
+	// Check command line arguments for test-related flags first
+	for _, arg := range os.Args {
+		if strings.HasPrefix(arg, "-test.") {
 			return true
 		}
 	}
 	
-	// Check for testing package import via command line
-	for _, arg := range os.Args {
-		if strings.Contains(arg, "test") {
+	// Check if we're running under go test via executable name
+	if exe, err := os.Executable(); err == nil {
+		if strings.HasSuffix(exe, ".test") {
+			return true
+		}
+		basename := filepath.Base(exe)
+		if basename == "go" || strings.Contains(basename, ".test") {
 			return true
 		}
 	}
 	
 	return false
+}
+
+// getDefaultErrorHandler returns the appropriate error handler based on environment
+func getDefaultErrorHandler() ErrorHandler {
+	if isTestMode() {
+		return SilentErrorHandler
+	}
+	return StderrErrorHandler
 }
 
 // New creates a new file logger with default settings.

@@ -41,9 +41,9 @@ func TestBufferPool(t *testing.T) {
 func TestBufferPoolSizeLimit(t *testing.T) {
 	pool := NewBufferPool()
 
-	// Create a large buffer
+	// Create a large buffer that exceeds the 32KB limit
 	buf := pool.Get()
-	largeData := make([]byte, 5000) // Larger than 4096 limit
+	largeData := make([]byte, 33*1024) // Larger than 32KB limit
 	buf.Write(largeData)
 
 	// Put it back
@@ -51,8 +51,8 @@ func TestBufferPoolSizeLimit(t *testing.T) {
 
 	// Get a new buffer - should not be the same one due to size limit
 	buf2 := pool.Get()
-	if buf2.Cap() > 4096 {
-		t.Error("Expected new buffer with smaller capacity")
+	if buf2.Cap() > 1024 { // Default capacity is 512, so anything larger suggests reuse
+		t.Errorf("Expected new buffer with default capacity, got %d", buf2.Cap())
 	}
 }
 

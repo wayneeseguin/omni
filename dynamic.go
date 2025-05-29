@@ -311,11 +311,11 @@ func (f *FlexLog) ApplyDynamicConfig(config *DynamicConfig) error {
 // EnableDynamicConfig enables dynamic configuration with the specified file path and check interval
 func (f *FlexLog) EnableDynamicConfig(configPath string, interval time.Duration) error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	
 	if f.configWatcher != nil {
+		f.mu.Unlock()
 		return fmt.Errorf("dynamic config already enabled")
 	}
+	f.mu.Unlock()
 	
 	// Create config directory if it doesn't exist
 	configDir := filepath.Dir(configPath)
@@ -331,7 +331,10 @@ func (f *FlexLog) EnableDynamicConfig(configPath string, interval time.Duration)
 		return fmt.Errorf("failed to start config watcher: %w", err)
 	}
 	
+	f.mu.Lock()
 	f.configWatcher = watcher
+	f.mu.Unlock()
+	
 	return nil
 }
 

@@ -219,11 +219,13 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 
 	// File backend with flock locking
 	// Note: We acquire file lock last according to lock hierarchy
-	if err := dest.Lock.Lock(); err != nil {
-		f.logError("lock", dest.Name, "Failed to acquire file lock", err, ErrorLevelHigh)
-		return
+	if dest.Lock != nil {
+		if err := dest.Lock.Lock(); err != nil {
+			f.logError("lock", dest.Name, "Failed to acquire file lock", err, ErrorLevelHigh)
+			return
+		}
+		defer dest.Lock.Unlock()
 	}
-	defer dest.Lock.Unlock()
 
 	var entry string
 	var entrySize int64
@@ -326,6 +328,56 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			message = redactor.Redact(message)
 		}
 
+		// Check if we should format as JSON with metadata
+		if format == FormatJSON && (f.includeHostname || f.includeProcess || f.includeRuntime) {
+			// Create a structured entry with metadata
+			structEntry := &LogEntry{
+				Timestamp: f.formatTimestamp(msg.Timestamp),
+				Level:     levelToString(msg.Level),
+				Message:   message,
+				Fields:    make(map[string]interface{}),
+			}
+
+			// Add metadata fields
+			addMetadataFields(structEntry, f)
+
+			// Format as JSON
+			jsonData, err := formatJSONEntry(structEntry)
+			if err == nil {
+				entry = string(jsonData)
+				entrySize = int64(len(entry))
+
+				// Assign the formatted entry to the entryPtr immediately after formatting
+				*entryPtr = entry
+
+				// Check if rotation needed
+				if maxSize > 0 && dest.Size+entrySize > maxSize {
+					if err := f.rotateDestination(dest); err != nil {
+						f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
+						return
+					}
+				}
+
+				// Write the entry
+				dest.mu.Lock()
+				writeStart := time.Now()
+				if err := f.writeStringToDestination(dest, entry); err != nil {
+					dest.mu.Unlock()
+					dest.trackError()
+					f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
+					return
+				}
+				writeDuration := time.Since(writeStart)
+				dest.Size += entrySize
+				dest.mu.Unlock()
+
+				// Track write metrics
+				dest.trackWrite(entrySize, writeDuration)
+				f.trackWrite(entrySize, writeDuration)
+				return
+			}
+		}
+
 		// Format based on level
 		var levelStr string
 		switch msg.Level {
@@ -410,6 +462,11 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 			dest.mu.Unlock()
 			dest.trackError()
 			f.logError("write", dest.Name, "Failed to write to log file", err, ErrorLevelMedium)
+
+			// Trigger recovery if configured
+			if f.recoveryManager != nil {
+				f.RecoverFromError(err, msg, dest)
+			}
 			return
 		}
 		writeDuration := time.Since(writeStart)

@@ -68,6 +68,24 @@ func NewRecoveryManager(config *RecoveryConfig) *RecoveryManager {
 	if config == nil {
 		config = DefaultRecoveryConfig()
 	}
+
+	// Apply defaults for missing values
+	if config.BufferSize == 0 {
+		config.BufferSize = 1000 // Default buffer size
+	}
+	if config.MaxRetries == 0 {
+		config.MaxRetries = 3
+	}
+	if config.RetryDelay == 0 {
+		config.RetryDelay = 100 * time.Millisecond
+	}
+	if config.BackoffMultiplier == 0 {
+		config.BackoffMultiplier = 2.0
+	}
+	if config.MaxRetryDelay == 0 {
+		config.MaxRetryDelay = 5 * time.Second
+	}
+
 	return &RecoveryManager{
 		config:   config,
 		buffer:   make([]LogMessage, 0, config.BufferSize),
@@ -99,12 +117,7 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 		return RecoveryDrop
 	}
 
-	// Check if error is retryable
-	if IsRetryable(err) {
-		return RecoveryRetry
-	}
-
-	// Check for specific error types
+	// Check for specific error types first, before generic retryable check
 	if flexErr, ok := err.(*FlexLogError); ok {
 		switch flexErr.Code {
 		case ErrCodeChannelFull:
@@ -114,6 +127,11 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 		case ErrCodeDestinationDisabled:
 			return RecoveryDrop
 		}
+	}
+
+	// Check if error is retryable (for other errors not handled above)
+	if IsRetryable(err) {
+		return RecoveryRetry
 	}
 
 	// Default to configured strategy
@@ -211,6 +229,11 @@ func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
 func (rm *RecoveryManager) bufferMessage(msg LogMessage) {
 	rm.bufferMu.Lock()
 	defer rm.bufferMu.Unlock()
+
+	// If buffer size is 0, don't buffer anything
+	if rm.config.BufferSize <= 0 {
+		return
+	}
 
 	// Check buffer capacity
 	if len(rm.buffer) >= rm.config.BufferSize {

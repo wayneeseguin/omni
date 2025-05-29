@@ -2,6 +2,7 @@ package flexlog
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,7 @@ func TestShutdownOperations(t *testing.T) {
 		// Write some messages
 		messageCount := 10
 		for i := 0; i < messageCount; i++ {
-			logger.Info("Message %d", i)
+			logger.Infof("Message %d", i)
 		}
 
 		// Shutdown with timeout
@@ -42,7 +43,7 @@ func TestShutdownOperations(t *testing.T) {
 		}
 
 		for i := 0; i < messageCount; i++ {
-			expected := "Message " + string(rune('0'+i))
+			expected := fmt.Sprintf("Message %d", i)
 			if !strings.Contains(string(content), expected) {
 				t.Errorf("Missing message %d in log file", i)
 			}
@@ -223,7 +224,7 @@ func TestCloseAll(t *testing.T) {
 
 	// Add multiple destinations
 	for i := 0; i < 3; i++ {
-		path := filepath.Join(tmpDir, "dest%d.log")
+		path := filepath.Join(tmpDir, fmt.Sprintf("dest%d.log", i))
 		err = logger.AddDestination(path)
 		if err != nil {
 			t.Fatalf("Failed to add destination %d: %v", i, err)

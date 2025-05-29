@@ -335,7 +335,7 @@ func TestProcessMessageFormatting(t *testing.T) {
 
 			// Set format options
 			logger.mu.Lock()
-			logger.formatOpts = tt.formatOpts
+			logger.formatOptions = tt.formatOpts
 			logger.mu.Unlock()
 
 			// Process message
