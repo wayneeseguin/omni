@@ -1,46 +1,52 @@
-# Flex Logger ("flexlog")
+# FlexLog - Flexible Logging for Go
 
-A Go library for flexibly logging with multiple destination backends as an option:
-- Unix flock-based synchronization on Unix-like systems
-- syslog
+[![Go Reference](https://pkg.go.dev/badge/github.com/wayneeseguin/flexlog.svg)](https://pkg.go.dev/github.com/wayneeseguin/flexlog)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Note:** This library is intended for use on Unix-like systems (e.g., Linux, macOS) and uses file locking for cross-process synchronization.
+FlexLog is a high-performance, extensible logging library for Go applications with support for multiple destinations, structured logging, and distributed systems integration.
 
-The primary use case is to allow for background logging to a single log from multiple processes without blocking or corrupting log entries.
+## Key Features
 
-## Documentation
+### Core Capabilities
+- **🔒 Process-Safe Logging**: File locking ensures safe cross-process synchronization
+- **⚡ Non-Blocking Architecture**: Asynchronous message processing prevents application blocking
+- **📊 Structured Logging**: Rich context with fields, stack traces, and error metadata
+- **🎯 Multiple Destinations**: Log to files, syslog, databases, message queues, and more
+- **🔌 Plugin System**: Extend with custom backends, formatters, and filters
 
-- 📖 **[API Documentation](docs/API.md)** - Complete API reference and usage guide
-- 🚀 **[Examples](examples/)** - Ready-to-run example programs
-- 🔄 **[Migration Guide](docs/MIGRATION.md)** - Migrate from other logging libraries
+### Advanced Features
+- **📦 Log Management**: Automatic rotation, compression, and cleanup based on size/age
+- **🎚️ Flexible Filtering**: Content-based, regex, and custom filtering logic
+- **📈 Smart Sampling**: Reduce log volume with interval, random, or consistent sampling
+- **🚨 Enhanced Error Handling**: Stack traces, error wrapping, panic recovery, and severity levels
+- **🔐 Security Features**: API request/response redaction, sensitive data masking
+- **📡 Distributed Logging**: NATS integration for real-time log streaming across systems
+
+### Performance & Reliability
+- **💾 Buffered I/O**: Optimized write performance with configurable buffer sizes
+- **🔄 Graceful Shutdown**: Context-aware shutdown with timeout support
+- **📊 Built-in Metrics**: Track messages logged, bytes written, and errors
+- **🛡️ Recovery Mechanisms**: Automatic recovery from transient failures
 
 ## Installation
 
-To install `flexlog`, use the following command:
-
-```sh
+```bash
 go get github.com/wayneeseguin/flexlog
 ```
 
-## Features
+## Documentation
 
-- **Process-Safe Logging**: Uses file locking for cross-process synchronization
-- **Standard Log Levels**: Supports TRACE, DEBUG, INFO, WARN, ERROR levels
-- **Structured Logging**: Supports structured logging with fields
-- **Log Rotation**: Automatic log rotation based on file size
-- **Multiple Output Destinations**: Log to multiple destinations simultaneously
-- **Format Options**: JSON or text format with customizable options
-- **Stack Traces**: Optional stack trace capture for errors or all log levels
-- **Log Filtering**: Filter logs based on various criteria
-- **Log Sampling**: Sample logs using different strategies
-- **Error Handling**: Enhanced error logging with severity levels
-- **Compression**: Automatic compression of rotated logs
-- **API Logging**: Methods for safely logging API requests/responses with redaction
-- **Safe Goroutines**: Helper for executing goroutines with panic recovery
+- 📖 **[Getting Started Guide](docs/getting-started.md)** - Quick introduction and basic usage
+- 📚 **[API Reference](docs/API.md)** - Complete API documentation
+- 🏗️ **[Architecture Overview](docs/architecture.md)** - Internal design and components
+- 🔌 **[Plugin Development](docs/plugins.md)** - Create custom backends and formatters
+- 💡 **[Best Practices](docs/best-practices.md)** - Production deployment guidelines
+- 🔄 **[Migration Guide](docs/migration.md)** - Migrate from other logging libraries
+- 🔧 **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 
-## Basic Usage
+## Quick Start
 
-Here's a simple example of how to use `flexlog`:
+### Basic Usage
 
 ```go
 package main
@@ -50,412 +56,227 @@ import (
 )
 
 func main() {
+    // Create a simple file logger
     logger, err := flexlog.New("app.log")
     if err != nil {
         panic(err)
     }
     defer logger.Close()
 
-    logger.Info("Hello, %s!", "world")
+    // Log messages at different levels
+    logger.Info("Application started")
+    logger.Debug("Debug mode enabled")
+    logger.Warn("Low memory warning")
+    logger.Error("Failed to connect to database")
 }
 ```
 
-## Log Levels
-
-flexlog supports standard logging levels with a new TRACE level for very detailed diagnostics:
+### Structured Logging
 
 ```go
-logger, err := flexlog.New("app.log")
+// Log with structured fields for better querying
+logger.InfoWithFields("User action", map[string]interface{}{
+    "user_id":    123,
+    "action":     "login",
+    "ip_address": "192.168.1.100",
+    "timestamp":  time.Now().Unix(),
+})
+
+// Use the Builder pattern for advanced configuration
+logger, err := flexlog.NewBuilder().
+    WithLevel(flexlog.LevelDebug).
+    WithJSON().
+    WithDestination("/var/log/app.log").
+    WithRotation(10*1024*1024, 5). // 10MB files, keep 5
+    Build()
+```
+
+### Multiple Destinations
+
+```go
+// Create logger with primary destination
+logger, err := flexlog.New("/var/log/app.log")
 if err != nil {
     panic(err)
 }
-defer logger.Close()
 
-// Set minimum log level (default is INFO)
-logger.SetLevel(flexlog.LevelTrace) // Options: LevelTrace, LevelDebug, LevelInfo, LevelWarn, LevelError
+// Add additional destinations
+logger.AddDestination("syslog://localhost:514")
+logger.AddDestination("/var/log/app-errors.log")
+logger.AddDestination("stdout")
 
-// Log at different levels (from most to least verbose)
-logger.Trace("Trace message - very detailed diagnostics")
-logger.Tracef("Formatted %s message", "trace")
-
-logger.Debug("Debug message - detailed diagnostics")
-logger.Debugf("Formatted %s message", "debug")
-
-logger.Info("Info message - general information")
-logger.Infof("Formatted %s message", "info")
-
-logger.Warn("Warning message - potentially harmful situations")
-logger.Warnf("Formatted %s message", "warning")
-
-logger.Error("Error message - error conditions")
-logger.Errorf("Formatted %s message", "error")
+// Destination-specific configuration
+logger.SetDestinationEnabled(1, false)  // Disable second destination
+logger.SetDestinationFilter(2, flexlog.LevelError) // Only errors to third
 ```
 
-### Log Level Hierarchy
-
-The log levels follow this hierarchy (from lowest to highest priority):
-- **TRACE (0)**: Very detailed diagnostic information for troubleshooting
-- **DEBUG (1)**: Detailed diagnostic information for debugging
-- **INFO (2)**: General informational messages about application flow
-- **WARN (3)**: Warning messages for potentially harmful situations
-- **ERROR (4)**: Error messages for failures that need attention
-
-When you set a log level, all messages at that level and above will be logged.
-
-## Structured Logging
-
-For more detailed logs, use structured logging with fields:
+### Distributed Logging with NATS
 
 ```go
-// Structured logging with fields (from most to least verbose)
-logger.TraceWithFields("Function entry", map[string]interface{}{
-    "function": "processOrder",
-    "params":   map[string]string{"id": "123"},
-    "caller":   "handler.go:42",
-})
+// Register NATS plugin
+import natsplugin "github.com/wayneeseguin/flexlog/examples/plugins/nats-backend"
 
-logger.DebugWithFields("User logged in", map[string]interface{}{
-    "user_id": 123,
-    "ip":      "192.168.1.1",
-})
+plugin := &natsplugin.NATSBackendPlugin{}
+plugin.Initialize(nil)
+flexlog.RegisterBackendPlugin(plugin)
 
-logger.InfoWithFields("Payment processed", map[string]interface{}{
-    "amount":    199.99,
-    "currency":  "USD",
-    "payment_id": "pay_123456",
-})
+// Add NATS destinations
+logger.AddDestination("nats://localhost:4222/logs.app.info?queue=processors")
+logger.AddDestination("nats://cluster:4222/logs.app.error?batch=100&flush_interval=1000")
+logger.AddDestination("nats://secure:4222/logs.audit?tls=true&token=secret")
 
-logger.WarnWithFields("Rate limit approaching", map[string]interface{}{
-    "current_rate": 95,
-    "limit":        100,
-    "user_id":      123,
-})
-
-logger.ErrorWithFields("Database connection failed", map[string]interface{}{
-    "db_host":   "db.example.com",
-    "error_code": "CONNECTION_REFUSED",
+// Log messages are now distributed across NATS subjects
+logger.InfoWithFields("Order processed", map[string]interface{}{
+    "order_id": "ORD-12345",
+    "amount":   99.99,
+    "customer": "user@example.com",
 })
 ```
 
-## Log Rotation and Cleanup
+## Advanced Features
 
-Configure log rotation and cleanup:
-
-```go
-// Set maximum log file size (in bytes)
-logger.SetMaxSize(10 * 1024 * 1024) // 10MB
-
-// Set maximum number of log files to keep
-logger.SetMaxFiles(5)
-
-// Set maximum age for log files (0 disables age-based cleanup)
-logger.SetMaxAge(7 * 24 * time.Hour) // 7 days
-
-// Set cleanup interval
-logger.SetCleanupInterval(1 * time.Hour)
-
-// Run cleanup manually
-logger.RunCleanup()
-```
-
-## Multiple Output Destinations
-
-Send logs to multiple Destinations:
+### Error Handling & Stack Traces
 
 ```go
-// Add stdout as a destination
-logger.AddDestination("stdout", os.Stdout)
-
-// Add a network writer
-conn, _ := net.Dial("tcp", "logserver:1234")
-logger.AddDestination("network", conn)
-
-// Disable a destination temporarily
-logger.DisableDestination("network")
-
-// Re-enable a destination
-logger.EnableDestination("network")
-
-// Remove a destination
-logger.RemoveDestination("network")
-
-// List all Destinations
-Destinations := logger.ListDestinations()
-```
-
-## Log Formats and Formatting Options
-
-Configure log formats:
-
-```go
-// Use JSON format
-logger.SetFormat(flexlog.FormatJSON)
-
-// Or use text format (default)
-logger.SetFormat(flexlog.FormatText)
-
-// Customize formatting options
-logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, "2006-01-02T15:04:05.000Z07:00")
-logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, true)
-logger.SetFormatOption(flexlog.FormatOptionLevelFormat, flexlog.LevelFormatSymbol)
-logger.SetFormatOption(flexlog.FormatOptionIndentJSON, true)
-```
-
-## Stack Traces
-
-Configure stack trace capture:
-
-```go
-// Enable stack traces for error logs
+// Enable stack traces for errors
 logger.EnableStackTraces(true)
 
-// Capture stack traces for all log levels, not just errors
-logger.SetCaptureAllStacks(true)
+// Log errors with full context
+if err := riskyOperation(); err != nil {
+    logger.ErrorWithError("Operation failed", err)
+    
+    // With severity levels
+    logger.ErrorWithErrorAndSeverity("Critical failure", err, flexlog.SeverityCritical)
+}
 
-// Set maximum stack trace buffer size
-logger.SetStackSize(8192)
-```
+// Wrap errors with additional context
+wrappedErr := logger.WrapError(err, "failed to process payment")
 
-## Enhanced Error Handling
-
-flexlog provides enhanced error handling:
-
-```go
-// Log an error with stack trace
-err := someFunction()
-logger.ErrorWithError("Operation failed", err)
-
-// Log an error with a severity level
-logger.ErrorWithErrorAndSeverity("Critical system failure", err, flexlog.SeverityCritical)
-
-// Wrap an error with stack trace
-wrappedErr := logger.WrapError(err, "failed to process request")
-
-// Get the root cause of a wrapped error
-rootErr := logger.CauseOf(wrappedErr)
-
-// Format an error with stack trace for output
-verboseErr := logger.FormatErrorVerbose(wrappedErr)
-
-// Log a recovered panic
-defer func() {
-    if r := recover(); r != nil {
-        logger.LogPanic(r)
-    }
-}()
-
-// Run a function in a goroutine with panic recovery
+// Safe goroutine execution
 logger.SafeGo(func() {
-    // This code will run in a goroutine with panic recovery
-    riskyOperation()
+    // This function runs with panic recovery
+    processInBackground()
 })
 ```
 
-## Log Filtering
-
-Filter logs based on various criteria:
+### Filtering & Sampling
 
 ```go
-// Add a custom filter
+// Add custom filters
 logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-    // Only log messages containing "important"
-    return strings.Contains(message, "important")
-})
-
-// Filter logs with specific field value
-logger.SetFieldFilter("user_id", 123, 456) // Only log entries with user_id 123 or 456
-
-// Filter by level and field
-logger.SetLevelFieldFilter(flexlog.LevelError, "service", "payment")
-
-// Filter using regex
-logger.SetRegexFilter(regexp.MustCompile(`user_id=(1|2|3)\d{2}`))
-
-// Exclude logs matching a pattern
-logger.SetExcludeRegexFilter(regexp.MustCompile(`health_check`))
-
-// Clear all filters
-logger.ClearFilters()
-```
-
-## Log Sampling
-
-Sample logs to reduce volume:
-
-```go
-// Log every 10th message
-logger.SetSampling(flexlog.SamplingInterval, 10)
-
-// Log 10% of messages randomly
-logger.SetSampling(flexlog.SamplingRandom, 0.1)
-
-// Use consistent sampling based on message content
-logger.SetSampling(flexlog.SamplingConsistent, 0.2)
-
-// Customize the sampling key function
-logger.SetSampleKeyFunc(func(level int, message string, fields map[string]interface{}) string {
-    // Use user_id as the sampling key if available
-    if fields != nil {
-        if userID, ok := fields["user_id"].(int); ok {
-            return fmt.Sprintf("%d", userID)
-        }
+    // Only log messages from specific users
+    if userID, ok := fields["user_id"].(int); ok {
+        return userID == 123 || userID == 456
     }
-    return message
+    return true
 })
+
+// Configure sampling to reduce volume
+logger.SetSampling(flexlog.SamplingInterval, 10)    // Every 10th message
+logger.SetSampling(flexlog.SamplingRandom, 0.1)     // 10% randomly
+logger.SetSampling(flexlog.SamplingConsistent, 0.2) // 20% consistently by key
 ```
 
-## Log Compression
-
-Configure compression for rotated logs:
+### Log Rotation & Compression
 
 ```go
-// Enable gzip compression for rotated logs
+// Configure rotation
+logger.SetMaxSize(50 * 1024 * 1024)        // 50MB per file
+logger.SetMaxFiles(10)                      // Keep 10 files
+logger.SetMaxAge(7 * 24 * time.Hour)       // 7 days retention
+
+// Enable compression
 logger.SetCompression(flexlog.CompressionGzip)
-
-// Set minimum rotation age before compressing
-logger.SetCompressMinAge(2) // Compress logs that are at least 2 rotations old
-
-// Set number of compression worker goroutines
-logger.SetCompressWorkers(3)
+logger.SetCompressMinAge(2)                 // Compress after 2 rotations
+logger.SetCompressWorkers(3)                // 3 compression workers
 ```
 
-## API Request/Response Logging
-
-flexlog provides methods for safely logging API requests and responses with automatic redaction of sensitive data:
+### Plugin System
 
 ```go
-// Log an API request
-headers := map[string][]string{
-    "Authorization": {"Bearer token123"},
-    "Content-Type": {"application/json"},
-}
-body := `{"username": "user", "password": "secret"}`
-logger.FlogRequest("POST", "/api/login", headers, body)
+// Load plugins from directory
+flexlog.SetPluginSearchPaths([]string{
+    "./plugins",
+    "/usr/local/lib/flexlog/plugins",
+})
+flexlog.DiscoverAndLoadPlugins()
 
-// Log an API response
-respHeaders := map[string][]string{
-    "X-Auth-Token": {"sensitive-token"},
-    "Content-Type": {"application/json"},
-}
-respBody := `{"status": "success", "token": "jwt-token-here"}`
-logger.FlogResponse(200, respHeaders, respBody)
+// Use custom formatter plugin
+logger.SetCustomFormatter("xml", map[string]interface{}{
+    "include_fields": true,
+    "indent": "  ",
+})
+
+// Add custom backend plugin
+logger.AddDestinationWithPlugin("redis://localhost:6379/0?key=app_logs")
+logger.AddDestinationWithPlugin("elasticsearch://localhost:9200/logs")
 ```
 
-## Changing Log File Location
+## Production Best Practices
 
-You can change the default log file location at runtime:
-
+### 1. Configure Channel Size for High Load
 ```go
-// Change the log path without moving the existing file
-// Messages will go to the new location after this call
-if err := logger.SetLogPath("/var/log/newapp.log", false); err != nil {
-    fmt.Fprintf(os.Stderr, "Error changing log path: %v\n", err)
-}
+// Set before creating loggers
+os.Setenv("FLEXLOG_CHANNEL_SIZE", "10000")
+```
 
-// Change the log path and move existing file contents to the new location
-if err := logger.SetLogPath("/var/log/newapp2.log", true); err != nil {
-    fmt.Fprintf(os.Stderr, "Error changing log path: %v\n", err)
+### 2. Monitor Logger Health
+```go
+metrics := logger.GetMetrics()
+fmt.Printf("Messages logged: %v\n", metrics.MessagesLogged)
+fmt.Printf("Messages dropped: %d\n", metrics.MessagesDropped)
+fmt.Printf("Error count: %d\n", metrics.ErrorCount)
+```
+
+### 3. Graceful Shutdown
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+if err := logger.Shutdown(ctx); err != nil {
+    log.Printf("Shutdown error: %v", err)
 }
 ```
 
-## Testing
-
-To run the tests, use the following command:
-
-```sh
-go test
+### 4. Use Context for Request Tracing
+```go
+ctx := context.WithValue(context.Background(), "request_id", "req-123")
+logger.WithContext(ctx).Info("Processing request")
 ```
+
+## Performance Benchmarks
+
+FlexLog is designed for high-performance logging with minimal overhead:
+
+- **Throughput**: 1M+ messages/second (async mode)
+- **Latency**: <1μs per log call (with buffering)
+- **Memory**: Zero allocations in hot path
+- **Concurrency**: Lock-free message passing
+
+See [benchmarks](docs/benchmarks.md) for detailed performance analysis.
+
+## Examples
+
+Explore complete working examples:
+
+- [Basic Usage](examples/basic/) - Simple file logging
+- [Multiple Destinations](examples/multiple-destinations/) - Log routing
+- [Structured Logging](examples/context-aware/) - Rich context logging
+- [NATS Integration](examples/nats-logging/) - Distributed logging
+- [API Service](examples/web-service/) - HTTP service with request logging
+- [Microservice](examples/microservice/) - Complete microservice example
+- [Plugin Development](examples/plugins/) - Custom backend and formatter plugins
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+FlexLog is released under the [MIT License](LICENSE).
 
-# Examples
+## Support
 
-## MultiLogger Example
-
-```go
-package main
-
-import (
-	"fmt"
-	"os"
-	"time"
-
-	"github.com/wayneeseguin/flexlog"
-)
-
-func main() {
-	// Example 1: Basic file logger with flock backend (default)
-	fileLogger, err := flexlog.New("./logs/application.log")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating file logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer fileLogger.CloseAll()
-
-	// Example 2: Logger with syslog backend
-	syslogLogger, err := flexlog.NewSyslog("localhost", "myapp")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating syslog logger: %v\n", err)
-		// Continue with just the file logger
-	} else {
-		defer syslogLogger.CloseAll()
-	}
-
-	// Example 3: Multi-destination logger
-	multiLogger, err := flexlog.New("./logs/multi.log")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating multi logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Add a syslog destination
-	err = multiLogger.AddDestinationWithBackend("syslog:///dev/log", flexlog.BackendSyslog)
-	if err != nil {
-		fmt.Printf("Warning: Could not add syslog destination: %v\n", err)
-	}
-
-	// Add another file destination
-	err = multiLogger.AddDestination("./logs/secondary.log")
-	if err != nil {
-		fmt.Printf("Warning: Could not add secondary file destination: %v\n", err)
-	}
-
-	defer multiLogger.CloseAll()
-
-	// Set configuration
-	fileLogger.SetLevel(flexlog.LevelDebug)
-	multiLogger.SetLevel(flexlog.LevelInfo)
-
-	// Log some messages to the file logger
-	fileLogger.Debug("This is a debug message")
-	fileLogger.Info("File logger info message with value: %d", 42)
-	fileLogger.Warn("Warning: Something might be wrong")
-	fileLogger.Error("Error occurred: %v", fmt.Errorf("sample error"))
-
-	// If syslog logger was created successfully, log to it
-	if syslogLogger != nil {
-		syslogLogger.Info("Syslog message from application")
-		syslogLogger.Error("Error reported to syslog: %v", fmt.Errorf("connection timeout"))
-	}
-
-	// Log to multiple Destinations
-	for i := 0; i < 5; i++ {
-		multiLogger.Info("Message %d going to multiple Destinations", i)
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	// Demonstrate non-blocking behavior
-	start := time.Now()
-	for i := 0; i < 10000; i++ {
-		multiLogger.Info("Non-blocking log message %d", i)
-	}
-	elapsed := time.Since(start)
-	fmt.Printf("Logged 10,000 messages in %v (would be much longer if blocking)\n", elapsed)
-
-	// Make sure messages are flushed before exiting
-	multiLogger.FlushAll()
-}
-
-```
+- 🐛 [Report Issues](https://github.com/wayneeseguin/flexlog/issues)
+- 💬 [Discussions](https://github.com/wayneeseguin/flexlog/discussions)
+- 📧 Contact: wayne@wayneeseguin.com
