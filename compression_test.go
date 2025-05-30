@@ -256,19 +256,24 @@ func TestCompressionWithRotation(t *testing.T) {
 			logger.Infof("Batch %d: Message %d", batch, i)
 		}
 		logger.Sync()
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	// Close the logger to ensure all compression completes
 	logger.Close()
 
-	// TODO: Close() should wait for compression workers to finish
-	// For now, we need to wait manually to avoid race conditions
-	// where we try to read files that are still being compressed
-	time.Sleep(2 * time.Second)
+	// Wait for compression to complete with polling
+	// Poll every 10ms for up to 500ms for compressed files
+	var compressedFiles []string
+	for i := 0; i < 50; i++ {
+		compressedFiles, err = filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+		if err == nil && len(compressedFiles) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
-	// Should have compressed files
-	compressedFiles, err := filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+	// Check we got compressed files
+	compressedFiles, err = filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
 	if err != nil {
 		t.Fatalf("Failed to glob compressed files: %v", err)
 	}
@@ -330,10 +335,17 @@ func TestCompressionChannelFull(t *testing.T) {
 
 	// Should not panic or deadlock
 	logger.Sync()
-	time.Sleep(1 * time.Second)
-
-	// Check we have some compressed files
-	compressedFiles, err := filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+	
+	// Poll for compressed files instead of fixed sleep
+	// Poll every 10ms for up to 200ms
+	var compressedFiles []string
+	for i := 0; i < 20; i++ {
+		compressedFiles, err = filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+		if err == nil && len(compressedFiles) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if err != nil {
 		t.Fatalf("Failed to glob compressed files: %v", err)
 	}

@@ -121,4 +121,5 @@ const (
 	LevelFormatNameLower
 	// LevelFormatSymbol formats the level as a single character (e.g., "I", "E").
 	// Provides compact output for space-constrained environments.
+	LevelFormatSymbol
 )

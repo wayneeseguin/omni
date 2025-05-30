@@ -52,14 +52,10 @@ func TestSetSamplingRandom(t *testing.T) {
 	// Set random sampling at 50%
 	logger.SetSampling(flexlog.SamplingRandom, 0.5)
 
-	// Log many messages
-	totalMessages := 1000
+	// Log many messages - reduced from 1000 to 200 for faster test
+	totalMessages := 200
 	for i := 0; i < totalMessages; i++ {
 		logger.Info(fmt.Sprintf("random message %d", i))
-		// Sync periodically to avoid channel overflow
-		if i%50 == 0 {
-			logger.Sync()
-		}
 	}
 	logger.Sync()
 

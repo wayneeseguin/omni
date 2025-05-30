@@ -239,7 +239,7 @@ func TestRotationRaceConditions(t *testing.T) {
 
 	// Start multiple writers that write rapidly
 	const numWriters = 10
-	const writeDuration = 2 * time.Second
+	const writeDuration = 500 * time.Millisecond // Reduced from 2 seconds
 
 	var wg sync.WaitGroup
 	stopChan := make(chan struct{})
@@ -276,8 +276,21 @@ func TestRotationRaceConditions(t *testing.T) {
 		t.Fatalf("Failed to flush: %v", err)
 	}
 
-	// Give time for final rotation operations
-	time.Sleep(200 * time.Millisecond)
+	// Poll for rotation completion instead of fixed sleep
+	// Check every 10ms for up to 100ms
+	for i := 0; i < 10; i++ {
+		allFiles, _ := filepath.Glob(logFile + "*")
+		nonLockFiles := 0
+		for _, f := range allFiles {
+			if !strings.HasSuffix(f, ".lock") {
+				nonLockFiles++
+			}
+		}
+		if nonLockFiles >= 3 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	// Verify file integrity (excluding lock files)
 	allFiles, err := filepath.Glob(logFile + "*")

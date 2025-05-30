@@ -295,14 +295,18 @@ func TestRotationWithCompression(t *testing.T) {
 			logger.Infof("Rotation %d: Message %d to trigger rotation", i, j)
 		}
 		logger.Sync()
-		time.Sleep(50 * time.Millisecond)
 	}
 
-	// Give compression time to work
-	time.Sleep(500 * time.Millisecond)
-
-	// Check for compressed files
-	compressedFiles, err := filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+	// Poll for compressed files instead of fixed sleep
+	// Check every 10ms for up to 200ms
+	var compressedFiles []string
+	for i := 0; i < 20; i++ {
+		compressedFiles, err = filepath.Glob(filepath.Join(tempDir, "test.log.*.gz"))
+		if err == nil && len(compressedFiles) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if err != nil {
 		t.Fatalf("Failed to glob compressed files: %v", err)
 	}

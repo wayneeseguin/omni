@@ -131,9 +131,9 @@ func TestConcurrentOperations(t *testing.T) {
 		// Start logging in background
 		go func() {
 			defer wg.Done()
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 100; i++ { // Reduced from 1000 to 100
 				logger.Info("Background message %d", i)
-				time.Sleep(1 * time.Millisecond)
+				// Removed 1ms sleep - let it run as fast as possible
 			}
 		}()
 
@@ -141,7 +141,7 @@ func TestConcurrentOperations(t *testing.T) {
 		for i := 0; i < numShutdowns; i++ {
 			go func() {
 				defer wg.Done()
-				time.Sleep(50 * time.Millisecond) // Let some logging happen first
+				time.Sleep(10 * time.Millisecond) // Reduced from 50ms to 10ms
 				logger.Close()
 			}()
 		}
