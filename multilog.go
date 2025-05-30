@@ -355,6 +355,19 @@ func getLevelString(level int, format LevelFormat) string {
 //	    log.Fatal("Failed to add error log destination:", err)
 //	}
 func (f *FlexLog) AddDestination(uri string) error {
+	// First check if there's a plugin for this URI scheme
+	scheme := ""
+	if idx := strings.Index(uri, "://"); idx > 0 {
+		scheme = uri[:idx]
+	}
+	
+	// Check for plugin backend
+	if scheme != "" {
+		if _, exists := defaultPluginManager.GetBackendPlugin(scheme); exists {
+			return f.AddDestinationWithPlugin(uri)
+		}
+	}
+	
 	// Default to file backend for simplicity
 	return f.AddDestinationWithBackend(uri, BackendFlock)
 }

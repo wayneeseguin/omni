@@ -100,6 +100,10 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 		// Syslog backend (no locking needed)
 		f.processSyslogMessage(msg, dest)
 
+	case BackendPlugin:
+		// Plugin backend
+		f.processPluginMessage(msg, dest)
+
 	case -1:
 		// Custom backend (for testing) - treat like a simple writer
 		f.processCustomMessage(msg, dest)
@@ -595,4 +599,133 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 		return
 	}
 	dest.mu.Unlock()
+}
+
+// processPluginMessage processes a message for a plugin backend.
+// It formats the message based on the configured format options and delegates
+// writing to the plugin's backend implementation.
+//
+// Parameters:
+//   - msg: The log message to process
+//   - dest: The destination with plugin backend
+func (f *FlexLog) processPluginMessage(msg LogMessage, dest *Destination) {
+	// Check if plugin backend is initialized
+	if dest.PluginBackend == nil {
+		f.logError("plugin", dest.Name, "Plugin backend not initialized", nil, ErrorLevelHigh)
+		return
+	}
+
+	formatOpts := f.GetFormatOptions()
+	format := f.GetFormat()
+
+	// Get redactor reference while not holding any locks
+	f.mu.Lock()
+	redactor := f.redactor
+	f.mu.Unlock()
+
+	var entry []byte
+
+	if msg.Raw != nil {
+		// Raw bytes
+		entry = msg.Raw
+	} else if msg.Entry != nil {
+		// For structured entries
+		if format == FormatJSON {
+			// Use JSON format
+			data, err := json.Marshal(msg.Entry)
+			if err != nil {
+				f.logError("format", dest.Name, "Failed to format JSON entry", err, ErrorLevelMedium)
+				return
+			}
+			entry = append(data, '\n')
+		} else {
+			// Use text format for structured entries
+			var textEntry string
+			if formatOpts.IncludeTime {
+				textEntry = fmt.Sprintf("[%s] ", msg.Entry.Timestamp)
+			}
+			if formatOpts.IncludeLevel {
+				textEntry += fmt.Sprintf("[%s] ", msg.Entry.Level)
+			}
+			textEntry += msg.Entry.Message
+			if len(msg.Entry.Fields) > 0 {
+				textEntry += " "
+				for k, v := range msg.Entry.Fields {
+					textEntry += fmt.Sprintf("%s=%v ", k, v)
+				}
+			}
+			if msg.Entry.StackTrace != "" {
+				textEntry += fmt.Sprintf("stack_trace=%s ", msg.Entry.StackTrace)
+			}
+			textEntry += "\n"
+			entry = []byte(textEntry)
+		}
+	} else {
+		// Regular text format
+		message := fmt.Sprintf(msg.Format, msg.Args...)
+
+		// Apply redaction if configured
+		if redactor != nil {
+			message = redactor.Redact(message)
+		}
+
+		// Format based on level
+		var levelStr string
+		switch msg.Level {
+		case LevelTrace:
+			levelStr = "TRACE"
+		case LevelDebug:
+			levelStr = "DEBUG"
+		case LevelInfo:
+			levelStr = "INFO"
+		case LevelWarn:
+			levelStr = "WARN"
+		case LevelError:
+			levelStr = "ERROR"
+		default:
+			levelStr = "LOG"
+		}
+
+		// Format level based on format options
+		if formatOpts.LevelFormat == LevelFormatNameLower {
+			levelStr = strings.ToLower(levelStr)
+		} else if formatOpts.LevelFormat == LevelFormatSymbol && len(levelStr) > 0 {
+			levelStr = string(levelStr[0])
+		}
+
+		// Use string builder for more efficient string construction
+		sb := GetStringBuilder()
+		defer PutStringBuilder(sb)
+
+		// Format the entry based on options
+		if formatOpts.IncludeTime {
+			sb.WriteByte('[')
+			sb.WriteString(msg.Timestamp.Format(formatOpts.TimestampFormat))
+			sb.WriteString("] ")
+		}
+		if formatOpts.IncludeLevel {
+			sb.WriteByte('[')
+			sb.WriteString(levelStr)
+			sb.WriteString("] ")
+		}
+		sb.WriteString(message)
+		sb.WriteByte('\n')
+
+		entry = []byte(sb.String())
+	}
+
+	// Write to the plugin backend
+	writeStart := time.Now()
+	_, err := dest.PluginBackend.Write(entry)
+	writeDuration := time.Since(writeStart)
+	
+	if err != nil {
+		dest.trackError()
+		f.logError("plugin-write", dest.Name, "Failed to write to plugin backend", err, ErrorLevelMedium)
+	} else {
+		// Track metrics
+		entrySize := int64(len(entry))
+		dest.trackWrite(entrySize, writeDuration)
+		f.trackWrite(entrySize, writeDuration)
+	}
 }
