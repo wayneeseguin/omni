@@ -249,6 +249,8 @@ type FlexLog struct {
 	redactor          *Redactor
 	redactionPatterns []string
 	redactionReplace  string
+	redactionConfig   *RedactionConfig
+	fieldPathRules    []FieldPathRule
 
 	// Performance
 	lazyFormatting bool
