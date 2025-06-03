@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestRedactionExample(t *testing.T) {
@@ -17,10 +17,10 @@ func TestRedactionExample(t *testing.T) {
 	defer os.Remove(logFile)
 
 	// Create logger with redaction
-	logger, err := flexlog.New(
-		flexlog.WithDestination(logFile, flexlog.BackendFlock),
-		flexlog.WithFormat(flexlog.FormatJSON),
-	)
+	logger, err := omni.NewBuilder().
+		WithDestination(logFile).
+		WithJSON().
+		Build()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestRedactionExample(t *testing.T) {
 
 	// Test built-in redaction
 	t.Run("BuiltInRedaction", func(t *testing.T) {
-		logger.Info("Test message", map[string]interface{}{
+		logger.InfoWithFields("Test message", map[string]interface{}{
 			"password": "secret123",
 			"api_key": "sk-test123",
 			"safe_field": "visible",
@@ -58,9 +58,12 @@ func TestRedactionExample(t *testing.T) {
 	// Test custom patterns
 	t.Run("CustomPatterns", func(t *testing.T) {
 		// Add SSN pattern
-		logger.SetRedaction([]string{`\b\d{3}-\d{2}-\d{4}\b`}, "[SSN-REDACTED]")
+		err := logger.SetRedaction([]string{`\b\d{3}-\d{2}-\d{4}\b`}, "[SSN-REDACTED]")
+		if err != nil {
+			t.Fatalf("Failed to set redaction: %v", err)
+		}
 
-		logger.Info("Customer data", map[string]interface{}{
+		logger.InfoWithFields("Customer data", map[string]interface{}{
 			"name": "John Doe",
 			"ssn": "123-45-6789",
 		})
@@ -79,7 +82,7 @@ func TestRedactionExample(t *testing.T) {
 
 	// Test nested redaction
 	t.Run("NestedRedaction", func(t *testing.T) {
-		logger.Info("Nested data", map[string]interface{}{
+		logger.InfoWithFields("Nested data", map[string]interface{}{
 			"user": map[string]interface{}{
 				"name": "Alice",
 				"credentials": map[string]interface{}{
@@ -103,7 +106,7 @@ func TestRedactionExample(t *testing.T) {
 
 	// Test array redaction
 	t.Run("ArrayRedaction", func(t *testing.T) {
-		logger.Info("Array data", map[string]interface{}{
+		logger.InfoWithFields("Array data", map[string]interface{}{
 			"api_keys": []string{"key1", "key2", "key3"},
 			"passwords": []interface{}{
 				"pass1",
@@ -127,10 +130,10 @@ func TestRedactionExample(t *testing.T) {
 
 func TestRedactionPerformance(t *testing.T) {
 	// Create logger with redaction
-	logger, err := flexlog.New(
-		flexlog.WithDestination("perf_test.log", flexlog.BackendFlock),
-		flexlog.WithFormat(flexlog.FormatJSON),
-	)
+	logger, err := omni.NewBuilder().
+		WithDestination("perf_test.log").
+		WithJSON().
+		Build()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -143,14 +146,17 @@ func TestRedactionPerformance(t *testing.T) {
 		`\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`, // Credit card
 		`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`, // Email
 	}
-	logger.SetRedaction(patterns, "[REDACTED]")
+	err = logger.SetRedaction(patterns, "[REDACTED]")
+	if err != nil {
+		t.Fatalf("Failed to set redaction patterns: %v", err)
+	}
 
 	// Measure time for logging with redaction
 	start := time.Now()
 	iterations := 1000
 
 	for i := 0; i < iterations; i++ {
-		logger.Info("Performance test", map[string]interface{}{
+		logger.InfoWithFields("Performance test", map[string]interface{}{
 			"iteration": i,
 			"email": "test@example.com",
 			"ssn": "123-45-6789",
@@ -200,10 +206,10 @@ func TestRedactionCompleteness(t *testing.T) {
 	logFile := "completeness_test.log"
 	defer os.Remove(logFile)
 
-	logger, err := flexlog.New(
-		flexlog.WithDestination(logFile, flexlog.BackendFlock),
-		flexlog.WithFormat(flexlog.FormatJSON),
-	)
+	logger, err := omni.NewBuilder().
+		WithDestination(logFile).
+		WithJSON().
+		Build()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -223,7 +229,7 @@ func TestRedactionCompleteness(t *testing.T) {
 		testData[field] = "sensitive_value_" + field
 	}
 
-	logger.Info("Sensitive fields test", testData)
+	logger.InfoWithFields("Sensitive fields test", testData)
 	time.Sleep(50 * time.Millisecond)
 
 	// Read log and parse JSON

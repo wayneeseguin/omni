@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	//"bufio"
@@ -18,10 +18,10 @@ import (
 	//"strings"
 	"sync"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 	//"testing"
 	//"time"
-	//"github.com/wayneeseguin/flexlog"
+	//"github.com/wayneeseguin/omni"
 )
 
 // testWriter is a simple io.Writer implementation that captures output for testing
@@ -49,8 +49,8 @@ func (tw *testWriter) Reset() {
 }
 
 // customDestination creates a destination with a custom writer for testing
-func customDestination(uri string, writer io.Writer) *flexlog.Destination {
-	return &flexlog.Destination{
+func customDestination(uri string, writer io.Writer) *omni.Destination {
+	return &omni.Destination{
 		URI:     uri,
 		Backend: -1,                                   // Custom backend
 		Writer:  bufio.NewWriterSize(writer, 32*1024), // defaultBufferSize is 32KB
@@ -67,7 +67,7 @@ func TestAddDestination(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAddDestinationWithBackend(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestRemoveDestination(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestEnableDisableDestination(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestListDestinations(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -342,7 +342,7 @@ func TestFlushAll(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -402,7 +402,7 @@ func TestCloseAll(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -449,7 +449,7 @@ func TestWriteToConcurrently(t *testing.T) {
 
 	// Create initial logger
 	primaryLogPath := filepath.Join(tempDir, "primary.log")
-	logger, err := flexlog.New(primaryLogPath)
+	logger, err := omni.New(primaryLogPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestSetLogPath(t *testing.T) {
 
 	// Create initial logger
 	initialPath := filepath.Join(tempDir, "initial.log")
-	logger, err := flexlog.New(initialPath)
+	logger, err := omni.New(initialPath)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}

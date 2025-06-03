@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"errors"
@@ -133,9 +133,9 @@ func Wrapf(err error, format string, args ...interface{}) error {
 
 // IsFileError checks if an error is a file-related error
 func IsFileError(err error) bool {
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		switch flexErr.Code {
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		switch omniErr.Code {
 		case ErrCodeFileOpen, ErrCodeFileClose, ErrCodeFileWrite,
 			ErrCodeFileFlush, ErrCodeFileRotate, ErrCodeFileLock,
 			ErrCodeFileUnlock, ErrCodeFileStat:
@@ -147,9 +147,9 @@ func IsFileError(err error) bool {
 
 // IsDestinationError checks if an error is destination-related
 func IsDestinationError(err error) bool {
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		switch flexErr.Code {
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		switch omniErr.Code {
 		case ErrCodeDestinationNotFound, ErrCodeDestinationDisabled,
 			ErrCodeDestinationNil:
 			return true
@@ -160,9 +160,9 @@ func IsDestinationError(err error) bool {
 
 // IsConfigError checks if an error is configuration-related
 func IsConfigError(err error) bool {
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		switch flexErr.Code {
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		switch omniErr.Code {
 		case ErrCodeInvalidConfig, ErrCodeInvalidLevel, ErrCodeInvalidFormat:
 			return true
 		}
@@ -178,9 +178,9 @@ func IsTemporaryError(err error) bool {
 	}
 
 	// Check specific error codes
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		switch flexErr.Code {
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		switch omniErr.Code {
 		case ErrCodeChannelFull, ErrCodeCompressionQueueFull,
 			ErrCodeFileLock:
 			return true
@@ -194,18 +194,18 @@ func IsTemporaryError(err error) bool {
 
 // GetErrorCode extracts the error code from an error
 func GetErrorCode(err error) ErrorCode {
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		return flexErr.Code
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		return omniErr.Code
 	}
 	return ErrCodeUnknown
 }
 
 // GetErrorContext extracts context values from an error
 func GetErrorContext(err error) map[string]interface{} {
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		return flexErr.Context
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		return omniErr.Context
 	}
 	return nil
 }
@@ -259,8 +259,8 @@ func (b *ErrorBuilder) WithContext(key string, value interface{}) *ErrorBuilder 
 }
 
 // Build creates the error
-func (b *ErrorBuilder) Build() *FlexLogError {
-	err := NewFlexLogError(b.code, b.op, b.path, b.err)
+func (b *ErrorBuilder) Build() *OmniError {
+	err := NewOmniError(b.code, b.op, b.path, b.err)
 	if b.dest != "" {
 		err.WithDestination(b.dest)
 	}

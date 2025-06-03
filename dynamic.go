@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -46,7 +46,7 @@ type DynamicDestConfig struct {
 
 // ConfigWatcher watches for configuration changes
 type ConfigWatcher struct {
-	logger       *FlexLog
+	logger       *Omni
 	configPath   string
 	interval     time.Duration
 	ctx          context.Context
@@ -62,13 +62,13 @@ type ConfigWatcher struct {
 // The watcher periodically checks the file and applies configuration updates to the logger.
 //
 // Parameters:
-//   - logger: The FlexLog instance to update
+//   - logger: The Omni instance to update
 //   - configPath: Path to the configuration file
 //   - interval: How often to check for changes
 //
 // Returns:
 //   - *ConfigWatcher: The created watcher instance
-func NewConfigWatcher(logger *FlexLog, configPath string, interval time.Duration) *ConfigWatcher {
+func NewConfigWatcher(logger *Omni, configPath string, interval time.Duration) *ConfigWatcher {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ConfigWatcher{
 		logger:     logger,
@@ -232,7 +232,7 @@ func (w *ConfigWatcher) loadConfig() (*DynamicConfig, error) {
 //
 // Returns:
 //   - error: Any validation or application error
-func (f *FlexLog) ApplyDynamicConfig(config *DynamicConfig) error {
+func (f *Omni) ApplyDynamicConfig(config *DynamicConfig) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -336,7 +336,7 @@ func (f *FlexLog) ApplyDynamicConfig(config *DynamicConfig) error {
 }
 
 // EnableDynamicConfig enables dynamic configuration with the specified file path and check interval
-func (f *FlexLog) EnableDynamicConfig(configPath string, interval time.Duration) error {
+func (f *Omni) EnableDynamicConfig(configPath string, interval time.Duration) error {
 	f.mu.Lock()
 	if f.configWatcher != nil {
 		f.mu.Unlock()
@@ -366,7 +366,7 @@ func (f *FlexLog) EnableDynamicConfig(configPath string, interval time.Duration)
 }
 
 // DisableDynamicConfig disables dynamic configuration
-func (f *FlexLog) DisableDynamicConfig() {
+func (f *Omni) DisableDynamicConfig() {
 	f.mu.Lock()
 	watcher := f.configWatcher
 	f.configWatcher = nil
@@ -378,7 +378,7 @@ func (f *FlexLog) DisableDynamicConfig() {
 }
 
 // SaveDynamicConfig saves the current configuration to a file
-func (f *FlexLog) SaveDynamicConfig(path string) error {
+func (f *Omni) SaveDynamicConfig(path string) error {
 	f.mu.RLock()
 	config := DynamicConfig{
 		Level:            &f.level,

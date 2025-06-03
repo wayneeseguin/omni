@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
@@ -26,15 +26,15 @@ func basicExample() {
 	fmt.Println("=== Basic API Usage Example ===")
 
 	// Create a basic logger
-	logger, err := flexlog.New("/tmp/basic_api.log")
+	logger, err := omni.New("/tmp/basic_api.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
 	// Configure basic settings
-	logger.SetLevel(flexlog.LevelInfo)
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetLevel(omni.LevelInfo)
+	logger.SetFormat(omni.FormatJSON)
 
 	// Basic logging methods
 	logger.Trace("This is a trace message")
@@ -61,13 +61,13 @@ func optionsExample() {
 	fmt.Println("\n=== Functional Options Example ===")
 
 	// Production configuration with options
-	prodLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("/tmp/api_prod.log"),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithRotation(50*1024*1024, 5), // 50MB, keep 5 files
-		flexlog.WithGzipCompression(),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(1000),
+	prodLogger, err := omni.NewWithOptions(
+		omni.WithPath("/tmp/api_prod.log"),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithRotation(50*1024*1024, 5), // 50MB, keep 5 files
+		omni.WithGzipCompression(),
+		omni.WithJSON(),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create production logger: %v", err)
@@ -75,11 +75,11 @@ func optionsExample() {
 	defer prodLogger.Close()
 
 	// Development configuration with options
-	devLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("/tmp/api_dev.log"),
-		flexlog.WithLevel(flexlog.LevelTrace),
-		flexlog.WithText(),
-		flexlog.WithStackTrace(4096),
+	devLogger, err := omni.NewWithOptions(
+		omni.WithPath("/tmp/api_dev.log"),
+		omni.WithLevel(omni.LevelTrace),
+		omni.WithText(),
+		omni.WithStackTrace(4096),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create dev logger: %v", err)
@@ -93,7 +93,7 @@ func optionsExample() {
 	// Add filters to production logger
 	prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		// Only allow INFO and above in production
-		return level >= flexlog.LevelInfo
+		return level >= omni.LevelInfo
 	})
 
 	prodLogger.Debug("This debug message will be filtered out")
@@ -106,20 +106,20 @@ func advancedExample() {
 	fmt.Println("\n=== Advanced Configuration Example ===")
 
 	// Create a logger with advanced configuration
-	logger, err := flexlog.New("/tmp/api_advanced.log")
+	logger, err := omni.New("/tmp/api_advanced.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
 	// Configure advanced settings
-	logger.SetLevel(flexlog.LevelDebug)
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetLevel(omni.LevelDebug)
+	logger.SetFormat(omni.FormatJSON)
 
 	// Set up rotation and compression
 	logger.SetMaxSize(10 * 1024 * 1024) // 10MB
 	logger.SetMaxFiles(3)
-	logger.SetCompression(flexlog.CompressionGzip)
+	logger.SetCompression(omni.CompressionGzip)
 
 	// Enable stack traces
 	logger.EnableStackTraces(true)
@@ -147,8 +147,8 @@ func advancedExample() {
 	fmt.Println("✓ Advanced configuration example completed")
 }
 
-func doWork(logger *flexlog.FlexLog) {
-	// Function that works with the FlexLog instance
+func doWork(logger *omni.Omni) {
+	// Function that works with the Omni instance
 	logger.Info("Starting work")
 	
 	// Structured logging with fields
@@ -191,13 +191,13 @@ func errorHandlingExample() {
 	fmt.Println("\n=== Error Handling Example ===")
 
 	// Test error handling with invalid path
-	_, err := flexlog.New("/invalid/path/that/does/not/exist/test.log")
+	_, err := omni.New("/invalid/path/that/does/not/exist/test.log")
 	if err != nil {
 		fmt.Printf("Expected error for invalid path: %v\n", err)
 	}
 
 	// Create logger successfully
-	logger, err := flexlog.New("/tmp/api_error_example.log")
+	logger, err := omni.New("/tmp/api_error_example.log")
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
@@ -207,7 +207,7 @@ func errorHandlingExample() {
 	logger.Info("Testing error handling")
 
 	// Test invalid level setting (should handle gracefully)
-	logger.SetLevel(flexlog.LevelError)
+	logger.SetLevel(omni.LevelError)
 	logger.Debug("This debug message should be filtered")
 	logger.Error("This error message should be logged")
 

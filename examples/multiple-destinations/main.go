@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
@@ -15,14 +15,14 @@ func main() {
 	}
 
 	// Create primary logger for all logs
-	logger, err := flexlog.New("logs/all.log")
+	logger, err := omni.New("logs/all.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logger.Close()
 
 	// Set level to TRACE to demonstrate all levels
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Add additional destinations to the same logger
 	// Add an error-only destination

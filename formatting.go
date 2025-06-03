@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"encoding/json"
@@ -18,9 +18,9 @@ import (
 //
 // Example:
 //
-//	logger.SetFormat(flexlog.FormatJSON)  // Switch to JSON output
-//	logger.SetFormat(flexlog.FormatText)  // Switch to text output
-func (f *FlexLog) SetFormat(format int) error {
+//	logger.SetFormat(omni.FormatJSON)  // Switch to JSON output
+//	logger.SetFormat(omni.FormatText)  // Switch to text output
+func (f *Omni) SetFormat(format int) error {
 	if format < FormatText || format > FormatCustom {
 		return fmt.Errorf("invalid format: %d", format)
 	}
@@ -35,7 +35,7 @@ func (f *FlexLog) SetFormat(format int) error {
 //
 // Returns:
 //   - int: The current format (FormatText, FormatJSON, or FormatCustom)
-func (f *FlexLog) GetFormat() int {
+func (f *Omni) GetFormat() int {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.format
@@ -63,10 +63,10 @@ func (f *FlexLog) GetFormat() int {
 //
 // Example:
 //
-//	logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, "2006-01-02 15:04:05")
-//	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, true)
-//	logger.SetFormatOption(flexlog.FormatOptionLevelFormat, flexlog.LevelFormatSymbol)
-func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error {
+//	logger.SetFormatOption(omni.FormatOptionTimestampFormat, "2006-01-02 15:04:05")
+//	logger.SetFormatOption(omni.FormatOptionIncludeLevel, true)
+//	logger.SetFormatOption(omni.FormatOptionLevelFormat, omni.LevelFormatSymbol)
+func (f *Omni) SetFormatOption(option FormatOption, value interface{}) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -132,9 +132,9 @@ func (f *FlexLog) SetFormatOption(option FormatOption, value interface{}) error 
 //
 // Example:
 //
-//	format := logger.GetFormatOption(flexlog.FormatOptionTimestampFormat).(string)
-//	includeLevel := logger.GetFormatOption(flexlog.FormatOptionIncludeLevel).(bool)
-func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
+//	format := logger.GetFormatOption(omni.FormatOptionTimestampFormat).(string)
+//	includeLevel := logger.GetFormatOption(omni.FormatOptionIncludeLevel).(bool)
+func (f *Omni) GetFormatOption(option FormatOption) interface{} {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -169,7 +169,7 @@ func (f *FlexLog) GetFormatOption(option FormatOption) interface{} {
 //	opts := logger.GetFormatOptions()
 //	fmt.Printf("Timestamp format: %s\n", opts.TimestampFormat)
 //	fmt.Printf("Include level: %v\n", opts.IncludeLevel)
-func (f *FlexLog) GetFormatOptions() FormatOptions {
+func (f *Omni) GetFormatOptions() FormatOptions {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.formatOptions
@@ -183,7 +183,7 @@ func (f *FlexLog) GetFormatOptions() FormatOptions {
 //
 // Returns:
 //   - string: The formatted timestamp
-func (f *FlexLog) formatTimestamp(t time.Time) string {
+func (f *Omni) formatTimestamp(t time.Time) string {
 	opts := f.GetFormatOptions()
 	return t.In(opts.TimeZone).Format(opts.TimestampFormat)
 }
@@ -196,7 +196,7 @@ func (f *FlexLog) formatTimestamp(t time.Time) string {
 //
 // Returns:
 //   - string: The formatted level string, or empty if IncludeLevel is false
-func (f *FlexLog) formatLevel(level int) string {
+func (f *Omni) formatLevel(level int) string {
 	opts := f.GetFormatOptions()
 	if !opts.IncludeLevel {
 		return ""

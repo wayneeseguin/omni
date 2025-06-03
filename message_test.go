@@ -1,5 +1,5 @@
-// filepath: /Users/wayneeseguin/w/github.com/wayneeseguin/flexlog/message_test.go
-package flexlog
+// filepath: /Users/wayneeseguin/w/github.com/wayneeseguin/omni/message_test.go
+package omni
 
 import (
 	"bufio"
@@ -54,8 +54,8 @@ func TestProcessMessage(t *testing.T) {
 	}
 	defer file.Close()
 
-	// Setup a minimal FlexLog and Destination for testing
-	logger := &FlexLog{
+	// Setup a minimal Omni and Destination for testing
+	logger := &Omni{
 		level:   LevelDebug,
 		format:  FormatText,
 		maxSize: 1024 * 1024, // 1MB
@@ -190,8 +190,8 @@ func TestProcessFileMessage(t *testing.T) {
 	}
 	defer file.Close()
 
-	// Setup a minimal FlexLog for testing
-	logger := &FlexLog{
+	// Setup a minimal Omni for testing
+	logger := &Omni{
 		level:   LevelDebug,
 		format:  FormatText,  // default to text, will change for JSON tests
 		maxSize: 1024 * 1024, // 1MB
@@ -394,8 +394,8 @@ func TestProcessFileMessage(t *testing.T) {
 
 // TestProcessSyslogMessage tests the syslog message processing function
 func TestProcessSyslogMessage(t *testing.T) {
-	// Setup a minimal FlexLog for testing
-	logger := &FlexLog{
+	// Setup a minimal Omni for testing
+	logger := &Omni{
 		level:  LevelDebug,
 		format: FormatText,
 		formatOptions: FormatOptions{
@@ -426,7 +426,7 @@ func TestProcessSyslogMessage(t *testing.T) {
 				Timestamp: time.Date(2025, 4, 10, 12, 0, 0, 0, time.UTC),
 			},
 			priority:   13, // Default priority (user.notice)
-			tag:        "flexlog",
+			tag:        "omni",
 			wantOutput: true,
 		},
 		{
@@ -471,7 +471,7 @@ func TestProcessSyslogMessage(t *testing.T) {
 				Timestamp: time.Date(2025, 4, 10, 12, 0, 0, 0, time.UTC),
 			},
 			priority:   13, // Should be modified to include debug level (7)
-			tag:        "flexlog",
+			tag:        "omni",
 			wantOutput: true,
 		},
 		{
@@ -482,7 +482,7 @@ func TestProcessSyslogMessage(t *testing.T) {
 				Timestamp: time.Date(2025, 4, 10, 12, 0, 0, 0, time.UTC),
 			},
 			priority:   13, // Should be modified to include error level (3)
-			tag:        "flexlog",
+			tag:        "omni",
 			wantOutput: true,
 		},
 	}
@@ -582,8 +582,8 @@ func TestProcessSyslogMessage(t *testing.T) {
 
 // TestMessageFormatting tests various message formatting options
 func TestMessageFormatting(t *testing.T) {
-	// Setup a minimal FlexLog for testing
-	logger := &FlexLog{
+	// Setup a minimal Omni for testing
+	logger := &Omni{
 		level: LevelDebug,
 		formatOptions: FormatOptions{
 			TimestampFormat: "2006-01-02 15:04:05",

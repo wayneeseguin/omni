@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"os"
@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	pkgErrors "github.com/pkg/errors"
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestEnableStackTraces(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestEnableStackTraces(t *testing.T) {
 
 func TestEnableStackTracesWithStructuredLog(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestEnableStackTracesWithStructuredLog(t *testing.T) {
 	// Test that structured logs at ERROR level include stack traces when enabled
 	logger.EnableStackTraces(true)
 
-	logger.StructuredLog(flexlog.LevelError, "error message", map[string]interface{}{
+	logger.StructuredLog(omni.LevelError, "error message", map[string]interface{}{
 		"component": "test",
 	})
 	logger.Sync()
@@ -86,7 +86,7 @@ func TestEnableStackTracesWithStructuredLog(t *testing.T) {
 
 	// Test with stack traces disabled
 	logger.EnableStackTraces(false)
-	logger.StructuredLog(flexlog.LevelError, "error without stack", map[string]interface{}{
+	logger.StructuredLog(omni.LevelError, "error without stack", map[string]interface{}{
 		"component": "test",
 	})
 	logger.Sync()
@@ -102,7 +102,7 @@ func TestEnableStackTracesWithStructuredLog(t *testing.T) {
 
 func TestSetStackSize(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestSetStackSize(t *testing.T) {
 
 func TestSetCaptureAllStacks(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestSetCaptureAllStacks(t *testing.T) {
 	logger.SetCaptureAllStacks(true)
 
 	// Test INFO level (should now include stack trace due to captureAll)
-	logger.StructuredLog(flexlog.LevelInfo, "info with stack", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "info with stack", map[string]interface{}{
 		"component": "test",
 	})
 	logger.Sync()
@@ -177,7 +177,7 @@ func TestSetCaptureAllStacks(t *testing.T) {
 
 	// Test with captureAll disabled
 	logger.SetCaptureAllStacks(false)
-	logger.StructuredLog(flexlog.LevelInfo, "info without stack", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "info without stack", map[string]interface{}{
 		"component": "test",
 	})
 	logger.Sync()
@@ -195,7 +195,7 @@ func TestSetCaptureAllStacks(t *testing.T) {
 
 func TestStackTraceWithPanic(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestStackTraceWithPanic(t *testing.T) {
 
 func TestStackSettingsConcurrency(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestStackSettingsConcurrency(t *testing.T) {
 
 func TestStackTraceDefaultSettings(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestStackTraceDefaultSettings(t *testing.T) {
 
 func TestStackTraceWithRegularErrors(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}

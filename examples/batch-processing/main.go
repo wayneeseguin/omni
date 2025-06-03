@@ -8,28 +8,28 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
 	// Create a temporary directory for the example
-	tempDir, err := os.MkdirTemp("", "flexlog_batch_example")
+	tempDir, err := os.MkdirTemp("", "omni_batch_example")
 	if err != nil {
 		log.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	fmt.Println("FlexLog Batch Processing Example")
+	fmt.Println("Omni Batch Processing Example")
 	fmt.Println("================================")
 
 	// Example 1: High-throughput logging with optimized settings
 	fmt.Println("\n1. High-throughput logging with optimization:")
 	
 	logFile := filepath.Join(tempDir, "optimized.log")
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logFile),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(1000), // Larger channel buffer for batching effect
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(logFile),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(1000), // Larger channel buffer for batching effect
 	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
@@ -58,10 +58,10 @@ func main() {
 	fmt.Println("\n2. Processing data in batches with structured logging:")
 	
 	logFile2 := filepath.Join(tempDir, "data_batches.log")
-	logger2, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logFile2),
-		flexlog.WithLevel(flexlog.LevelDebug),
-		flexlog.WithJSON(), // Use JSON format for structured data
+	logger2, err := omni.NewWithOptions(
+		omni.WithPath(logFile2),
+		omni.WithLevel(omni.LevelDebug),
+		omni.WithJSON(), // Use JSON format for structured data
 	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
@@ -116,10 +116,10 @@ func main() {
 	fmt.Println("\n3. Concurrent batch processing:")
 	
 	logFile3 := filepath.Join(tempDir, "concurrent_batches.log")
-	logger3, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logFile3),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(2000), // Large buffer for concurrent access
+	logger3, err := omni.NewWithOptions(
+		omni.WithPath(logFile3),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(2000), // Large buffer for concurrent access
 	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)

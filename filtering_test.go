@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"bufio"
@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestAddFilter(t *testing.T) {
 	tests := []struct {
 		name       string
-		filter     flexlog.Filter
+		filter     omni.Filter
 		logLevel   int
 		logMessage string
 		logFields  map[string]interface{}
@@ -25,18 +25,18 @@ func TestAddFilter(t *testing.T) {
 		{
 			name: "filter allows INFO level",
 			filter: func(level int, message string, fields map[string]interface{}) bool {
-				return level >= flexlog.LevelInfo
+				return level >= omni.LevelInfo
 			},
-			logLevel:   flexlog.LevelInfo,
+			logLevel:   omni.LevelInfo,
 			logMessage: "info message",
 			shouldLog:  true,
 		},
 		{
 			name: "filter blocks DEBUG level",
 			filter: func(level int, message string, fields map[string]interface{}) bool {
-				return level >= flexlog.LevelInfo
+				return level >= omni.LevelInfo
 			},
-			logLevel:   flexlog.LevelDebug,
+			logLevel:   omni.LevelDebug,
 			logMessage: "debug message",
 			shouldLog:  false,
 		},
@@ -45,7 +45,7 @@ func TestAddFilter(t *testing.T) {
 			filter: func(level int, message string, fields map[string]interface{}) bool {
 				return strings.Contains(message, "important")
 			},
-			logLevel:   flexlog.LevelInfo,
+			logLevel:   omni.LevelInfo,
 			logMessage: "this is important",
 			shouldLog:  true,
 		},
@@ -54,7 +54,7 @@ func TestAddFilter(t *testing.T) {
 			filter: func(level int, message string, fields map[string]interface{}) bool {
 				return strings.Contains(message, "important")
 			},
-			logLevel:   flexlog.LevelInfo,
+			logLevel:   omni.LevelInfo,
 			logMessage: "this is not relevant",
 			shouldLog:  false,
 		},
@@ -66,18 +66,18 @@ func TestAddFilter(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
 
 			// Initialize logger
-			logger, _ := flexlog.New(tempFile)
-			_ = logger.AddFilter(flexlog.FilterFunc(tt.filter))
+			logger, _ := omni.New(tempFile)
+			_ = logger.AddFilter(omni.FilterFunc(tt.filter))
 
 			// Log message
 			switch tt.logLevel {
-			case flexlog.LevelDebug:
+			case omni.LevelDebug:
 				logger.Debug(tt.logMessage)
-			case flexlog.LevelInfo:
+			case omni.LevelInfo:
 				logger.Info(tt.logMessage)
-			case flexlog.LevelWarn:
+			case omni.LevelWarn:
 				logger.Warn(tt.logMessage)
-			case flexlog.LevelError:
+			case omni.LevelError:
 				logger.Error(tt.logMessage)
 			}
 
@@ -102,7 +102,7 @@ func TestAddFilter(t *testing.T) {
 func TestClearFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
 
-	logger, _ := flexlog.New(tempFile)
+	logger, _ := omni.New(tempFile)
 
 	// Add a restrictive filter
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
@@ -188,11 +188,11 @@ func TestSetFieldFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
 
-			logger, _ := flexlog.New(tempFile)
+			logger, _ := omni.New(tempFile)
 			logger.SetFieldFilter(tt.filterField, tt.filterValues...)
 
 			// Log with fields
-			logger.StructuredLog(flexlog.LevelInfo, "test message", tt.logFields)
+			logger.StructuredLog(omni.LevelInfo, "test message", tt.logFields)
 
 			// Wait and close
 			logger.Sync()
@@ -221,46 +221,46 @@ func TestSetLevelFieldFilter(t *testing.T) {
 	}{
 		{
 			name:        "matches level and field",
-			filterLevel: flexlog.LevelError,
+			filterLevel: omni.LevelError,
 			filterField: "component",
 			filterValue: "database",
-			logLevel:    flexlog.LevelError,
+			logLevel:    omni.LevelError,
 			logFields:   map[string]interface{}{"component": "database"},
 			shouldLog:   true,
 		},
 		{
 			name:        "wrong level",
-			filterLevel: flexlog.LevelError,
+			filterLevel: omni.LevelError,
 			filterField: "component",
 			filterValue: "database",
-			logLevel:    flexlog.LevelInfo,
+			logLevel:    omni.LevelInfo,
 			logFields:   map[string]interface{}{"component": "database"},
 			shouldLog:   false,
 		},
 		{
 			name:        "wrong field value",
-			filterLevel: flexlog.LevelError,
+			filterLevel: omni.LevelError,
 			filterField: "component",
 			filterValue: "database",
-			logLevel:    flexlog.LevelError,
+			logLevel:    omni.LevelError,
 			logFields:   map[string]interface{}{"component": "api"},
 			shouldLog:   false,
 		},
 		{
 			name:        "field not present",
-			filterLevel: flexlog.LevelError,
+			filterLevel: omni.LevelError,
 			filterField: "component",
 			filterValue: "database",
-			logLevel:    flexlog.LevelError,
+			logLevel:    omni.LevelError,
 			logFields:   map[string]interface{}{"other": "value"},
 			shouldLog:   false,
 		},
 		{
 			name:        "nil fields",
-			filterLevel: flexlog.LevelError,
+			filterLevel: omni.LevelError,
 			filterField: "component",
 			filterValue: "database",
-			logLevel:    flexlog.LevelError,
+			logLevel:    omni.LevelError,
 			logFields:   nil,
 			shouldLog:   false,
 		},
@@ -270,7 +270,7 @@ func TestSetLevelFieldFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
 
-			logger, _ := flexlog.New(tempFile)
+			logger, _ := omni.New(tempFile)
 			logger.SetLevelFieldFilter(tt.filterLevel, tt.filterField, tt.filterValue)
 
 			// Log with appropriate level and fields
@@ -334,7 +334,7 @@ func TestSetRegexFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
 
-			logger, _ := flexlog.New(tempFile)
+			logger, _ := omni.New(tempFile)
 
 			pattern, err := regexp.Compile(tt.pattern)
 			if err != nil {
@@ -397,7 +397,7 @@ func TestSetExcludeRegexFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
 
-			logger, _ := flexlog.New(tempFile)
+			logger, _ := omni.New(tempFile)
 
 			pattern, err := regexp.Compile(tt.pattern)
 			if err != nil {
@@ -426,12 +426,12 @@ func TestSetExcludeRegexFilter(t *testing.T) {
 func TestMultipleFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
 
-	logger, _ := flexlog.New(tempFile)
+	logger, _ := omni.New(tempFile)
 
 	// Add multiple filters - all must pass
 	// 1. Level must be INFO or higher
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-		return level >= flexlog.LevelInfo
+		return level >= omni.LevelInfo
 	})
 
 	// 2. Message must not contain "ignore"
@@ -449,25 +449,25 @@ func TestMultipleFilters(t *testing.T) {
 		shouldLog bool
 	}{
 		{
-			level:     flexlog.LevelInfo,
+			level:     omni.LevelInfo,
 			message:   "API request",
 			fields:    map[string]interface{}{"component": "api"},
 			shouldLog: true, // All filters pass
 		},
 		{
-			level:     flexlog.LevelDebug,
+			level:     omni.LevelDebug,
 			message:   "API request",
 			fields:    map[string]interface{}{"component": "api"},
 			shouldLog: false, // Level filter fails
 		},
 		{
-			level:     flexlog.LevelInfo,
+			level:     omni.LevelInfo,
 			message:   "ignore this message",
 			fields:    map[string]interface{}{"component": "api"},
 			shouldLog: false, // Exclude filter fails
 		},
 		{
-			level:     flexlog.LevelInfo,
+			level:     omni.LevelInfo,
 			message:   "API request",
 			fields:    map[string]interface{}{"component": "database"},
 			shouldLog: false, // Field filter fails
@@ -497,13 +497,13 @@ func TestMultipleFilters(t *testing.T) {
 
 func TestFilterPerformance(t *testing.T) {
 	// Set a larger channel size for this performance test
-	oldSize := os.Getenv("FLEXLOG_CHANNEL_SIZE")
-	os.Setenv("FLEXLOG_CHANNEL_SIZE", "10000")
+	oldSize := os.Getenv("OMNI_CHANNEL_SIZE")
+	os.Setenv("OMNI_CHANNEL_SIZE", "10000")
 	defer func() {
 		if oldSize != "" {
-			os.Setenv("FLEXLOG_CHANNEL_SIZE", oldSize)
+			os.Setenv("OMNI_CHANNEL_SIZE", oldSize)
 		} else {
-			os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
+			os.Unsetenv("OMNI_CHANNEL_SIZE")
 		}
 	}()
 
@@ -512,13 +512,13 @@ func TestFilterPerformance(t *testing.T) {
 	writer := bufio.NewWriter(&buf)
 
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, _ := flexlog.New(tempFile)
+	logger, _ := omni.New(tempFile)
 	logger.AddCustomDestination("memory", writer) // Custom backend
 
 	// Add a complex filter
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		// Simulate complex filtering logic
-		if level < flexlog.LevelInfo {
+		if level < omni.LevelInfo {
 			return false
 		}
 		if fields != nil {
@@ -537,7 +537,7 @@ func TestFilterPerformance(t *testing.T) {
 		if i%2 == 0 {
 			logger.Debug("This should be filtered by level")
 		} else if i%3 == 0 {
-			logger.StructuredLog(flexlog.LevelInfo, "Filtered by field", map[string]interface{}{"skip": true})
+			logger.StructuredLog(omni.LevelInfo, "Filtered by field", map[string]interface{}{"skip": true})
 		} else if i%5 == 0 {
 			logger.Info("This contains exclude word")
 		} else {
@@ -561,11 +561,11 @@ func TestFilterIntegration(t *testing.T) {
 	// Test filters work correctly with multiple destinations
 	file1 := filepath.Join(t.TempDir(), "filtered.log")
 
-	logger, _ := flexlog.New(file1)
+	logger, _ := omni.New(file1)
 
 	// Add filter to logger (affects all destinations)
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-		return level >= flexlog.LevelWarn
+		return level >= omni.LevelWarn
 	})
 
 	// Log at various levels

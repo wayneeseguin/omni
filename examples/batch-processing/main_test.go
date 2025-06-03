@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -32,10 +32,10 @@ func TestBatchProcessingExample(t *testing.T) {
 
 	// Test high-throughput logging with optimization
 	logFile := filepath.Join(testLogDir, "test_optimized.log")
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logFile),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(1000),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(logFile),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -72,10 +72,10 @@ func TestHighThroughputLogging(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "throughput.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(500),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "throughput.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(500),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -121,10 +121,10 @@ func TestBatchDataProcessing(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "data_batches.log")),
-		flexlog.WithLevel(flexlog.LevelDebug),
-		flexlog.WithJSON(),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "data_batches.log")),
+		omni.WithLevel(omni.LevelDebug),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -188,10 +188,10 @@ func TestConcurrentBatchProcessing(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "concurrent.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(1000),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "concurrent.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -270,10 +270,10 @@ func TestOptimizedChannelSize(t *testing.T) {
 
 	for _, size := range channelSizes {
 		logFile := filepath.Join(testLogDir, fmt.Sprintf("channel_%d.log", size))
-		logger, err := flexlog.NewWithOptions(
-			flexlog.WithPath(logFile),
-			flexlog.WithLevel(flexlog.LevelInfo),
-			flexlog.WithChannelSize(size),
+		logger, err := omni.NewWithOptions(
+			omni.WithPath(logFile),
+			omni.WithLevel(omni.LevelInfo),
+			omni.WithChannelSize(size),
 		)
 		if err != nil {
 			t.Fatalf("Failed to create logger with channel size %d: %v", size, err)
@@ -311,11 +311,11 @@ func TestStructuredBatchLogging(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "structured_batch.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(500),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "structured_batch.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithChannelSize(500),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -362,10 +362,10 @@ func BenchmarkHighThroughputLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_throughput.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(1000),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_throughput.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
@@ -383,11 +383,11 @@ func BenchmarkBatchStructuredLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(1000),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
@@ -411,10 +411,10 @@ func BenchmarkConcurrentBatchLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_concurrent.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(2000),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_concurrent.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(2000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)

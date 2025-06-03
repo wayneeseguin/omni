@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestXMLFormatterPlugin_Name(t *testing.T) {
@@ -92,8 +92,8 @@ func TestMockXMLFormatter_Format(t *testing.T) {
 	formatter := &MockXMLFormatter{}
 	
 	// Test with format and args
-	msg1 := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg1 := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Format:    "User %s logged in",
 		Args:      []interface{}{"john"},
 		Timestamp: time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC),
@@ -116,10 +116,10 @@ func TestMockXMLFormatter_Format(t *testing.T) {
 	}
 	
 	// Test with Entry and fields
-	msg2 := flexlog.LogMessage{
-		Level:     flexlog.LevelError,
+	msg2 := omni.LogMessage{
+		Level:     omni.LevelError,
 		Timestamp: time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC),
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Database error",
 			Fields: map[string]interface{}{
 				"error_code": "DB001",
@@ -351,7 +351,7 @@ func TestRateLimiterFilterPlugin_CreateFilter_WithDefaults(t *testing.T) {
 	blocked := 0
 	
 	for i := 0; i < 30; i++ {
-		if filter(flexlog.LevelInfo, "test message", nil) {
+		if filter(omni.LevelInfo, "test message", nil) {
 			allowed++
 		} else {
 			blocked++
@@ -386,7 +386,7 @@ func TestRateLimiterFilterPlugin_CreateFilter_WithConfig(t *testing.T) {
 	blocked := 0
 	
 	for i := 0; i < 10; i++ {
-		if filter(flexlog.LevelInfo, "test message", nil) {
+		if filter(omni.LevelInfo, "test message", nil) {
 			allowed++
 		} else {
 			blocked++
@@ -415,7 +415,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	// Exhaust the burst
 	allowed := 0
 	for i := 0; i < 5; i++ {
-		if filter(flexlog.LevelInfo, "test message", nil) {
+		if filter(omni.LevelInfo, "test message", nil) {
 			allowed++
 		}
 	}
@@ -425,7 +425,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	}
 	
 	// Should be blocked now
-	if filter(flexlog.LevelInfo, "should be blocked", nil) {
+	if filter(omni.LevelInfo, "should be blocked", nil) {
 		t.Error("Message should be blocked after exhausting burst")
 	}
 	
@@ -433,7 +433,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	
 	// Should allow at least one more message
-	if !filter(flexlog.LevelInfo, "should be allowed after refill", nil) {
+	if !filter(omni.LevelInfo, "should be allowed after refill", nil) {
 		t.Error("Message should be allowed after token refill")
 	}
 }
@@ -463,8 +463,8 @@ func TestPluginIntegration(t *testing.T) {
 		t.Errorf("Failed to create XML formatter: %v", err)
 	}
 	
-	testMsg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	testMsg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Format:    "Test message",
 		Timestamp: time.Now(),
 	}
@@ -490,7 +490,7 @@ func TestPluginIntegration(t *testing.T) {
 	// Test filter functionality
 	filterAllowed := 0
 	for i := 0; i < 10; i++ {
-		if filter(flexlog.LevelInfo, "filter test", nil) {
+		if filter(omni.LevelInfo, "filter test", nil) {
 			filterAllowed++
 		}
 	}
@@ -516,12 +516,12 @@ func TestPluginIntegration(t *testing.T) {
 func BenchmarkXMLFormatter_Format(b *testing.B) {
 	formatter := &MockXMLFormatter{}
 	
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Format:    "Benchmark test message",
 		Args:      []interface{}{"value1", 123},
 		Timestamp: time.Now(),
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Benchmark test message value1 123",
 			Fields: map[string]interface{}{
 				"benchmark": true,
@@ -553,7 +553,7 @@ func BenchmarkRateLimiterFilter_Allow(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		filter(flexlog.LevelInfo, "benchmark message", nil)
+		filter(omni.LevelInfo, "benchmark message", nil)
 	}
 }
 

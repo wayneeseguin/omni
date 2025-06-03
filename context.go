@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -42,8 +42,8 @@ const (
 // Example:
 //
 //	ctx := WithRequestID(context.Background(), "req-123")
-//	err := logger.LogWithContext(ctx, flexlog.LevelInfo, "Processing request")
-func (f *FlexLog) LogWithContext(ctx context.Context, level int, format string, args ...interface{}) error {
+//	err := logger.LogWithContext(ctx, omni.LevelInfo, "Processing request")
+func (f *Omni) LogWithContext(ctx context.Context, level int, format string, args ...interface{}) error {
 	// Check if context is already cancelled
 	select {
 	case <-ctx.Done():
@@ -109,7 +109,7 @@ func (f *FlexLog) LogWithContext(ctx context.Context, level int, format string, 
 //
 // Returns:
 //   - error: Context cancellation error or logger closed error
-func (f *FlexLog) DebugWithContext(ctx context.Context, format string, args ...interface{}) error {
+func (f *Omni) DebugWithContext(ctx context.Context, format string, args ...interface{}) error {
 	return f.LogWithContext(ctx, LevelDebug, format, args...)
 }
 
@@ -123,7 +123,7 @@ func (f *FlexLog) DebugWithContext(ctx context.Context, format string, args ...i
 //
 // Returns:
 //   - error: Context cancellation error or logger closed error
-func (f *FlexLog) InfoWithContext(ctx context.Context, format string, args ...interface{}) error {
+func (f *Omni) InfoWithContext(ctx context.Context, format string, args ...interface{}) error {
 	return f.LogWithContext(ctx, LevelInfo, format, args...)
 }
 
@@ -137,7 +137,7 @@ func (f *FlexLog) InfoWithContext(ctx context.Context, format string, args ...in
 //
 // Returns:
 //   - error: Context cancellation error or logger closed error
-func (f *FlexLog) WarnWithContext(ctx context.Context, format string, args ...interface{}) error {
+func (f *Omni) WarnWithContext(ctx context.Context, format string, args ...interface{}) error {
 	return f.LogWithContext(ctx, LevelWarn, format, args...)
 }
 
@@ -151,7 +151,7 @@ func (f *FlexLog) WarnWithContext(ctx context.Context, format string, args ...in
 //
 // Returns:
 //   - error: Context cancellation error or logger closed error
-func (f *FlexLog) ErrorWithContext(ctx context.Context, format string, args ...interface{}) error {
+func (f *Omni) ErrorWithContext(ctx context.Context, format string, args ...interface{}) error {
 	return f.LogWithContext(ctx, LevelError, format, args...)
 }
 
@@ -167,7 +167,7 @@ func (f *FlexLog) ErrorWithContext(ctx context.Context, format string, args ...i
 //
 // Returns:
 //   - error: Context cancellation error, logger closed error, or channel full error
-func (f *FlexLog) StructuredLogWithContext(ctx context.Context, level int, message string, fields map[string]interface{}) error {
+func (f *Omni) StructuredLogWithContext(ctx context.Context, level int, message string, fields map[string]interface{}) error {
 	// Check if context is already cancelled
 	select {
 	case <-ctx.Done():
@@ -248,7 +248,7 @@ func (f *FlexLog) StructuredLogWithContext(ctx context.Context, level int, messa
 //
 // Returns:
 //   - error: Close error or context cancellation error
-func (f *FlexLog) CloseWithContext(ctx context.Context) error {
+func (f *Omni) CloseWithContext(ctx context.Context) error {
 	// Create a channel to signal completion
 	done := make(chan error, 1)
 
@@ -278,7 +278,7 @@ func (f *FlexLog) CloseWithContext(ctx context.Context) error {
 //
 // Returns:
 //   - error: Flush error or context cancellation error
-func (f *FlexLog) FlushWithContext(ctx context.Context) error {
+func (f *Omni) FlushWithContext(ctx context.Context) error {
 	// Create a channel to signal completion
 	done := make(chan error, 1)
 
@@ -295,7 +295,7 @@ func (f *FlexLog) FlushWithContext(ctx context.Context) error {
 }
 
 // captureStackTrace captures the current stack trace.
-// It skips runtime and flexlog internal frames to show only relevant application code.
+// It skips runtime and omni internal frames to show only relevant application code.
 //
 // Parameters:
 //   - maxFrames: Maximum number of stack frames to capture (0 defaults to 32)
@@ -315,7 +315,7 @@ func captureStackTrace(maxFrames int) string {
 	// Skip frames from this function and its callers
 	lines := strings.Split(stack, "\n")
 	if len(lines) > 7 {
-		lines = lines[7:] // Skip runtime and flexlog internals
+		lines = lines[7:] // Skip runtime and omni internals
 	}
 
 	// Limit to maxFrames
@@ -471,11 +471,11 @@ func GetTraceID(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-// ContextLogger wraps a FlexLog instance with automatic context extraction.
+// ContextLogger wraps a Omni instance with automatic context extraction.
 // It maintains a context and a set of fields that are automatically included
 // in all log messages. This implements the Logger interface for compatibility.
 type ContextLogger struct {
-	logger *FlexLog
+	logger *Omni
 	ctx    context.Context
 	fields map[string]interface{}
 }
@@ -484,12 +484,12 @@ type ContextLogger struct {
 // The wrapper automatically extracts context values and includes them in logs.
 //
 // Parameters:
-//   - logger: The underlying FlexLog instance
+//   - logger: The underlying Omni instance
 //   - ctx: The context to associate with this logger
 //
 // Returns:
 //   - *ContextLogger: A new context-aware logger
-func NewContextLogger(logger *FlexLog, ctx context.Context) *ContextLogger {
+func NewContextLogger(logger *Omni, ctx context.Context) *ContextLogger {
 	return &ContextLogger{
 		logger: logger,
 		ctx:    ctx,
@@ -675,13 +675,13 @@ func (cl *ContextLogger) Errorf(format string, args ...interface{}) {
 }
 
 // SetLevel sets the log level.
-// This affects the underlying FlexLog instance.
+// This affects the underlying Omni instance.
 func (cl *ContextLogger) SetLevel(level int) {
 	cl.logger.SetLevel(level)
 }
 
 // GetLevel returns the current log level.
-// Returns the level from the underlying FlexLog instance.
+// Returns the level from the underlying Omni instance.
 func (cl *ContextLogger) GetLevel() int {
 	return cl.logger.GetLevel()
 }

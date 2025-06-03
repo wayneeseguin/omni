@@ -1,4 +1,4 @@
-// Package main implements a Redis backend plugin for FlexLog
+// Package main implements a Redis backend plugin for Omni
 package main
 
 import (
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // RedisBackendPlugin implements the BackendPluginInterface interface
@@ -53,7 +53,7 @@ func (p *RedisBackendPlugin) Shutdown(ctx context.Context) error {
 }
 
 // CreateBackend creates a new Redis backend instance
-func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (flexlog.Backend, error) {
+func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -77,7 +77,7 @@ func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interfa
 	query := parsedURL.Query()
 	key := query.Get("key")
 	if key == "" {
-		key = "flexlog:entries"
+		key = "omni:entries"
 	}
 	
 	maxEntries := 10000 // default
@@ -217,18 +217,18 @@ func (b *RedisBackend) SupportsAtomic() bool {
 	return b.atomicSupport
 }
 
-// FlexLogPlugin is the plugin entry point
-var FlexLogPlugin = &RedisBackendPlugin{}
+// OmniPlugin is the plugin entry point
+var OmniPlugin = &RedisBackendPlugin{}
 
 func main() {
 	// Example usage demonstrating the Redis backend plugin
 	fmt.Println("Redis Backend Plugin")
-	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
-	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
-	fmt.Printf("Supported schemes: %v\n", FlexLogPlugin.SupportedSchemes())
+	fmt.Printf("Name: %s\n", OmniPlugin.Name())
+	fmt.Printf("Version: %s\n", OmniPlugin.Version())
+	fmt.Printf("Supported schemes: %v\n", OmniPlugin.SupportedSchemes())
 	
 	// Initialize the plugin
-	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to initialize plugin: %v\n", err)
 		return
 	}
@@ -242,7 +242,7 @@ func main() {
 	
 	// This would normally create a Redis backend, but we'll just demonstrate
 	// the parsing logic without actually connecting
-	backend, err := FlexLogPlugin.CreateBackend(sampleURI, map[string]interface{}{})
+	backend, err := OmniPlugin.CreateBackend(sampleURI, map[string]interface{}{})
 	if err != nil {
 		fmt.Printf("Note: Backend creation failed (Redis not available): %v\n", err)
 		fmt.Println("This is expected when Redis is not running.")
@@ -265,7 +265,7 @@ func main() {
 	
 	// Shutdown the plugin
 	ctx := context.Background()
-	if err := FlexLogPlugin.Shutdown(ctx); err != nil {
+	if err := OmniPlugin.Shutdown(ctx); err != nil {
 		fmt.Printf("Failed to shutdown plugin: %v\n", err)
 	} else {
 		fmt.Println("Plugin shutdown successfully")

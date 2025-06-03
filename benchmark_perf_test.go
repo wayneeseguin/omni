@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"path/filepath"
@@ -161,7 +161,7 @@ func BenchmarkMultiDestination(b *testing.B) {
 
 // BenchmarkMessageFormatting benchmarks just the message formatting performance
 func BenchmarkMessageFormatting(b *testing.B) {
-	logger := &FlexLog{
+	logger := &Omni{
 		formatOpts: defaultFormatOptions(),
 		format:     FormatText,
 	}

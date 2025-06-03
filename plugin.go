@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Plugin represents a FlexLog plugin
+// Plugin represents a Omni plugin
 type Plugin interface {
 	// Name returns the plugin name
 	Name() string
@@ -93,15 +93,15 @@ func (pm *PluginManager) LoadPlugin(path string) error {
 	}
 	
 	// Look for the plugin entry point
-	sym, err := p.Lookup("FlexLogPlugin")
+	sym, err := p.Lookup("OmniPlugin")
 	if err != nil {
-		return fmt.Errorf("plugin %s missing FlexLogPlugin symbol: %w", path, err)
+		return fmt.Errorf("plugin %s missing OmniPlugin symbol: %w", path, err)
 	}
 	
 	// Cast to plugin interface
 	pluginInstance, ok := sym.(Plugin)
 	if !ok {
-		return fmt.Errorf("plugin %s FlexLogPlugin is not a Plugin interface", path)
+		return fmt.Errorf("plugin %s OmniPlugin is not a Plugin interface", path)
 	}
 	
 	// Check for duplicate names

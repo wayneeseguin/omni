@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 func TestPerformanceOptimizedExample(t *testing.T) {
 	// Test basic performance logging functionality
-	logger, err := flexlog.New("test_performance.log")
+	logger, err := omni.New("test_performance.log")
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestPerformanceOptimizedExample(t *testing.T) {
 	}()
 
 	// Test with INFO level (filtering out TRACE/DEBUG)
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Test that TRACE and DEBUG are filtered
 	start := time.Now()
@@ -51,7 +51,7 @@ func TestPerformanceOptimizedExample(t *testing.T) {
 	filteredDuration := time.Since(start)
 
 	// Test with TRACE level (all messages logged)
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 	start = time.Now()
 	for i := 0; i < 1000; i++ {
 		logger.Trace("This will be logged")
@@ -85,12 +85,12 @@ func TestSingleThreadedPerformance(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "single_thread.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "single_thread.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Measure single-threaded performance
 	iterations := 1000
@@ -140,12 +140,12 @@ func TestMultiThreadedPerformance(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "multi_thread.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "multi_thread.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Test multi-threaded performance
 	numGoroutines := 4
@@ -207,7 +207,7 @@ func TestLevelFilteringPerformance(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "level_filter.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "level_filter.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestLevelFilteringPerformance(t *testing.T) {
 	iterations := 1000
 
 	// Test with TRACE level enabled (expensive)
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 	start := time.Now()
 
 	for i := 0; i < iterations; i++ {
@@ -229,7 +229,7 @@ func TestLevelFilteringPerformance(t *testing.T) {
 	withTraceDuration := time.Since(start)
 
 	// Test with INFO level (filtered TRACE/DEBUG)
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 	start = time.Now()
 
 	for i := 0; i < iterations; i++ {
@@ -274,12 +274,12 @@ func TestMemoryUsagePatterns(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "memory_test.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "memory_test.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	var m1, m2 runtime.MemStats
 
@@ -336,12 +336,12 @@ func TestPerformanceWithStructuredLogging(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "structured_perf.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "structured_perf.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	iterations := 500
 	start := time.Now()
@@ -385,13 +385,13 @@ func BenchmarkBasicLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_basic.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_basic.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -404,14 +404,14 @@ func BenchmarkFilteredLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_filtered.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_filtered.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
 	// Set to INFO level so TRACE/DEBUG are filtered
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -428,13 +428,13 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_structured.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_structured.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	fields := map[string]interface{}{
 		"user_id": "bench_user",
@@ -453,13 +453,13 @@ func BenchmarkConcurrentLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_concurrent.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_concurrent.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

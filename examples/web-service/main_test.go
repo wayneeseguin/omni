@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -37,11 +37,11 @@ func TestWebServiceExample(t *testing.T) {
 
 	// Initialize global logger for testing
 	var err error
-	logger, err = flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "webservice_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(100),
+	logger, err = omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "webservice_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithChannelSize(100),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -131,10 +131,10 @@ func TestLoggingMiddleware(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Initialize test logger
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "middleware_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "middleware_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -274,10 +274,10 @@ func TestUserHandler(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Initialize test logger
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "user_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "user_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -336,10 +336,10 @@ func TestErrorHandler(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Initialize test logger
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "error_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "error_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -377,10 +377,10 @@ func TestSlowRequestDetection(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Initialize test logger
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "slow_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "slow_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -426,10 +426,10 @@ func TestMetricsEndpoint(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Initialize test logger
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "metrics_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "metrics_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -503,13 +503,13 @@ func TestServerConfiguration(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Test logger initialization with production settings
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "config_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithRotation(50*1024*1024, 5),
-		flexlog.WithGzipCompression(),
-		flexlog.WithChannelSize(5000),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "config_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithRotation(50*1024*1024, 5),
+		omni.WithGzipCompression(),
+		omni.WithChannelSize(5000),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger with production settings: %v", err)
@@ -569,10 +569,10 @@ func TestGracefulShutdown(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Test server setup and shutdown simulation
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "shutdown_test.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "shutdown_test.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -629,10 +629,10 @@ func BenchmarkLoggingMiddleware(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_middleware.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithChannelSize(1000),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_middleware.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
@@ -661,11 +661,11 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(1000),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)

@@ -1,10 +1,10 @@
-package flexlog
+package omni
 
 import (
 	"time"
 )
 
-// Builder provides a fluent interface for constructing FlexLog instances
+// Builder provides a fluent interface for constructing Omni instances
 // with a clean, intuitive API that guides users through configuration.
 // The builder pattern allows for readable, chainable configuration and
 // performs validation as options are set.
@@ -26,7 +26,7 @@ type destinationConfig struct {
 // These options are applied to individual destinations after they are created.
 type DestinationOption func(*Destination) error
 
-// NewBuilder creates a new FlexLog builder.
+// NewBuilder creates a new Omni builder.
 // The builder starts with sensible defaults that can be customized
 // through the fluent interface.
 //
@@ -35,8 +35,8 @@ type DestinationOption func(*Destination) error
 //
 // Example:
 //
-//	logger, err := flexlog.NewBuilder().
-//	    WithLevel(flexlog.LevelInfo).
+//	logger, err := omni.NewBuilder().
+//	    WithLevel(omni.LevelInfo).
 //	    WithJSON().
 //	    WithDestination("/var/log/app.log").
 //	    Build()
@@ -73,7 +73,7 @@ func (b *Builder) WithLevel(level int) *Builder {
 		return b
 	}
 	if level < LevelTrace || level > LevelError {
-		b.err = NewFlexLogError(ErrCodeInvalidLevel, "config", "", nil).
+		b.err = NewOmniError(ErrCodeInvalidLevel, "config", "", nil).
 			WithContext("level", level)
 		return b
 	}
@@ -94,7 +94,7 @@ func (b *Builder) WithFormat(format int) *Builder {
 		return b
 	}
 	if format != FormatText && format != FormatJSON {
-		b.err = NewFlexLogError(ErrCodeInvalidFormat, "config", "", nil).
+		b.err = NewOmniError(ErrCodeInvalidFormat, "config", "", nil).
 			WithContext("format", format)
 		return b
 	}
@@ -162,7 +162,7 @@ func (b *Builder) WithBufferSize(size int) *Builder {
 		return b
 	}
 	if size <= 0 {
-		b.err = NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+		b.err = NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 			WithContext("bufferSize", size)
 		return b
 	}
@@ -364,12 +364,12 @@ func (b *Builder) WithDebugLevel() *Builder {
 	return b.WithLevel(LevelDebug)
 }
 
-// Build creates the FlexLog instance.
+// Build creates the Omni instance.
 // This finalizes the configuration and creates the logger.
 // Any errors encountered during building will be returned here.
 //
 // Returns:
-//   - *FlexLog: The configured logger instance
+//   - *Omni: The configured logger instance
 //   - error: Any configuration or initialization error
 //
 // Example:
@@ -379,7 +379,7 @@ func (b *Builder) WithDebugLevel() *Builder {
 //	    log.Fatal(err)
 //	}
 //	defer logger.Close()
-func (b *Builder) Build() (*FlexLog, error) {
+func (b *Builder) Build() (*Omni, error) {
 	// Check for errors during building
 	if b.err != nil {
 		return nil, b.err

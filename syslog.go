@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 )
 
 // NewSyslog creates a new logger with a syslog backend.
-// This is a convenience function that sets up a FlexLog instance configured
+// This is a convenience function that sets up a Omni instance configured
 // to send logs to a syslog server. Supports both Unix domain sockets and network connections.
 //
 // Parameters:
@@ -20,17 +20,17 @@ import (
 //   - tag: The syslog tag/program name (can be empty)
 //
 // Returns:
-//   - *FlexLog: The configured logger instance
+//   - *Omni: The configured logger instance
 //   - error: Connection or configuration error
 //
 // Example:
 //
 //	// Connect to local syslog via Unix socket
-//	logger, err := flexlog.NewSyslog("/dev/log", "myapp")
+//	logger, err := omni.NewSyslog("/dev/log", "myapp")
 //	
 //	// Connect to remote syslog server
-//	logger, err := flexlog.NewSyslog("syslog.example.com:514", "myapp")
-func NewSyslog(address string, tag string) (*FlexLog, error) {
+//	logger, err := omni.NewSyslog("syslog.example.com:514", "myapp")
+func NewSyslog(address string, tag string) (*Omni, error) {
 	// Determine the proper URI format based on the address
 	var uri string
 
@@ -74,7 +74,7 @@ func NewSyslog(address string, tag string) (*FlexLog, error) {
 //
 // Returns:
 //   - error: Reconnection error if failed
-func (f *FlexLog) reconnectSyslog(dest *Destination) error {
+func (f *Omni) reconnectSyslog(dest *Destination) error {
 	if dest.SyslogConn == nil {
 		return fmt.Errorf("syslog connection not initialized")
 	}
@@ -113,7 +113,7 @@ func (f *FlexLog) reconnectSyslog(dest *Destination) error {
 // Example:
 //
 //	err := logger.SetSyslogTag("syslog://localhost:514", "myapp-worker")
-func (f *FlexLog) SetSyslogTag(uri string, tag string) error {
+func (f *Omni) SetSyslogTag(uri string, tag string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -165,7 +165,7 @@ func (f *FlexLog) SetSyslogTag(uri string, tag string) error {
 //
 //	// Set to local0.info (facility=16, severity=6)
 //	err := logger.SetSyslogPriority("syslog://localhost:514", 16*8+6)
-func (f *FlexLog) SetSyslogPriority(uri string, priority int) error {
+func (f *Omni) SetSyslogPriority(uri string, priority int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

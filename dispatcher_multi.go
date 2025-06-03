@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"runtime"
@@ -24,7 +24,7 @@ type WorkerPool struct {
 	mode          DispatcherMode
 	numWorkers    int
 	nextWorker    atomic.Uint64
-	logger        *FlexLog
+	logger        *Omni
 	wg            sync.WaitGroup
 	messageQueues []chan LogMessage
 }
@@ -33,7 +33,7 @@ type WorkerPool struct {
 type Worker struct {
 	id       int
 	queue    chan LogMessage
-	logger   *FlexLog
+	logger   *Omni
 	stats    WorkerStats
 	shutdown chan struct{}
 }
@@ -47,7 +47,7 @@ type WorkerStats struct {
 }
 
 // NewWorkerPool creates a new worker pool with the specified number of workers
-func NewWorkerPool(logger *FlexLog, numWorkers int, mode DispatcherMode) *WorkerPool {
+func NewWorkerPool(logger *Omni, numWorkers int, mode DispatcherMode) *WorkerPool {
 	if numWorkers <= 0 {
 		numWorkers = runtime.NumCPU()
 	}
@@ -266,7 +266,7 @@ func (wp *WorkerPool) GetStats() []WorkerStats {
 }
 
 // EnableMultipleDispatchers configures the logger to use multiple dispatcher workers
-func (f *FlexLog) EnableMultipleDispatchers(numWorkers int, mode DispatcherMode) error {
+func (f *Omni) EnableMultipleDispatchers(numWorkers int, mode DispatcherMode) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	

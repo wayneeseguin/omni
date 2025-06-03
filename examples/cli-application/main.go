@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // CLI flags
@@ -20,7 +20,7 @@ var (
 )
 
 // Application logger
-var logger *flexlog.FlexLog
+var logger *omni.Omni
 
 func setupLogger() error {
 	// Determine log file path
@@ -40,29 +40,29 @@ func setupLogger() error {
 	}
 	
 	// Determine log level
-	level := flexlog.LevelInfo
+	level := omni.LevelInfo
 	if *debug {
-		level = flexlog.LevelDebug
+		level = omni.LevelDebug
 	} else if *verbose {
-		level = flexlog.LevelTrace
+		level = omni.LevelTrace
 	}
 	
 	// Create logger with options
-	options := []flexlog.Option{
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(level),
-		flexlog.WithRotation(10*1024*1024, 5), // 10MB files, keep 5
+	options := []omni.Option{
+		omni.WithPath(logPath),
+		omni.WithLevel(level),
+		omni.WithRotation(10*1024*1024, 5), // 10MB files, keep 5
 	}
 	
 	if *jsonLogs {
-		options = append(options, flexlog.WithJSON())
+		options = append(options, omni.WithJSON())
 	} else {
-		options = append(options, flexlog.WithText())
+		options = append(options, omni.WithText())
 	}
 	
 	// Create logger
 	var err error
-	logger, err = flexlog.NewWithOptions(options...)
+	logger, err = omni.NewWithOptions(options...)
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
@@ -189,7 +189,7 @@ func analyzeData() error {
 		time.Sleep(500 * time.Millisecond)
 		
 		// Log some debug information
-		if logger.GetLevel() <= flexlog.LevelDebug {
+		if logger.GetLevel() <= omni.LevelDebug {
 			debugFields := map[string]interface{}{
 				"step":      i + 1,
 				"total":     len(steps),
@@ -263,15 +263,15 @@ func getMemoryUsage() int {
 
 func getLevelName(level int) string {
 	switch level {
-	case flexlog.LevelTrace:
+	case omni.LevelTrace:
 		return "TRACE"
-	case flexlog.LevelDebug:
+	case omni.LevelDebug:
 		return "DEBUG"
-	case flexlog.LevelInfo:
+	case omni.LevelInfo:
 		return "INFO"
-	case flexlog.LevelWarn:
+	case omni.LevelWarn:
 		return "WARN"
-	case flexlog.LevelError:
+	case omni.LevelError:
 		return "ERROR"
 	default:
 		return "UNKNOWN"

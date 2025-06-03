@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"encoding/json"
@@ -7,19 +7,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestStructuredLog(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set level to TRACE to ensure all messages are logged
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	tests := []struct {
 		name     string
@@ -30,7 +30,7 @@ func TestStructuredLog(t *testing.T) {
 	}{
 		{
 			name:    "trace level with fields",
-			level:   flexlog.LevelTrace,
+			level:   omni.LevelTrace,
 			message: "trace message",
 			fields: map[string]interface{}{
 				"function": "processOrder",
@@ -41,7 +41,7 @@ func TestStructuredLog(t *testing.T) {
 		},
 		{
 			name:    "debug level with fields",
-			level:   flexlog.LevelDebug,
+			level:   omni.LevelDebug,
 			message: "debug message",
 			fields: map[string]interface{}{
 				"user":    "alice",
@@ -52,7 +52,7 @@ func TestStructuredLog(t *testing.T) {
 		},
 		{
 			name:    "info level with fields",
-			level:   flexlog.LevelInfo,
+			level:   omni.LevelInfo,
 			message: "info message",
 			fields: map[string]interface{}{
 				"service": "api",
@@ -62,14 +62,14 @@ func TestStructuredLog(t *testing.T) {
 		},
 		{
 			name:     "warn level with no fields",
-			level:    flexlog.LevelWarn,
+			level:    omni.LevelWarn,
 			message:  "warning message",
 			fields:   nil,
 			expected: []string{"[WARN]", "warning message"},
 		},
 		{
 			name:    "error level with fields",
-			level:   flexlog.LevelError,
+			level:   omni.LevelError,
 			message: "error message",
 			fields: map[string]interface{}{
 				"error_code": "E500",
@@ -116,7 +116,7 @@ func TestStructuredLog(t *testing.T) {
 
 func TestStructuredLogWithFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -132,17 +132,17 @@ func TestStructuredLogWithFilters(t *testing.T) {
 	})
 
 	// This should be logged
-	logger.StructuredLog(flexlog.LevelInfo, "with user", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "with user", map[string]interface{}{
 		"user": "alice",
 	})
 
 	// This should be filtered out
-	logger.StructuredLog(flexlog.LevelInfo, "without user", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "without user", map[string]interface{}{
 		"other": "field",
 	})
 
 	// This should also be filtered out (no fields)
-	logger.StructuredLog(flexlog.LevelInfo, "no fields", nil)
+	logger.StructuredLog(omni.LevelInfo, "no fields", nil)
 
 	logger.Sync()
 
@@ -167,14 +167,14 @@ func TestStructuredLogWithFilters(t *testing.T) {
 
 func TestStructuredLogWithStackTrace(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Test ERROR level always includes file/line info
-	logger.StructuredLog(flexlog.LevelError, "error without trace", map[string]interface{}{
+	logger.StructuredLog(omni.LevelError, "error without trace", map[string]interface{}{
 		"error": "test",
 	})
 	logger.Sync()
@@ -200,7 +200,7 @@ func TestStructuredLogWithStackTrace(t *testing.T) {
 
 	// Enable stack traces for errors
 	logger.EnableStackTraces(true)
-	logger.StructuredLog(flexlog.LevelError, "error with trace", map[string]interface{}{
+	logger.StructuredLog(omni.LevelError, "error with trace", map[string]interface{}{
 		"error": "test",
 	})
 	logger.Sync()
@@ -220,7 +220,7 @@ func TestStructuredLogWithStackTrace(t *testing.T) {
 
 func TestStructuredLogWithCaptureAll(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestStructuredLogWithCaptureAll(t *testing.T) {
 	logger.SetCaptureAllStacks(true)
 
 	// Log at INFO level - should include stack trace with captureAll
-	logger.StructuredLog(flexlog.LevelInfo, "info with stack", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "info with stack", map[string]interface{}{
 		"test": "capture all",
 	})
 	logger.Sync()
@@ -253,14 +253,14 @@ func TestStructuredLogWithCaptureAll(t *testing.T) {
 
 func TestTraceWithFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set level to trace to ensure it's logged
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	logger.TraceWithFields("trace message", map[string]interface{}{
 		"function": "processOrder",
@@ -294,14 +294,14 @@ func TestTraceWithFields(t *testing.T) {
 
 func TestDebugWithFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set level to debug to ensure it's logged
-	logger.SetLevel(flexlog.LevelDebug)
+	logger.SetLevel(omni.LevelDebug)
 
 	logger.DebugWithFields("debug message", map[string]interface{}{
 		"component": "test",
@@ -334,7 +334,7 @@ func TestDebugWithFields(t *testing.T) {
 
 func TestInfoWithFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestInfoWithFields(t *testing.T) {
 
 func TestWarnWithFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -413,7 +413,7 @@ func TestWarnWithFields(t *testing.T) {
 
 func TestErrorWithFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -455,16 +455,16 @@ func TestErrorWithFields(t *testing.T) {
 
 func TestStructuredLogJSONFormat(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set JSON format
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetFormat(omni.FormatJSON)
 
-	logger.StructuredLog(flexlog.LevelInfo, "json test", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "json test", map[string]interface{}{
 		"string_field": "value",
 		"number_field": 42,
 		"bool_field":   true,
@@ -502,14 +502,14 @@ func TestStructuredLogJSONFormat(t *testing.T) {
 
 func TestStructuredLogLevelFiltering(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set level to WARN
-	logger.SetLevel(flexlog.LevelWarn)
+	logger.SetLevel(omni.LevelWarn)
 
 	// These should be filtered
 	logger.DebugWithFields("debug", map[string]interface{}{"test": "debug"})
@@ -549,14 +549,14 @@ func TestStructuredLogLevelFiltering(t *testing.T) {
 
 func TestStructuredLogFieldOrdering(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Test that all field types are handled correctly
-	logger.StructuredLog(flexlog.LevelInfo, "field types", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "field types", map[string]interface{}{
 		"string": "hello",
 		"int":    42,
 		"float":  3.14,
@@ -594,14 +594,14 @@ func TestStructuredLogFieldOrdering(t *testing.T) {
 
 func TestStructuredLogEmptyFields(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Test with empty fields map
-	logger.StructuredLog(flexlog.LevelInfo, "empty fields", map[string]interface{}{})
+	logger.StructuredLog(omni.LevelInfo, "empty fields", map[string]interface{}{})
 	logger.Sync()
 
 	content, err := os.ReadFile(tempFile)

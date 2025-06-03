@@ -1,6 +1,6 @@
-# FlexLog API Documentation
+# Omni API Documentation
 
-FlexLog is a flexible, high-performance logging library for Go with support for multiple destinations, structured logging, and advanced features like sampling, filtering, and rotation.
+Omni is a flexible, high-performance logging library for Go with support for multiple destinations, structured logging, and advanced features like sampling, filtering, and rotation.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ FlexLog is a flexible, high-performance logging library for Go with support for 
 ## Installation
 
 ```bash
-go get github.com/wayneeseguin/flexlog
+go get github.com/wayneeseguin/omni
 ```
 
 ## Quick Start
@@ -24,12 +24,12 @@ go get github.com/wayneeseguin/flexlog
 package main
 
 import (
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
 )
 
 func main() {
     // Create a new logger with default settings
-    logger, err := flexlog.NewFlexLog()
+    logger, err := omni.NewOmni()
     if err != nil {
         panic(err)
     }
@@ -46,7 +46,7 @@ func main() {
 
 ### Log Levels
 
-FlexLog supports four log levels:
+Omni supports four log levels:
 - `DEBUG` - Detailed information for debugging
 - `INFO` - Informational messages
 - `WARN` - Warning messages
@@ -54,14 +54,14 @@ FlexLog supports four log levels:
 
 ### Destinations
 
-A destination represents where logs are written. FlexLog supports multiple concurrent destinations:
+A destination represents where logs are written. Omni supports multiple concurrent destinations:
 - **File**: Write to files with rotation and compression
 - **Syslog**: System log integration
 - **Custom**: Implement your own destination
 
 ### Structured Logging
 
-FlexLog supports structured logging with key-value pairs:
+Omni supports structured logging with key-value pairs:
 
 ```go
 logger.InfoWithFields("User action", map[string]interface{}{
@@ -76,15 +76,15 @@ logger.InfoWithFields("User action", map[string]interface{}{
 
 ### Creating a Logger
 
-#### NewFlexLog()
+#### NewOmni()
 ```go
-func NewFlexLog() (*FlexLog, error)
+func NewOmni() (*Omni, error)
 ```
 Creates a new logger with default configuration.
 
-#### NewFlexLogWithConfig()
+#### NewOmniWithConfig()
 ```go
-func NewFlexLogWithConfig(config Config) (*FlexLog, error)
+func NewOmniWithConfig(config Config) (*Omni, error)
 ```
 Creates a new logger with custom configuration.
 
@@ -92,45 +92,45 @@ Creates a new logger with custom configuration.
 
 #### Basic Logging
 ```go
-func (f *FlexLog) Debug(args ...interface{})
-func (f *FlexLog) Info(args ...interface{})
-func (f *FlexLog) Warn(args ...interface{})
-func (f *FlexLog) Error(args ...interface{})
+func (f *Omni) Debug(args ...interface{})
+func (f *Omni) Info(args ...interface{})
+func (f *Omni) Warn(args ...interface{})
+func (f *Omni) Error(args ...interface{})
 ```
 
 #### Formatted Logging
 ```go
-func (f *FlexLog) Debugf(format string, args ...interface{})
-func (f *FlexLog) Infof(format string, args ...interface{})
-func (f *FlexLog) Warnf(format string, args ...interface{})
-func (f *FlexLog) Errorf(format string, args ...interface{})
+func (f *Omni) Debugf(format string, args ...interface{})
+func (f *Omni) Infof(format string, args ...interface{})
+func (f *Omni) Warnf(format string, args ...interface{})
+func (f *Omni) Errorf(format string, args ...interface{})
 ```
 
 #### Structured Logging
 ```go
-func (f *FlexLog) DebugWithFields(message string, fields map[string]interface{})
-func (f *FlexLog) InfoWithFields(message string, fields map[string]interface{})
-func (f *FlexLog) WarnWithFields(message string, fields map[string]interface{})
-func (f *FlexLog) ErrorWithFields(message string, fields map[string]interface{})
+func (f *Omni) DebugWithFields(message string, fields map[string]interface{})
+func (f *Omni) InfoWithFields(message string, fields map[string]interface{})
+func (f *Omni) WarnWithFields(message string, fields map[string]interface{})
+func (f *Omni) ErrorWithFields(message string, fields map[string]interface{})
 ```
 
 ### Destination Management
 
 #### AddDestination()
 ```go
-func (f *FlexLog) AddDestination(name string, config DestinationConfig) error
+func (f *Omni) AddDestination(name string, config DestinationConfig) error
 ```
 Adds a new log destination.
 
 #### RemoveDestination()
 ```go
-func (f *FlexLog) RemoveDestination(name string) error
+func (f *Omni) RemoveDestination(name string) error
 ```
 Removes a log destination.
 
 #### SetLogLevel()
 ```go
-func (f *FlexLog) SetLogLevel(level LogLevel)
+func (f *Omni) SetLogLevel(level LogLevel)
 ```
 Sets the minimum log level.
 
@@ -327,19 +327,19 @@ logger.Start(ctx)
 
 ## Performance Considerations
 
-- FlexLog uses buffered channels to prevent blocking
+- Omni uses buffered channels to prevent blocking
 - File operations use OS-level locking for process safety
 - Object pooling reduces GC pressure
 - Lazy evaluation defers expensive computations
 
 ## Thread Safety
 
-FlexLog is thread-safe and can be used concurrently from multiple goroutines.
+Omni is thread-safe and can be used concurrently from multiple goroutines.
 
 ## Environment Variables
 
-- `FLEXLOG_CHANNEL_SIZE`: Override default channel size (default: 1000)
-- `FLEXLOG_MIN_LEVEL`: Set minimum log level (DEBUG, INFO, WARN, ERROR)
+- `OMNI_CHANNEL_SIZE`: Override default channel size (default: 1000)
+- `OMNI_MIN_LEVEL`: Set minimum log level (DEBUG, INFO, WARN, ERROR)
 
 ## Migration Guide
 

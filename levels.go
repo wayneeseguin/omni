@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -15,8 +15,8 @@ import (
 //
 // Example:
 //
-//	logger.SetLevel(flexlog.LevelWarn) // Only log warnings and errors
-func (f *FlexLog) SetLevel(level int) {
+//	logger.SetLevel(omni.LevelWarn) // Only log warnings and errors
+func (f *Omni) SetLevel(level int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.level = level
@@ -31,10 +31,10 @@ func (f *FlexLog) SetLevel(level int) {
 // Example:
 //
 //	currentLevel := logger.GetLevel()
-//	if currentLevel <= flexlog.LevelDebug {
+//	if currentLevel <= omni.LevelDebug {
 //	    fmt.Println("Debug logging is enabled")
 //	}
-func (f *FlexLog) GetLevel() int {
+func (f *Omni) GetLevel() int {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.level
@@ -47,7 +47,7 @@ func (f *FlexLog) GetLevel() int {
 // Parameters:
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
+func (f *Omni) TraceWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -88,7 +88,7 @@ func (f *FlexLog) TraceWithFormat(format string, args ...interface{}) {
 // Parameters:
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
+func (f *Omni) DebugWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -129,7 +129,7 @@ func (f *FlexLog) DebugWithFormat(format string, args ...interface{}) {
 // Parameters:
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
+func (f *Omni) InfoWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -170,7 +170,7 @@ func (f *FlexLog) InfoWithFormat(format string, args ...interface{}) {
 // Parameters:
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
+func (f *Omni) WarnWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -211,7 +211,7 @@ func (f *FlexLog) WarnWithFormat(format string, args ...interface{}) {
 // Parameters:
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
+func (f *Omni) ErrorWithFormat(format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -256,7 +256,7 @@ func (f *FlexLog) ErrorWithFormat(format string, args ...interface{}) {
 // Parameters:
 //   - level: The log level
 //   - message: The message to log
-func (f *FlexLog) log(level int, message string) {
+func (f *Omni) log(level int, message string) {
 	switch level {
 	case LevelDebug:
 		f.Debug(message)
@@ -278,7 +278,7 @@ func (f *FlexLog) log(level int, message string) {
 //   - level: The log level
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
-func (f *FlexLog) logf(level int, format string, args ...interface{}) {
+func (f *Omni) logf(level int, format string, args ...interface{}) {
 	// Check if logger is closed
 	if f.IsClosed() {
 		return
@@ -344,7 +344,7 @@ func (f *FlexLog) logf(level int, format string, args ...interface{}) {
 //
 //	logger.Trace("Entering function with params: ", param1, param2)
 //	logger.Trace("Variable state: ", varName, "=", value)
-func (f *FlexLog) Trace(args ...interface{}) {
+func (f *Omni) Trace(args ...interface{}) {
 	if f.GetLevel() <= LevelTrace {
 		f.logf(LevelTrace, "%s", args...)
 	}
@@ -362,7 +362,7 @@ func (f *FlexLog) Trace(args ...interface{}) {
 //
 //	logger.Tracef("Entering function %s with params: %+v", funcName, params)
 //	logger.Tracef("Variable %s = %v (type: %T)", varName, value, value)
-func (f *FlexLog) Tracef(format string, args ...interface{}) {
+func (f *Omni) Tracef(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelTrace {
 		f.logf(LevelTrace, format, args...)
 	}
@@ -379,7 +379,7 @@ func (f *FlexLog) Tracef(format string, args ...interface{}) {
 //
 //	logger.Debug("Processing user ID: ", userID)
 //	logger.Debug("Cache hit ratio: ", hitCount, "/", totalCount)
-func (f *FlexLog) Debug(args ...interface{}) {
+func (f *Omni) Debug(args ...interface{}) {
 	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, "%s", args...)
 	}
@@ -397,7 +397,7 @@ func (f *FlexLog) Debug(args ...interface{}) {
 //
 //	logger.Debugf("Processing user ID: %d with options: %+v", userID, options)
 //	logger.Debugf("Cache hit ratio: %.2f%%", (hitCount/totalCount)*100)
-func (f *FlexLog) Debugf(format string, args ...interface{}) {
+func (f *Omni) Debugf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelDebug {
 		f.logf(LevelDebug, format, args...)
 	}
@@ -414,7 +414,7 @@ func (f *FlexLog) Debugf(format string, args ...interface{}) {
 //
 //	logger.Info("Server started on port ", port)
 //	logger.Info("Connected to database: ", dbName)
-func (f *FlexLog) Info(args ...interface{}) {
+func (f *Omni) Info(args ...interface{}) {
 	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, "%s", args...)
 	}
@@ -432,7 +432,7 @@ func (f *FlexLog) Info(args ...interface{}) {
 //
 //	logger.Infof("Server started on port %d", port)
 //	logger.Infof("Connected to database %s with %d connections", dbName, poolSize)
-func (f *FlexLog) Infof(format string, args ...interface{}) {
+func (f *Omni) Infof(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelInfo {
 		f.logf(LevelInfo, format, args...)
 	}
@@ -449,7 +449,7 @@ func (f *FlexLog) Infof(format string, args ...interface{}) {
 //
 //	logger.Warn("Connection pool usage at ", percentage, "% capacity")
 //	logger.Warn("Deprecated API endpoint used: ", endpoint)
-func (f *FlexLog) Warn(args ...interface{}) {
+func (f *Omni) Warn(args ...interface{}) {
 	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, "%s", args...)
 	}
@@ -467,7 +467,7 @@ func (f *FlexLog) Warn(args ...interface{}) {
 //
 //	logger.Warnf("Connection pool usage at %d%% capacity", percentage)
 //	logger.Warnf("Request took %dms, exceeding threshold of %dms", elapsed, threshold)
-func (f *FlexLog) Warnf(format string, args ...interface{}) {
+func (f *Omni) Warnf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelWarn {
 		f.logf(LevelWarn, format, args...)
 	}
@@ -484,7 +484,7 @@ func (f *FlexLog) Warnf(format string, args ...interface{}) {
 //
 //	logger.Error("Failed to connect to database: ", err)
 //	logger.Error("Panic recovered in handler: ", r)
-func (f *FlexLog) Error(args ...interface{}) {
+func (f *Omni) Error(args ...interface{}) {
 	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, "%s", fmt.Sprint(args...))
 	}
@@ -502,7 +502,7 @@ func (f *FlexLog) Error(args ...interface{}) {
 //
 //	logger.Errorf("Failed to connect to database: %v", err)
 //	logger.Errorf("Request failed after %d retries: %s", retries, err.Error())
-func (f *FlexLog) Errorf(format string, args ...interface{}) {
+func (f *Omni) Errorf(format string, args ...interface{}) {
 	if f.GetLevel() <= LevelError {
 		f.logf(LevelError, format, args...)
 	}

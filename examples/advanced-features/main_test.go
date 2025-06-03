@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -26,7 +26,7 @@ func TestAdvancedFeaturesExample(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Test simple logger creation first
-	logger, err := flexlog.New(filepath.Join(testLogDir, "test_app.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "test_app.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestProcessRequest(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "process_test.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "process_test.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestProcessRequest(t *testing.T) {
 	}()
 
 	// Set trace level to see all messages
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test processRequest function
 	processRequest(logger, "test_user_123", "login")
@@ -176,7 +176,7 @@ func BenchmarkProcessRequest(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -187,7 +187,7 @@ func BenchmarkProcessRequest(b *testing.B) {
 	}()
 
 	// Set higher log level for performance
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

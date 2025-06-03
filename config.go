@@ -1,10 +1,10 @@
-package flexlog
+package omni
 
 import (
 	"time"
 )
 
-// Config contains all configuration options for FlexLog.
+// Config contains all configuration options for Omni.
 // This struct provides a comprehensive way to configure all aspects of the logger,
 // from basic settings like log level and format to advanced features like compression,
 // sampling, and batch processing.
@@ -78,10 +78,10 @@ type Config struct {
 //
 // Example:
 //
-//	config := flexlog.DefaultConfig()
+//	config := omni.DefaultConfig()
 //	config.Path = "/var/log/app.log"
-//	config.Level = flexlog.LevelDebug
-//	logger, err := flexlog.NewWithConfig(config)
+//	config.Level = omni.LevelDebug
+//	logger, err := omni.NewWithConfig(config)
 func DefaultConfig() *Config {
 	return &Config{
 		Path:               "",
@@ -181,28 +181,28 @@ func (c *Config) Validate() error {
 //   - config: The configuration to use
 //
 // Returns:
-//   - *FlexLog: The configured logger instance
+//   - *Omni: The configured logger instance
 //   - error: Configuration or initialization error
 //
 // Example:
 //
-//	config := &flexlog.Config{
+//	config := &omni.Config{
 //	    Path:     "/var/log/app.log",
-//	    Level:    flexlog.LevelDebug,
+//	    Level:    omni.LevelDebug,
 //	    MaxSize:  100 * 1024 * 1024, // 100MB
 //	    MaxFiles: 5,
-//	    Compression: flexlog.CompressionGzip,
+//	    Compression: omni.CompressionGzip,
 //	    EnableBatching: true,
 //	}
-//	logger, err := flexlog.NewWithConfig(config)
-func NewWithConfig(config *Config) (*FlexLog, error) {
+//	logger, err := omni.NewWithConfig(config)
+func NewWithConfig(config *Config) (*Omni, error) {
 	// Validate and apply defaults
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 
 	// Create logger instance
-	f := &FlexLog{
+	f := &Omni{
 		maxSize:          config.MaxSize,
 		maxFiles:         config.MaxFiles,
 		level:            config.Level,
@@ -315,8 +315,8 @@ func NewWithConfig(config *Config) (*FlexLog, error) {
 //
 //	config := logger.GetConfig()
 //	fmt.Printf("Current log level: %d\n", config.Level)
-//	fmt.Printf("Compression enabled: %v\n", config.Compression != flexlog.CompressionNone)
-func (f *FlexLog) GetConfig() *Config {
+//	fmt.Printf("Compression enabled: %v\n", config.Compression != omni.CompressionNone)
+func (f *Omni) GetConfig() *Config {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -373,10 +373,10 @@ func (f *FlexLog) GetConfig() *Config {
 // Example:
 //
 //	config := logger.GetConfig()
-//	config.Level = flexlog.LevelDebug  // Enable debug logging
-//	config.Compression = flexlog.CompressionGzip  // Enable compression
+//	config.Level = omni.LevelDebug  // Enable debug logging
+//	config.Compression = omni.CompressionGzip  // Enable compression
 //	err := logger.UpdateConfig(config)
-func (f *FlexLog) UpdateConfig(config *Config) error {
+func (f *Omni) UpdateConfig(config *Config) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}

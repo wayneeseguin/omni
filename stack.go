@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 // EnableStackTraces enables or disables stack traces for error logs.
 // When enabled, error log entries will include stack trace information.
@@ -10,7 +10,7 @@ package flexlog
 //
 //	logger.EnableStackTraces(true)   // Enable stack traces for errors
 //	logger.EnableStackTraces(false)  // Disable stack traces
-func (f *FlexLog) EnableStackTraces(enabled bool) {
+func (f *Omni) EnableStackTraces(enabled bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.includeTrace = enabled
@@ -25,7 +25,7 @@ func (f *FlexLog) EnableStackTraces(enabled bool) {
 // Example:
 //
 //	logger.SetStackSize(8192)  // Double the default stack buffer size
-func (f *FlexLog) SetStackSize(size int) {
+func (f *Omni) SetStackSize(size int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.stackSize = size
@@ -41,7 +41,7 @@ func (f *FlexLog) SetStackSize(size int) {
 // Example:
 //
 //	logger.SetCaptureAllStacks(true)  // Include stack traces in all log levels
-func (f *FlexLog) SetCaptureAllStacks(enabled bool) {
+func (f *Omni) SetCaptureAllStacks(enabled bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.captureAll = enabled

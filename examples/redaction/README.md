@@ -1,10 +1,10 @@
 # Redaction Example
 
-This example demonstrates FlexLog's comprehensive data redaction capabilities for secure logging.
+This example demonstrates Omni's comprehensive data redaction capabilities for secure logging.
 
 ## Overview
 
-FlexLog provides automatic redaction of sensitive data in log messages to prevent accidental exposure of credentials, personal information, and other sensitive data. This is crucial for:
+Omni provides automatic redaction of sensitive data in log messages to prevent accidental exposure of credentials, personal information, and other sensitive data. This is crucial for:
 
 - **Security Compliance**: Meet security standards and regulations
 - **API Logging**: Safely log HTTP requests/responses without exposing tokens
@@ -15,7 +15,7 @@ FlexLog provides automatic redaction of sensitive data in log messages to preven
 
 ### 1. Built-in Redaction Patterns
 
-FlexLog automatically redacts common sensitive field names:
+Omni automatically redacts common sensitive field names:
 - `password`, `passwd`, `pass`
 - `secret`, `api_key`, `apikey`
 - `auth_token`, `authorization`
@@ -84,9 +84,9 @@ Example log entry:
 ### Basic Redaction Setup
 
 ```go
-logger, err := flexlog.New(
-    flexlog.WithDestination("app.log", flexlog.BackendFlock),
-    flexlog.WithFormat(flexlog.FormatJSON),
+logger, err := omni.New(
+    omni.WithDestination("app.log", omni.BackendFlock),
+    omni.WithFormat(omni.FormatJSON),
 )
 // Built-in patterns are automatically active
 ```

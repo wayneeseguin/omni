@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -149,7 +149,7 @@ func (as *AdaptiveSampler) GetCurrentRate() float64 {
 }
 
 // SetupEnhancedSampling configures enhanced sampling features
-func (f *FlexLog) SetupEnhancedSampling() {
+func (f *Omni) SetupEnhancedSampling() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -166,7 +166,7 @@ func (f *FlexLog) SetupEnhancedSampling() {
 }
 
 // SetLevelSampling configures per-level sampling rates
-func (f *FlexLog) SetLevelSampling(config LevelSamplingConfig) {
+func (f *Omni) SetLevelSampling(config LevelSamplingConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -182,7 +182,7 @@ func (f *FlexLog) SetLevelSampling(config LevelSamplingConfig) {
 }
 
 // SetAdaptiveSampling enables adaptive sampling
-func (f *FlexLog) SetAdaptiveSampling(config AdaptiveSamplingConfig) {
+func (f *Omni) SetAdaptiveSampling(config AdaptiveSamplingConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -191,7 +191,7 @@ func (f *FlexLog) SetAdaptiveSampling(config AdaptiveSamplingConfig) {
 }
 
 // AddPatternSamplingRule adds a pattern-based sampling rule
-func (f *FlexLog) AddPatternSamplingRule(rule PatternSamplingRule) error {
+func (f *Omni) AddPatternSamplingRule(rule PatternSamplingRule) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -216,7 +216,7 @@ func (f *FlexLog) AddPatternSamplingRule(rule PatternSamplingRule) error {
 }
 
 // shouldLogEnhanced is an enhanced version of shouldLog with additional sampling strategies
-func (f *FlexLog) shouldLogEnhanced(level int, message string, fields map[string]interface{}) bool {
+func (f *Omni) shouldLogEnhanced(level int, message string, fields map[string]interface{}) bool {
 	// Quick check for log level
 	if level < f.level {
 		return false
@@ -306,7 +306,7 @@ func (f *FlexLog) shouldLogEnhanced(level int, message string, fields map[string
 }
 
 // checkPatternSampling checks if pattern-based sampling rules apply
-func (f *FlexLog) checkPatternSampling(message string, fields map[string]interface{}) *bool {
+func (f *Omni) checkPatternSampling(message string, fields map[string]interface{}) *bool {
 	if f.patternRules == nil || len(f.patternRules) == 0 {
 		return nil
 	}
@@ -331,7 +331,7 @@ func (f *FlexLog) checkPatternSampling(message string, fields map[string]interfa
 }
 
 // recordSampled records that a message was sampled
-func (f *FlexLog) recordSampled(level int) {
+func (f *Omni) recordSampled(level int) {
 	atomic.AddUint64(&f.samplingMetrics.SampledMessages, 1)
 	if metrics, ok := f.samplingMetrics.LevelMetrics[level]; ok {
 		atomic.AddUint64(&metrics.Sampled, 1)
@@ -339,7 +339,7 @@ func (f *FlexLog) recordSampled(level int) {
 }
 
 // recordDropped records that a message was dropped
-func (f *FlexLog) recordDropped(level int) {
+func (f *Omni) recordDropped(level int) {
 	atomic.AddUint64(&f.samplingMetrics.DroppedMessages, 1)
 	if metrics, ok := f.samplingMetrics.LevelMetrics[level]; ok {
 		atomic.AddUint64(&metrics.Dropped, 1)
@@ -347,7 +347,7 @@ func (f *FlexLog) recordDropped(level int) {
 }
 
 // GetSamplingMetrics returns current sampling metrics
-func (f *FlexLog) GetSamplingMetrics() SamplingMetrics {
+func (f *Omni) GetSamplingMetrics() SamplingMetrics {
 	f.samplingMetrics.mu.RLock()
 	defer f.samplingMetrics.mu.RUnlock()
 
@@ -378,7 +378,7 @@ func (f *FlexLog) GetSamplingMetrics() SamplingMetrics {
 }
 
 // ResetSamplingMetrics resets all sampling metrics
-func (f *FlexLog) ResetSamplingMetrics() {
+func (f *Omni) ResetSamplingMetrics() {
 	f.samplingMetrics.mu.Lock()
 	defer f.samplingMetrics.mu.Unlock()
 

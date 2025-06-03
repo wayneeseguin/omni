@@ -1,8 +1,8 @@
-// Package flexlog provides a flexible, high-performance logging library for Go applications.
+// Package omni provides a flexible, high-performance logging library for Go applications.
 // It supports multiple concurrent destinations, structured logging, log rotation, compression,
 // filtering, sampling, and process-safe file logging using Unix file locks.
 //
-// FlexLog is designed for production environments where reliability, performance, and
+// Omni is designed for production environments where reliability, performance, and
 // flexibility are critical. It provides a comprehensive set of features while maintaining
 // a simple and intuitive API.
 //
@@ -25,7 +25,7 @@
 //
 // Basic Usage:
 //
-//	logger, err := flexlog.New("/var/log/app.log")
+//	logger, err := omni.New("/var/log/app.log")
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -36,29 +36,29 @@
 //
 // Using Builder Pattern:
 //
-//	logger, err := flexlog.NewBuilder().
-//		WithLevel(flexlog.LevelInfo).
+//	logger, err := omni.NewBuilder().
+//		WithLevel(omni.LevelInfo).
 //		WithJSON().
 //		WithDestination("/var/log/app.log",
-//			flexlog.WithBatching(8192, 100*time.Millisecond)).
+//			omni.WithBatching(8192, 100*time.Millisecond)).
 //		WithRotation(100*1024*1024, 10).
-//		WithCompression(flexlog.CompressionGzip, 2).
-//		WithErrorHandler(flexlog.StderrErrorHandler).
+//		WithCompression(omni.CompressionGzip, 2).
+//		WithErrorHandler(omni.StderrErrorHandler).
 //		Build()
 //
 // Using Functional Options:
 //
-//	logger, err := flexlog.NewWithOptions(
-//		flexlog.WithPath("/var/log/app.log"),
-//		flexlog.WithLevel(flexlog.LevelInfo),
-//		flexlog.WithJSON(),
-//		flexlog.WithRotation(100*1024*1024, 10),
-//		flexlog.WithProductionDefaults(),
+//	logger, err := omni.NewWithOptions(
+//		omni.WithPath("/var/log/app.log"),
+//		omni.WithLevel(omni.LevelInfo),
+//		omni.WithJSON(),
+//		omni.WithRotation(100*1024*1024, 10),
+//		omni.WithProductionDefaults(),
 //	)
 //
 // Multiple Destinations:
 //
-//	logger, err := flexlog.New("/var/log/app.log")
+//	logger, err := omni.New("/var/log/app.log")
 //	if err != nil {
 //		log.Fatal(err)
 //	}
@@ -81,18 +81,18 @@
 //		Info("User authenticated")
 //
 //	// With field validation
-//	logger.SetStructuredLogOptions(flexlog.StructuredLogOptions{
+//	logger.SetStructuredLogOptions(omni.StructuredLogOptions{
 //		EnableValidation: true,
 //		RequiredFields:   []string{"request_id"},
-//		FieldNormalizer:  flexlog.SnakeCaseNormalizer,
+//		FieldNormalizer:  omni.SnakeCaseNormalizer,
 //	})
 //
 // Context Integration:
 //
-//	ctx := flexlog.WithRequestID(context.Background(), "req-123")
-//	ctx = flexlog.WithUserID(ctx, "user-456")
+//	ctx := omni.WithRequestID(context.Background(), "req-123")
+//	ctx = omni.WithUserID(ctx, "user-456")
 //
-//	logger.StructuredLogWithContext(ctx, flexlog.LevelInfo, 
+//	logger.StructuredLogWithContext(ctx, omni.LevelInfo, 
 //		"Processing request", nil)
 //
 // Dynamic Configuration:
@@ -110,7 +110,7 @@
 //
 // Performance Considerations:
 //
-// FlexLog is designed for high-performance logging with minimal impact on application
+// Omni is designed for high-performance logging with minimal impact on application
 // performance. Key optimizations include:
 //
 //   - Non-blocking message channel with configurable buffer size
@@ -122,63 +122,63 @@
 //   - Atomic operations for metrics collection
 //
 // The default channel size is 100 messages, but can be configured via the
-// FLEXLOG_CHANNEL_SIZE environment variable or during initialization.
+// OMNI_CHANNEL_SIZE environment variable or during initialization.
 //
 // For high-throughput applications, consider:
 //
-//	config := flexlog.DefaultConfig()
+//	config := omni.DefaultConfig()
 //	config.ChannelSize = 10000
 //	config.EnableBatching = true
 //	config.BatchMaxSize = 64 * 1024  // 64KB batches
 //	config.EnableLazyFormat = true
-//	logger, err := flexlog.NewWithConfig(config)
+//	logger, err := omni.NewWithConfig(config)
 //
 // Thread Safety:
 //
-// All FlexLog methods are thread-safe and can be called concurrently from multiple
+// All Omni methods are thread-safe and can be called concurrently from multiple
 // goroutines. The library uses appropriate synchronization mechanisms to ensure
 // data consistency without sacrificing performance.
 //
 // Process Safety:
 //
-// FlexLog uses Unix file locks (flock) to ensure multiple processes can safely write
+// Omni uses Unix file locks (flock) to ensure multiple processes can safely write
 // to the same log file. This is particularly useful for applications that fork or
 // when multiple instances write to shared logs.
 //
 // Error Handling:
 //
-// FlexLog provides comprehensive error handling with structured error types:
+// Omni provides comprehensive error handling with structured error types:
 //
-//	logger.SetErrorHandler(func(err flexlog.LogError) {
+//	logger.SetErrorHandler(func(err omni.LogError) {
 //		// Handle logging errors
 //		fmt.Printf("[%s] %s: %v\n", err.Level, err.Source, err.Err)
 //	})
 //
 //	// Configure error recovery
-//	logger.SetRecoveryConfig(&flexlog.RecoveryConfig{
+//	logger.SetRecoveryConfig(&omni.RecoveryConfig{
 //		MaxRetries:        3,
 //		RetryDelay:        100 * time.Millisecond,
 //		BackoffMultiplier: 2.0,
 //		FallbackPath:      "/var/log/app-fallback.log",
-//		Strategy:          flexlog.RecoveryRetry,
+//		Strategy:          omni.RecoveryRetry,
 //	})
 //
 //	// Check specific error types
-//	if flexErr, ok := err.(*flexlog.FlexLogError); ok {
-//		switch flexErr.Code {
-//		case flexlog.ErrCodeFileWrite:
+//	if omniErr, ok := err.(*omni.OmniError); ok {
+//		switch omniErr.Code {
+//		case omni.ErrCodeFileWrite:
 //			// Handle write errors
-//		case flexlog.ErrCodeChannelFull:
+//		case omni.ErrCodeChannelFull:
 //			// Handle backpressure
 //		}
 //	}
 //
 // Monitoring and Metrics:
 //
-// FlexLog provides comprehensive metrics for monitoring logging system health:
+// Omni provides comprehensive metrics for monitoring logging system health:
 //
 //	metrics := logger.GetMetrics()
-//	fmt.Printf("Messages logged: %d\n", metrics.MessagesLogged[flexlog.LevelInfo])
+//	fmt.Printf("Messages logged: %d\n", metrics.MessagesLogged[omni.LevelInfo])
 //	fmt.Printf("Messages dropped: %d\n", metrics.MessagesDropped)
 //	fmt.Printf("Queue utilization: %.2f%%\n", metrics.QueueUtilization*100)
 //	fmt.Printf("Average write time: %v\n", metrics.AverageWriteTime)
@@ -200,5 +200,5 @@
 //   - Automatic retry with exponential backoff
 //
 // For more examples and detailed documentation, see the project repository at
-// https://github.com/wayneeseguin/flexlog
-package flexlog
+// https://github.com/wayneeseguin/omni
+package omni

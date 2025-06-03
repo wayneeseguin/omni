@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // NATSBackendPlugin implements BackendPluginInterface
@@ -68,7 +68,7 @@ func (p *NATSBackendPlugin) Shutdown(ctx context.Context) error {
 }
 
 // CreateBackend implements BackendPluginInterface
-func (p *NATSBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (flexlog.Backend, error) {
+func (p *NATSBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -141,7 +141,7 @@ func NewNATSBackendWithOptions(uri string, connect bool) (*NATSBackend, error) {
 
 	// Build NATS options
 	backend.options = []nats.Option{
-		nats.Name("flexlog-nats-backend"),
+		nats.Name("omni-nats-backend"),
 	}
 
 	// Add reconnection options
@@ -327,5 +327,5 @@ func (n *NATSBackend) formatMessage(entry interface{}) ([]byte, error) {
 // Export plugin for dynamic loading
 var BackendPlugin NATSBackendPlugin
 
-// FlexLogPlugin is the main plugin export (for .so files)
-var FlexLogPlugin flexlog.Plugin = &NATSBackendPlugin{}
+// OmniPlugin is the main plugin export (for .so files)
+var OmniPlugin omni.Plugin = &NATSBackendPlugin{}

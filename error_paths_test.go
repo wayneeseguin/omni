@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -26,12 +26,12 @@ func TestFileOpenError(t *testing.T) {
 		t.Error("Expected error when creating logger in read-only directory")
 	}
 
-	// Check if it's a FlexLogError
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
+	// Check if it's a OmniError
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
 		// Could be file open or file lock error depending on implementation
-		if flexErr.Code != ErrCodeFileOpen && flexErr.Code != ErrCodeFileLock {
-			t.Errorf("Expected ErrCodeFileOpen or ErrCodeFileLock, got %v", flexErr.Code)
+		if omniErr.Code != ErrCodeFileOpen && omniErr.Code != ErrCodeFileLock {
+			t.Errorf("Expected ErrCodeFileOpen or ErrCodeFileLock, got %v", omniErr.Code)
 		}
 	}
 }
@@ -77,8 +77,8 @@ func TestRotationErrors(t *testing.T) {
 // TestChannelFullError tests handling when message channel is full
 func TestChannelFullError(t *testing.T) {
 	// Set very small channel size
-	os.Setenv("FLEXLOG_CHANNEL_SIZE", "1")
-	defer os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
+	os.Setenv("OMNI_CHANNEL_SIZE", "1")
+	defer os.Unsetenv("OMNI_CHANNEL_SIZE")
 
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
@@ -196,10 +196,10 @@ func TestFileLockError(t *testing.T) {
 	}
 
 	// Check if it's a lock error
-	var flexErr *FlexLogError
-	if errors.As(err, &flexErr) {
-		if flexErr.Code != ErrCodeFileLock {
-			t.Errorf("Expected ErrCodeFileLock, got %v", flexErr.Code)
+	var omniErr *OmniError
+	if errors.As(err, &omniErr) {
+		if omniErr.Code != ErrCodeFileLock {
+			t.Errorf("Expected ErrCodeFileLock, got %v", omniErr.Code)
 		}
 	}
 }

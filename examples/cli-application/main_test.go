@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -138,10 +138,10 @@ func TestProcessFiles(t *testing.T) {
 
 	// Initialize logger for testing
 	logPath := filepath.Join(testLogDir, "process_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelDebug),
-		flexlog.WithText(),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelDebug),
+		omni.WithText(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -191,9 +191,9 @@ func TestProcessFilesWithEmptyFile(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "empty_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelDebug),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelDebug),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -227,9 +227,9 @@ func TestProcessFilesWithNonExistentFile(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "nonexistent_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelDebug),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelDebug),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -257,9 +257,9 @@ func TestProcessFile(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "single_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelTrace),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelTrace),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -304,9 +304,9 @@ func TestAnalyzeData(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "analyze_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelDebug),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelDebug),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -350,9 +350,9 @@ func TestGenerateReport(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "report_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelDebug),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelDebug),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -393,11 +393,11 @@ func TestGetLevelName(t *testing.T) {
 		level    int
 		expected string
 	}{
-		{flexlog.LevelTrace, "TRACE"},
-		{flexlog.LevelDebug, "DEBUG"},
-		{flexlog.LevelInfo, "INFO"},
-		{flexlog.LevelWarn, "WARN"},
-		{flexlog.LevelError, "ERROR"},
+		{omni.LevelTrace, "TRACE"},
+		{omni.LevelDebug, "DEBUG"},
+		{omni.LevelInfo, "INFO"},
+		{omni.LevelWarn, "WARN"},
+		{omni.LevelError, "ERROR"},
 		{999, "UNKNOWN"},
 	}
 
@@ -478,9 +478,9 @@ func TestInvalidOperation(t *testing.T) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "invalid_test.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelInfo),
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelInfo),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -522,9 +522,9 @@ func BenchmarkProcessFiles(b *testing.B) {
 
 	// Initialize logger
 	logPath := filepath.Join(testLogDir, "bench_process.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelWarn), // Higher level for performance
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelWarn), // Higher level for performance
 	)
 	if err != nil {
 		b.Fatalf("Failed to create test logger: %v", err)
@@ -556,9 +556,9 @@ func BenchmarkAnalyzeData(b *testing.B) {
 
 	// Initialize logger with minimal logging for performance
 	logPath := filepath.Join(testLogDir, "bench_analyze.log")
-	testLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(logPath),
-		flexlog.WithLevel(flexlog.LevelError), // Only errors for performance
+	testLogger, err := omni.NewWithOptions(
+		omni.WithPath(logPath),
+		omni.WithLevel(omni.LevelError), // Only errors for performance
 	)
 	if err != nil {
 		b.Fatalf("Failed to create test logger: %v", err)

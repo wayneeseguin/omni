@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 func TestDynamicConfig(t *testing.T) {
 	t.Run("LoadAndApplyConfig", func(t *testing.T) {
 		// Create temporary directory for test
-		tempDir, err := ioutil.TempDir("", "flexlog-dynamic-test")
+		tempDir, err := ioutil.TempDir("", "omni-dynamic-test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func TestDynamicConfig(t *testing.T) {
 
 	t.Run("ConfigWatcher", func(t *testing.T) {
 		// Create temporary directory for test
-		tempDir, err := ioutil.TempDir("", "flexlog-watcher-test")
+		tempDir, err := ioutil.TempDir("", "omni-watcher-test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,7 +190,7 @@ func TestDynamicConfig(t *testing.T) {
 
 	t.Run("SaveAndLoadConfig", func(t *testing.T) {
 		// Create temporary directory for test
-		tempDir, err := ioutil.TempDir("", "flexlog-save-test")
+		tempDir, err := ioutil.TempDir("", "omni-save-test")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,7 +242,7 @@ func TestDynamicConfig(t *testing.T) {
 
 	t.Run("DestinationManagement", func(t *testing.T) {
 		// Create temporary directory for test
-		tempDir, err := ioutil.TempDir("", "flexlog-dest-test")
+		tempDir, err := ioutil.TempDir("", "omni-dest-test")
 		if err != nil {
 			t.Fatal(err)
 		}

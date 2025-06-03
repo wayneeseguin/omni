@@ -1,11 +1,11 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
 	"time"
 )
 
-// ErrorCode represents specific error types in flexlog.
+// ErrorCode represents specific error types in omni.
 // These codes help categorize and handle errors systematically.
 type ErrorCode int
 
@@ -50,9 +50,9 @@ const (
 	ErrCodeAlreadyClosed   // Logger already closed
 )
 
-// FlexLogError represents a structured error with context.
+// OmniError represents a structured error with context.
 // It provides detailed information about what went wrong and where.
-type FlexLogError struct {
+type OmniError struct {
 	Code        ErrorCode              // The error code indicating the type of error
 	Op          string                 // Operation that failed (e.g., "rotate", "write", "compress")
 	Path        string                 // File path or destination name
@@ -64,7 +64,7 @@ type FlexLogError struct {
 
 // Error implements the error interface.
 // Returns a formatted error message with all available context.
-func (e *FlexLogError) Error() string {
+func (e *OmniError) Error() string {
 	if e.Destination != "" {
 		return fmt.Sprintf("[%s] %s operation failed on %s (destination: %s): %v",
 			e.Time.Format("2006-01-02 15:04:05"),
@@ -82,20 +82,20 @@ func (e *FlexLogError) Error() string {
 
 // Unwrap returns the underlying error.
 // Implements the error unwrapping interface for error chain support.
-func (e *FlexLogError) Unwrap() error {
+func (e *OmniError) Unwrap() error {
 	return e.Err
 }
 
 // Is checks if the error matches a target error.
 // Implements the errors.Is interface for error comparison.
-// Two FlexLogErrors are considered equal if they have the same ErrorCode.
-func (e *FlexLogError) Is(target error) bool {
+// Two OmniErrors are considered equal if they have the same ErrorCode.
+func (e *OmniError) Is(target error) bool {
 	if target == nil {
 		return false
 	}
 
-	// Check if target is also a FlexLogError
-	if targetErr, ok := target.(*FlexLogError); ok {
+	// Check if target is also a OmniError
+	if targetErr, ok := target.(*OmniError); ok {
 		return e.Code == targetErr.Code
 	}
 
@@ -103,7 +103,7 @@ func (e *FlexLogError) Is(target error) bool {
 	return e.Err != nil && e.Err == target
 }
 
-// NewFlexLogError creates a new FlexLogError with the specified details.
+// NewOmniError creates a new OmniError with the specified details.
 //
 // Parameters:
 //   - code: The error code
@@ -112,9 +112,9 @@ func (e *FlexLogError) Is(target error) bool {
 //   - err: The underlying error
 //
 // Returns:
-//   - *FlexLogError: A new error instance
-func NewFlexLogError(code ErrorCode, op, path string, err error) *FlexLogError {
-	return &FlexLogError{
+//   - *OmniError: A new error instance
+func NewOmniError(code ErrorCode, op, path string, err error) *OmniError {
+	return &OmniError{
 		Code:    code,
 		Op:      op,
 		Path:    path,
@@ -131,8 +131,8 @@ func NewFlexLogError(code ErrorCode, op, path string, err error) *FlexLogError {
 //   - dest: The destination name
 //
 // Returns:
-//   - *FlexLogError: The error instance for chaining
-func (e *FlexLogError) WithDestination(dest string) *FlexLogError {
+//   - *OmniError: The error instance for chaining
+func (e *OmniError) WithDestination(dest string) *OmniError {
 	e.Destination = dest
 	return e
 }
@@ -145,15 +145,15 @@ func (e *FlexLogError) WithDestination(dest string) *FlexLogError {
 //   - value: The context value
 //
 // Returns:
-//   - *FlexLogError: The error instance for chaining
+//   - *OmniError: The error instance for chaining
 //
 // Example:
 //
-//	err := NewFlexLogError(ErrCodeFileWrite, "write", "/var/log/app.log", ioErr).
+//	err := NewOmniError(ErrCodeFileWrite, "write", "/var/log/app.log", ioErr).
 //	    WithDestination("primary").
 //	    WithContext("bytes_written", 1024).
 //	    WithContext("retry_count", 3)
-func (e *FlexLogError) WithContext(key string, value interface{}) *FlexLogError {
+func (e *OmniError) WithContext(key string, value interface{}) *OmniError {
 	if e.Context == nil {
 		e.Context = make(map[string]interface{})
 	}
@@ -165,26 +165,26 @@ func (e *FlexLogError) WithContext(key string, value interface{}) *FlexLogError 
 
 // ErrFileOpen creates a file open error.
 // Use this when a log file cannot be opened.
-func ErrFileOpen(path string, err error) *FlexLogError {
-	return NewFlexLogError(ErrCodeFileOpen, "open", path, err)
+func ErrFileOpen(path string, err error) *OmniError {
+	return NewOmniError(ErrCodeFileOpen, "open", path, err)
 }
 
 // ErrFileWrite creates a file write error.
 // Use this when writing to a log file fails.
-func ErrFileWrite(path string, err error) *FlexLogError {
-	return NewFlexLogError(ErrCodeFileWrite, "write", path, err)
+func ErrFileWrite(path string, err error) *OmniError {
+	return NewOmniError(ErrCodeFileWrite, "write", path, err)
 }
 
 // ErrFileFlush creates a file flush error.
 // Use this when flushing file buffers fails.
-func ErrFileFlush(path string, err error) *FlexLogError {
-	return NewFlexLogError(ErrCodeFileFlush, "flush", path, err)
+func ErrFileFlush(path string, err error) *OmniError {
+	return NewOmniError(ErrCodeFileFlush, "flush", path, err)
 }
 
 // ErrFileRotate creates a file rotation error.
 // Use this when log rotation fails.
-func ErrFileRotate(path string, err error) *FlexLogError {
-	return NewFlexLogError(ErrCodeFileRotate, "rotate", path, err)
+func ErrFileRotate(path string, err error) *OmniError {
+	return NewOmniError(ErrCodeFileRotate, "rotate", path, err)
 }
 
 // NewChannelFullError creates a channel full error.
@@ -192,8 +192,8 @@ func ErrFileRotate(path string, err error) *FlexLogError {
 //
 // Parameters:
 //   - op: The operation that failed due to full channel
-func NewChannelFullError(op string) *FlexLogError {
-	return NewFlexLogError(ErrCodeChannelFull, op, "", fmt.Errorf("message channel full"))
+func NewChannelFullError(op string) *OmniError {
+	return NewOmniError(ErrCodeChannelFull, op, "", fmt.Errorf("message channel full"))
 }
 
 // NewDestinationNotFoundError creates a destination not found error.
@@ -201,8 +201,8 @@ func NewChannelFullError(op string) *FlexLogError {
 //
 // Parameters:
 //   - name: The name of the missing destination
-func NewDestinationNotFoundError(name string) *FlexLogError {
-	return NewFlexLogError(ErrCodeDestinationNotFound, "find", name, fmt.Errorf("destination not found"))
+func NewDestinationNotFoundError(name string) *OmniError {
+	return NewOmniError(ErrCodeDestinationNotFound, "find", name, fmt.Errorf("destination not found"))
 }
 
 // NewShutdownTimeoutError creates a shutdown timeout error.
@@ -210,8 +210,8 @@ func NewDestinationNotFoundError(name string) *FlexLogError {
 //
 // Parameters:
 //   - duration: The timeout duration that was exceeded
-func NewShutdownTimeoutError(duration time.Duration) *FlexLogError {
-	err := NewFlexLogError(ErrCodeShutdownTimeout, "shutdown", "", fmt.Errorf("shutdown timed out after %v", duration))
+func NewShutdownTimeoutError(duration time.Duration) *OmniError {
+	err := NewOmniError(ErrCodeShutdownTimeout, "shutdown", "", fmt.Errorf("shutdown timed out after %v", duration))
 	err.WithContext("timeout", duration)
 	return err
 }
@@ -229,9 +229,9 @@ func IsRetryable(err error) bool {
 		return false
 	}
 
-	// Check if it's a FlexLogError
-	if flexErr, ok := err.(*FlexLogError); ok {
-		switch flexErr.Code {
+	// Check if it's a OmniError
+	if omniErr, ok := err.(*OmniError); ok {
+		switch omniErr.Code {
 		case ErrCodeChannelFull,
 			ErrCodeCompressionQueueFull,
 			ErrCodeFileLock:

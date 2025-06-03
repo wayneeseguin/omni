@@ -1,4 +1,4 @@
-// Package main implements an XML formatter plugin for FlexLog
+// Package main implements an XML formatter plugin for Omni
 package main
 
 import (
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // XMLFormatterPlugin implements the FormatterPlugin interface
@@ -63,7 +63,7 @@ func (p *XMLFormatterPlugin) Shutdown(ctx context.Context) error {
 }
 
 // CreateFormatter creates a new XML formatter instance
-func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (flexlog.Formatter, error) {
+func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (omni.Formatter, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -98,15 +98,15 @@ func (p *XMLFormatterPlugin) FormatName() string {
 // levelToString converts a log level integer to string
 func levelToString(level int) string {
 	switch level {
-	case flexlog.LevelTrace:
+	case omni.LevelTrace:
 		return "TRACE"
-	case flexlog.LevelDebug:
+	case omni.LevelDebug:
 		return "DEBUG"
-	case flexlog.LevelInfo:
+	case omni.LevelInfo:
 		return "INFO"
-	case flexlog.LevelWarn:
+	case omni.LevelWarn:
 		return "WARN"
-	case flexlog.LevelError:
+	case omni.LevelError:
 		return "ERROR"
 	default:
 		return "UNKNOWN"
@@ -114,7 +114,7 @@ func levelToString(level int) string {
 }
 
 // getMessageText extracts the message text from LogMessage
-func getMessageText(msg flexlog.LogMessage) string {
+func getMessageText(msg omni.LogMessage) string {
 	// If Entry exists and has a message, use that
 	if msg.Entry != nil && msg.Entry.Message != "" {
 		return msg.Entry.Message
@@ -143,7 +143,7 @@ func getMessageText(msg flexlog.LogMessage) string {
 }
 
 // getMessageFields extracts fields from LogMessage
-func getMessageFields(msg flexlog.LogMessage) map[string]interface{} {
+func getMessageFields(msg omni.LogMessage) map[string]interface{} {
 	if msg.Entry != nil && msg.Entry.Fields != nil {
 		return msg.Entry.Fields
 	}
@@ -151,7 +151,7 @@ func getMessageFields(msg flexlog.LogMessage) map[string]interface{} {
 }
 
 // Format formats a log message as XML
-func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
+func (f *XMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
 	entry := XMLLogEntry{
 		Timestamp: msg.Timestamp.Format(f.timeFormat),
 		Level:     levelToString(msg.Level),
@@ -175,23 +175,23 @@ func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
 	return xml.MarshalIndent(entry, "", "  ")
 }
 
-// FlexLogPlugin is the plugin entry point
-var FlexLogPlugin = &XMLFormatterPlugin{}
+// OmniPlugin is the plugin entry point
+var OmniPlugin = &XMLFormatterPlugin{}
 
 func main() {
 	// Example usage demonstrating the XML formatter plugin
 	fmt.Println("XML Formatter Plugin")
-	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
-	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
+	fmt.Printf("Name: %s\n", OmniPlugin.Name())
+	fmt.Printf("Version: %s\n", OmniPlugin.Version())
 	
 	// Initialize the plugin
-	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to initialize plugin: %v\n", err)
 		return
 	}
 	
 	// Create a formatter
-	formatter, err := FlexLogPlugin.CreateFormatter(map[string]interface{}{
+	formatter, err := OmniPlugin.CreateFormatter(map[string]interface{}{
 		"include_fields": true,
 		"time_format":    time.RFC3339,
 	})
@@ -201,12 +201,12 @@ func main() {
 	}
 	
 	// Create a sample log message
-	sampleMsg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	sampleMsg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Format:    "User %s logged in",
 		Args:      []interface{}{"john_doe"},
 		Timestamp: time.Now(),
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "User john_doe logged in",
 			Level:   "INFO",
 			Fields: map[string]interface{}{

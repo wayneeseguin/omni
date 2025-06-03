@@ -1,6 +1,6 @@
 # Multiple NATS Destinations Testing
 
-This document describes the comprehensive testing scenarios implemented for multiple NATS destinations with the FlexLog NATS plugin.
+This document describes the comprehensive testing scenarios implemented for multiple NATS destinations with the Omni NATS plugin.
 
 ## Test Coverage
 

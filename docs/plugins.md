@@ -1,10 +1,10 @@
-# FlexLog Plugin System
+# Omni Plugin System
 
-FlexLog's plugin system allows you to extend the logger with custom backends, formatters, and filters without modifying the core library. This document covers how to create, load, and use plugins.
+Omni's plugin system allows you to extend the logger with custom backends, formatters, and filters without modifying the core library. This document covers how to create, load, and use plugins.
 
 ## Plugin Types
 
-FlexLog supports three types of plugins:
+Omni supports three types of plugins:
 
 1. **Backend Plugins** - Custom log destinations (e.g., databases, message queues, cloud services)
 2. **Formatter Plugins** - Custom output formats (e.g., XML, Protocol Buffers, custom JSON)
@@ -104,7 +104,7 @@ import (
     "context"
     "encoding/xml"
     "time"
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
 )
 
 type XMLFormatterPlugin struct {
@@ -149,7 +149,7 @@ func (p *XMLFormatterPlugin) Shutdown(ctx context.Context) error {
     return nil
 }
 
-func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (flexlog.Formatter, error) {
+func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (omni.Formatter, error) {
     formatter := &XMLFormatter{
         includeFields: true,
         timeFormat:    time.RFC3339,
@@ -170,10 +170,10 @@ func (p *XMLFormatterPlugin) FormatName() string {
     return "xml"
 }
 
-func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
+func (f *XMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
     entry := XMLLogEntry{
         Timestamp: msg.Timestamp.Format(f.timeFormat),
-        Level:     flexlog.LevelName(msg.Level),
+        Level:     omni.LevelName(msg.Level),
         Message:   msg.Entry.Message,
     }
     
@@ -190,7 +190,7 @@ func (f *XMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
 }
 
 // Plugin entry point
-var FlexLogPlugin = &XMLFormatterPlugin{}
+var OmniPlugin = &XMLFormatterPlugin{}
 
 func main() {
     // Plugin main function (not used when loaded as plugin)
@@ -206,7 +206,7 @@ import (
     "context"
     "database/sql"
     "net/url"
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
     _ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -242,7 +242,7 @@ func (p *DatabaseBackendPlugin) SupportedSchemes() []string {
     return []string{"postgres", "mysql", "sqlite"}
 }
 
-func (p *DatabaseBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (flexlog.Backend, error) {
+func (p *DatabaseBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
     parsedURL, err := url.Parse(uri)
     if err != nil {
         return nil, err
@@ -334,7 +334,7 @@ func (b *DatabaseBackend) SupportsAtomic() bool {
     return true // Database transactions are atomic
 }
 
-var FlexLogPlugin = &DatabaseBackendPlugin{}
+var OmniPlugin = &DatabaseBackendPlugin{}
 ```
 
 ## Building Plugins
@@ -357,7 +357,7 @@ Create a `plugin.json` file alongside your plugin:
 {
     "name": "xml-formatter",
     "version": "1.0.0",
-    "description": "XML output formatter for FlexLog",
+    "description": "XML output formatter for Omni",
     "author": "Your Name",
     "license": "MIT",
     "type": "formatter",
@@ -382,13 +382,13 @@ Create a `plugin.json` file alongside your plugin:
 
 ```go
 // Load a specific plugin
-err := flexlog.LoadPlugin("./plugins/xml-formatter.so")
+err := omni.LoadPlugin("./plugins/xml-formatter.so")
 if err != nil {
     log.Fatalf("Failed to load plugin: %v", err)
 }
 
 // Use the plugin
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
     WithCustomFormatter("xml", map[string]interface{}{
         "include_fields": true,
@@ -401,14 +401,14 @@ logger, _ := flexlog.NewBuilder().
 
 ```go
 // Set plugin search paths
-flexlog.SetPluginSearchPaths([]string{
+omni.SetPluginSearchPaths([]string{
     "./plugins",
-    "/usr/local/lib/flexlog/plugins",
-    os.Getenv("HOME") + "/.flexlog/plugins",
+    "/usr/local/lib/omni/plugins",
+    os.Getenv("HOME") + "/.omni/plugins",
 })
 
 // Discover and load all plugins
-err := flexlog.DiscoverAndLoadPlugins()
+err := omni.DiscoverAndLoadPlugins()
 if err != nil {
     log.Printf("Plugin loading errors: %v", err)
 }
@@ -418,7 +418,7 @@ if err != nil {
 
 ```go
 // Load plugins from configuration
-specs := []flexlog.PluginSpec{
+specs := []omni.PluginSpec{
     {
         Name: "xml-formatter",
         Path: "./plugins/xml-formatter.so",
@@ -432,7 +432,7 @@ specs := []flexlog.PluginSpec{
     },
 }
 
-discovery := flexlog.NewPluginDiscovery(flexlog.GetPluginManager())
+discovery := omni.NewPluginDiscovery(omni.GetPluginManager())
 err := discovery.LoadPluginSpecs(specs)
 ```
 
@@ -470,7 +470,7 @@ logger.SetCustomFormatter("protobuf", map[string]interface{}{
 
 ```go
 // Add rate limiting filter
-rateLimiter, _ := flexlog.GetPluginManager().GetFilterPlugin("rate-limiter")
+rateLimiter, _ := omni.GetPluginManager().GetFilterPlugin("rate-limiter")
 filter, _ := rateLimiter.CreateFilter(map[string]interface{}{
     "rate": 100.0,  // 100 messages per second
     "burst": 200,   // burst of 200
@@ -478,7 +478,7 @@ filter, _ := rateLimiter.CreateFilter(map[string]interface{}{
 logger.AddFilter(filter)
 
 // Add content-based filter
-contentFilter, _ := flexlog.GetPluginManager().GetFilterPlugin("content-filter")
+contentFilter, _ := omni.GetPluginManager().GetFilterPlugin("content-filter")
 filter2, _ := contentFilter.CreateFilter(map[string]interface{}{
     "blacklist": []string{"password", "secret", "token"},
     "whitelist_levels": []string{"ERROR", "WARN"},
@@ -491,7 +491,7 @@ logger.AddFilter(filter2)
 ### List Loaded Plugins
 
 ```go
-manager := flexlog.GetPluginManager()
+manager := omni.GetPluginManager()
 plugins := manager.GetPluginInfo()
 
 for _, plugin := range plugins {
@@ -504,7 +504,7 @@ for _, plugin := range plugins {
 
 ```go
 // Unload specific plugin
-err := flexlog.UnloadPlugin("xml-formatter")
+err := omni.UnloadPlugin("xml-formatter")
 if err != nil {
     log.Printf("Failed to unload plugin: %v", err)
 }
@@ -519,7 +519,7 @@ go func() {
     defer ticker.Stop()
     
     for range ticker.C {
-        plugins := flexlog.GetPluginManager().ListPlugins()
+        plugins := omni.GetPluginManager().ListPlugins()
         for _, plugin := range plugins {
             // Check plugin health
             if err := plugin.Initialize(nil); err != nil {
@@ -572,7 +572,7 @@ func verifyPlugin(path string) error {
 3. **Error Propagation**: Return meaningful error messages
 4. **Configuration**: Support flexible configuration options
 5. **Metrics**: Expose plugin-specific metrics
-6. **Logging**: Use FlexLog for plugin internal logging
+6. **Logging**: Use Omni for plugin internal logging
 7. **Documentation**: Provide comprehensive plugin documentation
 
 ## Troubleshooting
@@ -585,7 +585,7 @@ file plugin.so
 ldd plugin.so  # Check dependencies
 
 # Verify plugin symbol
-objdump -t plugin.so | grep FlexLogPlugin
+objdump -t plugin.so | grep OmniPlugin
 ```
 
 ### Plugin Crashes

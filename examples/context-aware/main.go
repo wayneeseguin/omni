@@ -6,21 +6,21 @@ import (
 	"log"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // RequestIDKey is the context key for request ID
 type RequestIDKey struct{}
 
 func main() {
-	logger, err := flexlog.New("context-aware.log")
+	logger, err := omni.New("context-aware.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logger.Close()
 
 	// Set level to TRACE to see detailed context tracking
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Simulate handling multiple requests with context tracking
 	for i := 0; i < 5; i++ {
@@ -32,7 +32,7 @@ func main() {
 	fmt.Println("Check context-aware.log for the logged messages")
 }
 
-func handleRequest(logger *flexlog.FlexLog, requestID string) {
+func handleRequest(logger *omni.Omni, requestID string) {
 	// Create context with request ID
 	ctx := context.WithValue(context.Background(), RequestIDKey{}, requestID)
 
@@ -108,7 +108,7 @@ func handleRequest(logger *flexlog.FlexLog, requestID string) {
 	})
 }
 
-func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
+func fetchUser(ctx context.Context, logger *omni.Omni) error {
 	reqID := getRequestID(ctx)
 
 	logger.TraceWithFields("Database query starting", map[string]interface{}{
@@ -145,7 +145,7 @@ func fetchUser(ctx context.Context, logger *flexlog.FlexLog) error {
 	}
 }
 
-func validatePermissions(ctx context.Context, logger *flexlog.FlexLog) error {
+func validatePermissions(ctx context.Context, logger *omni.Omni) error {
 	reqID := getRequestID(ctx)
 
 	logger.TraceWithFields("Permission validation starting", map[string]interface{}{

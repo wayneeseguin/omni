@@ -1,6 +1,6 @@
 # Migration Guide
 
-This guide helps you migrate from popular logging libraries to FlexLog.
+This guide helps you migrate from popular logging libraries to Omni.
 
 ## Table of Contents
 
@@ -19,13 +19,13 @@ This guide helps you migrate from popular logging libraries to FlexLog.
 logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
-logger, _ := flexlog.NewFlexLog()
-logger.AddDestination("stdout", flexlog.DestinationConfig{
-    Backend: flexlog.BackendFile,
+logger, _ := omni.NewOmni()
+logger.AddDestination("stdout", omni.DestinationConfig{
+    Backend: omni.BackendFile,
     FilePath: "/dev/stdout",
-    Format: flexlog.FormatJSON,
+    Format: omni.FormatJSON,
 })
 ```
 
@@ -38,7 +38,7 @@ logger.Info("user login",
     slog.Int("user_id", 123))
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 logger.Info("user login",
     "user", "john",
@@ -52,7 +52,7 @@ logger.Info("user login",
 logger.InfoContext(ctx, "processing request")
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 logger.InfoContext(ctx, "processing request")
 ```
@@ -69,15 +69,15 @@ log.SetOutput(file)
 log.SetLevel(logrus.InfoLevel)
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
-logger, _ := flexlog.NewFlexLog()
-logger.SetLogLevel(flexlog.INFO)
-logger.AddDestination("file", flexlog.DestinationConfig{
-    Backend: flexlog.BackendFile,
+logger, _ := omni.NewOmni()
+logger.SetLogLevel(omni.INFO)
+logger.AddDestination("file", omni.DestinationConfig{
+    Backend: omni.BackendFile,
     FilePath: "app.log",
-    Format: flexlog.FormatJSON,
-    MinLevel: flexlog.INFO,
+    Format: omni.FormatJSON,
+    MinLevel: omni.INFO,
 })
 ```
 
@@ -91,7 +91,7 @@ log.WithFields(logrus.Fields{
 }).Info("User logged in")
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 logger.Info("User logged in",
     "user", "john",
@@ -105,11 +105,11 @@ logger.Info("User logged in",
 log.AddHook(customHook)
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 // Implement as a custom destination
-logger.AddDestination("custom", flexlog.DestinationConfig{
-    Backend: flexlog.BackendCustom,
+logger.AddDestination("custom", omni.DestinationConfig{
+    Backend: omni.BackendCustom,
     CustomWriter: customWriter,
 })
 ```
@@ -125,13 +125,13 @@ defer logger.Sync()
 sugar := logger.Sugar()
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
-config := flexlog.Config{
-    DefaultLevel: flexlog.INFO,
-    DefaultFormat: flexlog.FormatJSON,
+config := omni.Config{
+    DefaultLevel: omni.INFO,
+    DefaultFormat: omni.FormatJSON,
 }
-logger, _ := flexlog.NewFlexLogWithConfig(config)
+logger, _ := omni.NewOmniWithConfig(config)
 defer logger.Close()
 ```
 
@@ -145,7 +145,7 @@ logger.Info("failed to fetch URL",
     zap.Duration("backoff", time.Second))
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 logger.Info("failed to fetch URL",
     "url", url,
@@ -163,12 +163,12 @@ logger.With(
 ).Info("logged in")
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 // Use lazy evaluation for expensive operations
 logger.Info("logged in",
     "user", username,
-    "expensive_data", flexlog.Lazy(func() interface{} {
+    "expensive_data", omni.Lazy(func() interface{} {
         return computeExpensiveData()
     }))
 ```
@@ -183,13 +183,13 @@ zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
-logger, _ := flexlog.NewFlexLog()
-logger.AddDestination("stdout", flexlog.DestinationConfig{
-    Backend: flexlog.BackendFile,
+logger, _ := omni.NewOmni()
+logger.AddDestination("stdout", omni.DestinationConfig{
+    Backend: omni.BackendFile,
     FilePath: "/dev/stdout",
-    Format: flexlog.FormatJSON,
+    Format: omni.FormatJSON,
 })
 ```
 
@@ -203,7 +203,7 @@ logger.Info().
     Msg("User logged in")
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 logger.Info("User logged in",
     "user", "john", 
@@ -217,10 +217,10 @@ logger.Info("User logged in",
 sampled := logger.Sample(&zerolog.BasicSampler{N: 10})
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
-config := flexlog.Config{
-    Sampling: flexlog.SamplingConfig{
+config := omni.Config{
+    Sampling: omni.SamplingConfig{
         Enabled: true,
         Rate: 0.1, // 10%
     },
@@ -238,13 +238,13 @@ var log = logrus.New()
 var logger, _ = zap.NewProduction()
 ```
 
-**FlexLog pattern:**
+**Omni pattern:**
 ```go
-var logger *flexlog.FlexLog
+var logger *omni.Omni
 
 func init() {
     var err error
-    logger, err = flexlog.NewFlexLog()
+    logger, err = omni.NewOmni()
     if err != nil {
         panic(err)
     }
@@ -264,10 +264,10 @@ logger.SetOutput(&lumberjack.Logger{
 })
 ```
 
-**FlexLog built-in:**
+**Omni built-in:**
 ```go
-logger.AddDestination("rotating", flexlog.DestinationConfig{
-    Backend:    flexlog.BackendFile,
+logger.AddDestination("rotating", omni.DestinationConfig{
+    Backend:    omni.BackendFile,
     FilePath:   "/var/log/myapp.log",
     MaxSize:    100 * 1024 * 1024, // bytes
     MaxBackups: 3,
@@ -284,14 +284,14 @@ multi := io.MultiWriter(file, os.Stdout)
 logger.SetOutput(multi)
 ```
 
-**FlexLog native:**
+**Omni native:**
 ```go
-logger.AddDestination("file", flexlog.DestinationConfig{
-    Backend: flexlog.BackendFile,
+logger.AddDestination("file", omni.DestinationConfig{
+    Backend: omni.BackendFile,
     FilePath: "app.log",
 })
-logger.AddDestination("stdout", flexlog.DestinationConfig{
-    Backend: flexlog.BackendFile,
+logger.AddDestination("stdout", omni.DestinationConfig{
+    Backend: omni.BackendFile,
     FilePath: "/dev/stdout",
 })
 ```
@@ -305,7 +305,7 @@ if err != nil {
 }
 ```
 
-**FlexLog:**
+**Omni:**
 ```go
 if err != nil {
     logger.Error("Operation failed", "error", err)
@@ -324,16 +324,16 @@ type MockLogger struct {
     LastEntry *logrus.Entry
 }
 
-// FlexLog
-testLogger, _ := flexlog.NewFlexLog()
-testLogger.AddDestination("memory", flexlog.DestinationConfig{
-    Backend: flexlog.BackendMemory, // For testing
+// Omni
+testLogger, _ := omni.NewOmni()
+testLogger.AddDestination("memory", omni.DestinationConfig{
+    Backend: omni.BackendMemory, // For testing
 })
 ```
 
 ## Feature Comparison
 
-| Feature | logrus | zap | zerolog | slog | FlexLog |
+| Feature | logrus | zap | zerolog | slog | Omni |
 |---------|--------|-----|---------|------|---------|
 | Structured Logging | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Multiple Outputs | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -348,11 +348,11 @@ testLogger.AddDestination("memory", flexlog.DestinationConfig{
 
 ## Migration Checklist
 
-1. **Dependencies**: Replace old logger imports with `github.com/wayneeseguin/flexlog`
-2. **Initialization**: Update logger creation to use FlexLog constructors
-3. **Configuration**: Convert logger configuration to FlexLog Config struct
+1. **Dependencies**: Replace old logger imports with `github.com/wayneeseguin/omni`
+2. **Initialization**: Update logger creation to use Omni constructors
+3. **Configuration**: Convert logger configuration to Omni Config struct
 4. **Log Calls**: Update log method calls (usually minor syntax changes)
-5. **Outputs**: Convert output configuration to FlexLog destinations
+5. **Outputs**: Convert output configuration to Omni destinations
 6. **Testing**: Update test mocks and assertions
 7. **Cleanup**: Ensure `defer logger.Close()` is called
 

@@ -1,6 +1,6 @@
-# NATS Backend Plugin for FlexLog
+# NATS Backend Plugin for Omni
 
-The NATS backend plugin enables FlexLog to send logs to NATS messaging servers, providing distributed logging capabilities for microservices and cloud-native applications.
+The NATS backend plugin enables Omni to send logs to NATS messaging servers, providing distributed logging capabilities for microservices and cloud-native applications.
 
 ## Features
 
@@ -15,7 +15,7 @@ The NATS backend plugin enables FlexLog to send logs to NATS messaging servers, 
 ## Installation
 
 ```bash
-go get github.com/wayneeseguin/flexlog
+go get github.com/wayneeseguin/omni
 go get github.com/nats-io/nats.go
 ```
 
@@ -25,12 +25,12 @@ go get github.com/nats-io/nats.go
 
 ```go
 import (
-    "github.com/wayneeseguin/flexlog"
-    _ "github.com/wayneeseguin/flexlog/examples/plugins/nats-backend"
+    "github.com/wayneeseguin/omni"
+    _ "github.com/wayneeseguin/omni/examples/plugins/nats-backend"
 )
 
 func main() {
-    logger := flexlog.New()
+    logger := omni.New()
     defer logger.CloseAll()
     
     // Add NATS destination
@@ -213,7 +213,7 @@ Monitor NATS plugin performance:
 ```go
 // Get destination metrics
 for _, dest := range logger.GetDestinations() {
-    if dest.Backend == flexlog.BackendPlugin {
+    if dest.Backend == omni.BackendPlugin {
         metrics := dest.GetMetrics()
         log.Printf("Messages sent: %d", metrics.WriteCount)
         log.Printf("Bytes written: %d", metrics.BytesWritten)

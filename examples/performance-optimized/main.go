@@ -7,19 +7,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
 	// Create a performance-optimized logger with batching enabled
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("performance.log"),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),                                                         // JSON format for better performance parsing
-		flexlog.WithDefaultBatching(),                                              // Enable batching with default settings (64KB, 100 entries, 100ms)
-		flexlog.WithChannelSize(10000),                                             // Large channel buffer for high throughput
-		flexlog.WithRotation(100*1024*1024, 5),                                    // 100MB files, keep 5
-		flexlog.WithGzipCompression(),                                              // Compress old files
+	logger, err := omni.NewWithOptions(
+		omni.WithPath("performance.log"),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),                                                         // JSON format for better performance parsing
+		omni.WithDefaultBatching(),                                              // Enable batching with default settings (64KB, 100 entries, 100ms)
+		omni.WithChannelSize(10000),                                             // Large channel buffer for high throughput
+		omni.WithRotation(100*1024*1024, 5),                                    // 100MB files, keep 5
+		omni.WithGzipCompression(),                                              // Compress old files
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -88,7 +88,7 @@ func main() {
 	log.Printf("Test 3: Demonstrating level filtering performance")
 
 	// Test with TRACE level enabled (more expensive)
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 	start = time.Now()
 
 	for i := 0; i < 5000; i++ {
@@ -102,7 +102,7 @@ func main() {
 	withTrace := time.Since(start)
 
 	// Test with INFO level (filtered TRACE/DEBUG)
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 	start = time.Now()
 
 	for i := 0; i < 5000; i++ {
@@ -126,7 +126,7 @@ func main() {
 	runtime.GC()
 	runtime.ReadMemStats(&m1)
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 	for i := 0; i < 1000; i++ {
 		logger.TraceWithFields("Memory test", map[string]interface{}{
 			"iteration": i,
@@ -145,11 +145,11 @@ func main() {
 	log.Printf("Test 5: Batching performance comparison")
 	
 	// Test without batching first (create new logger)
-	nonBatchLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("performance-nobatch.log"),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(10000),
+	nonBatchLogger, err := omni.NewWithOptions(
+		omni.WithPath("performance-nobatch.log"),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
+		omni.WithChannelSize(10000),
 	)
 	if err != nil {
 		log.Printf("Error creating non-batch logger: %v", err)

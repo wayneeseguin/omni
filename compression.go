@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"compress/gzip"
@@ -18,9 +18,9 @@ import (
 //
 // Example:
 //
-//	logger.SetCompression(flexlog.CompressionGzip)  // Enable gzip compression
-//	logger.SetCompression(flexlog.CompressionNone)  // Disable compression
-func (f *FlexLog) SetCompression(compressionType int) error {
+//	logger.SetCompression(omni.CompressionGzip)  // Enable gzip compression
+//	logger.SetCompression(omni.CompressionNone)  // Disable compression
+func (f *Omni) SetCompression(compressionType int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -51,7 +51,7 @@ func (f *FlexLog) SetCompression(compressionType int) error {
 // Example:
 //
 //	logger.SetCompressMinAge(3)  // Compress files after 3 rotations
-func (f *FlexLog) SetCompressMinAge(age int) {
+func (f *Omni) SetCompressMinAge(age int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.compressMinAge = age
@@ -66,7 +66,7 @@ func (f *FlexLog) SetCompressMinAge(age int) {
 // Example:
 //
 //	logger.SetCompressWorkers(4)  // Use 4 workers for parallel compression
-func (f *FlexLog) SetCompressWorkers(workers int) {
+func (f *Omni) SetCompressWorkers(workers int) {
 	if workers < 1 {
 		workers = 1
 	}
@@ -89,7 +89,7 @@ func (f *FlexLog) SetCompressWorkers(workers int) {
 // startCompressionWorkers starts background goroutines for compression.
 // This method is called automatically when compression is enabled.
 // The workers process files from the compression queue in parallel.
-func (f *FlexLog) startCompressionWorkers() {
+func (f *Omni) startCompressionWorkers() {
 	// Create channel for compression jobs
 	f.compressCh = make(chan string, 100)
 
@@ -109,7 +109,7 @@ func (f *FlexLog) startCompressionWorkers() {
 
 // stopCompressionWorkers stops the compression goroutines.
 // It closes the compression channel and waits for all workers to finish.
-func (f *FlexLog) stopCompressionWorkers() {
+func (f *Omni) stopCompressionWorkers() {
 	if f.compressCh != nil {
 		close(f.compressCh)
 		f.compressWg.Wait()
@@ -125,7 +125,7 @@ func (f *FlexLog) stopCompressionWorkers() {
 //
 // Returns:
 //   - error: Any error encountered during compression
-func (f *FlexLog) compressFile(path string) error {
+func (f *Omni) compressFile(path string) error {
 	if f.compression == int(CompressionNone) {
 		return nil
 	}
@@ -146,7 +146,7 @@ func (f *FlexLog) compressFile(path string) error {
 //
 // Returns:
 //   - error: Any error encountered during compression
-func (f *FlexLog) compressFileGzip(path string) error {
+func (f *Omni) compressFileGzip(path string) error {
 	// Check if file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil // file doesn't exist, nothing to compress
@@ -225,7 +225,7 @@ func (f *FlexLog) compressFileGzip(path string) error {
 //
 // Parameters:
 //   - path: Path to the file to queue for compression
-func (f *FlexLog) queueForCompression(path string) {
+func (f *Omni) queueForCompression(path string) {
 	if f.compression != int(CompressionNone) && f.compressCh != nil {
 		select {
 		case f.compressCh <- path:

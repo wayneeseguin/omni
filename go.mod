@@ -1,4 +1,4 @@
-module github.com/wayneeseguin/flexlog
+module github.com/wayneeseguin/omni
 
 go 1.23.0
 

@@ -5,7 +5,7 @@ all: lint test build
 
 # Build the library
 build:
-	@echo "Building flexlog..."
+	@echo "Building omni..."
 	@go build -v ./...
 
 # Run tests

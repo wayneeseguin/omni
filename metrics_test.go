@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"os"
@@ -70,8 +70,8 @@ func TestMetricsDroppedMessages(t *testing.T) {
 	logFile := filepath.Join(dir, "test.log")
 
 	// Set a very small channel size to force drops
-	os.Setenv("FLEXLOG_CHANNEL_SIZE", "1")
-	defer os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
+	os.Setenv("OMNI_CHANNEL_SIZE", "1")
+	defer os.Unsetenv("OMNI_CHANNEL_SIZE")
 
 	logger, err := New(logFile)
 	if err != nil {

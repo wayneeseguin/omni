@@ -1,15 +1,15 @@
-package flexlog
+package omni
 
 import (
 	"time"
 )
 
-// Option is a functional option for configuring FlexLog.
+// Option is a functional option for configuring Omni.
 // Options provide a clean, extensible way to configure logger instances
 // using the functional options pattern.
 type Option func(*Config) error
 
-// NewWithOptions creates a new FlexLog instance with the provided options.
+// NewWithOptions creates a new Omni instance with the provided options.
 // This is an alternative to NewWithConfig that uses functional options
 // for a more ergonomic API.
 //
@@ -17,19 +17,19 @@ type Option func(*Config) error
 //   - options: Variable number of Option functions
 //
 // Returns:
-//   - *FlexLog: The configured logger instance
+//   - *Omni: The configured logger instance
 //   - error: Configuration or initialization error
 //
 // Example:
 //
-//	logger, err := flexlog.NewWithOptions(
-//	    flexlog.WithPath("/var/log/app.log"),
-//	    flexlog.WithLevel(flexlog.LevelInfo),
-//	    flexlog.WithJSON(),
-//	    flexlog.WithRotation(100*1024*1024, 10),
-//	    flexlog.WithGzipCompression(),
+//	logger, err := omni.NewWithOptions(
+//	    omni.WithPath("/var/log/app.log"),
+//	    omni.WithLevel(omni.LevelInfo),
+//	    omni.WithJSON(),
+//	    omni.WithRotation(100*1024*1024, 10),
+//	    omni.WithGzipCompression(),
 //	)
-func NewWithOptions(options ...Option) (*FlexLog, error) {
+func NewWithOptions(options ...Option) (*Omni, error) {
 	// Start with default config
 	config := &Config{
 		Level:           LevelInfo,
@@ -67,7 +67,7 @@ func NewWithOptions(options ...Option) (*FlexLog, error) {
 func WithPath(path string) Option {
 	return func(c *Config) error {
 		if path == "" {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "path cannot be empty")
 		}
 		c.Path = path
@@ -86,7 +86,7 @@ func WithPath(path string) Option {
 func WithLevel(level int) Option {
 	return func(c *Config) error {
 		if level < LevelTrace || level > LevelError {
-			return NewFlexLogError(ErrCodeInvalidLevel, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidLevel, "config", "", nil).
 				WithContext("level", level)
 		}
 		c.Level = level
@@ -105,7 +105,7 @@ func WithLevel(level int) Option {
 func WithFormat(format int) Option {
 	return func(c *Config) error {
 		if format != FormatText && format != FormatJSON {
-			return NewFlexLogError(ErrCodeInvalidFormat, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidFormat, "config", "", nil).
 				WithContext("format", format)
 		}
 		c.Format = format
@@ -142,7 +142,7 @@ func WithText() Option {
 func WithChannelSize(size int) Option {
 	return func(c *Config) error {
 		if size <= 0 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("channelSize", size)
 		}
 		c.ChannelSize = size
@@ -225,7 +225,7 @@ func WithStackTrace(size int) Option {
 func WithSampling(strategy int, rate float64) Option {
 	return func(c *Config) error {
 		if rate < 0 || rate > 1 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("samplingRate", rate).
 				WithContext("error", "rate must be between 0 and 1")
 		}
@@ -259,7 +259,7 @@ func WithRateSampling(rate float64) Option {
 func WithFilter(filter FilterFunc) Option {
 	return func(c *Config) error {
 		if filter == nil {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "filter cannot be nil")
 		}
 		if c.Filters == nil {
@@ -295,7 +295,7 @@ func WithLevelFilter(minLevel int) Option {
 func WithErrorHandler(handler ErrorHandler) Option {
 	return func(c *Config) error {
 		if handler == nil {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "error handler cannot be nil")
 		}
 		c.ErrorHandler = handler
@@ -314,7 +314,7 @@ func WithErrorHandler(handler ErrorHandler) Option {
 func WithMaxAge(duration time.Duration) Option {
 	return func(c *Config) error {
 		if duration < 0 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("maxAge", duration).
 				WithContext("error", "duration cannot be negative")
 		}
@@ -334,7 +334,7 @@ func WithMaxAge(duration time.Duration) Option {
 func WithCleanupInterval(interval time.Duration) Option {
 	return func(c *Config) error {
 		if interval <= 0 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("cleanupInterval", interval).
 				WithContext("error", "interval must be positive")
 		}
@@ -354,7 +354,7 @@ func WithCleanupInterval(interval time.Duration) Option {
 func WithTimezone(tz *time.Location) Option {
 	return func(c *Config) error {
 		if tz == nil {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "timezone cannot be nil")
 		}
 		c.FormatOptions.TimeZone = tz
@@ -386,7 +386,7 @@ func WithUTC() Option {
 func WithTimestampFormat(format string) Option {
 	return func(c *Config) error {
 		if format == "" {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "timestamp format cannot be empty")
 		}
 		c.FormatOptions.TimestampFormat = format
@@ -447,11 +447,11 @@ func WithRedaction(patterns []string, replacement string) Option {
 func WithBatchProcessing(maxSize, maxCount int, flushInterval time.Duration) Option {
 	return func(c *Config) error {
 		if maxSize <= 0 || maxCount <= 0 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "batch size and count must be positive")
 		}
 		if flushInterval < 0 {
-			return NewFlexLogError(ErrCodeInvalidConfig, "config", "", nil).
+			return NewOmniError(ErrCodeInvalidConfig, "config", "", nil).
 				WithContext("error", "flush interval cannot be negative")
 		}
 		c.EnableBatching = true

@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ type LogError struct {
 // Example:
 //
 //	emailHandler := func(err LogError) {
-//	    if err.Level >= flexlog.ErrorLevelHigh {
+//	    if err.Level >= omni.ErrorLevelHigh {
 //	        sendEmail("admin@example.com", "Logging Error", err.Error())
 //	    }
 //	}
@@ -62,10 +62,10 @@ func (le LogError) Error() string {
 //
 // Example:
 //
-//	logger.SetErrorHandler(flexlog.StderrErrorHandler)  // Log errors to stderr
-//	logger.SetErrorHandler(flexlog.SilentErrorHandler)  // Suppress error output
+//	logger.SetErrorHandler(omni.StderrErrorHandler)  // Log errors to stderr
+//	logger.SetErrorHandler(omni.SilentErrorHandler)  // Suppress error output
 //	logger.SetErrorHandler(customHandler)               // Use custom handler
-func (f *FlexLog) SetErrorHandler(handler ErrorHandler) {
+func (f *Omni) SetErrorHandler(handler ErrorHandler) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.errorHandler = handler
@@ -76,7 +76,7 @@ func (f *FlexLog) SetErrorHandler(handler ErrorHandler) {
 //
 // Returns:
 //   - uint64: Total number of errors since logger creation
-func (f *FlexLog) GetErrorCount() uint64 {
+func (f *Omni) GetErrorCount() uint64 {
 	return atomic.LoadUint64(&f.errorCount)
 }
 
@@ -94,7 +94,7 @@ func (f *FlexLog) GetErrorCount() uint64 {
 //	        fmt.Printf("Logging error: %v\n", err)
 //	    }
 //	}()
-func (f *FlexLog) GetErrors() <-chan LogError {
+func (f *Omni) GetErrors() <-chan LogError {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -115,7 +115,7 @@ func (f *FlexLog) GetErrors() <-chan LogError {
 //   - message: Human-readable error message
 //   - err: The underlying error (can be nil)
 //   - level: The error severity level
-func (f *FlexLog) logError(source string, destination string, message string, err error, level ErrorLevel) {
+func (f *Omni) logError(source string, destination string, message string, err error, level ErrorLevel) {
 	// Always increment error count
 	atomic.AddUint64(&f.errorCount, 1)
 
@@ -189,8 +189,8 @@ func SilentErrorHandler(err LogError) {
 //
 // Example:
 //
-//	errChan := make(chan flexlog.LogError, 100)
-//	logger.SetErrorHandler(flexlog.ChannelErrorHandler(errChan))
+//	errChan := make(chan omni.LogError, 100)
+//	logger.SetErrorHandler(omni.ChannelErrorHandler(errChan))
 func ChannelErrorHandler(ch chan<- LogError) ErrorHandler {
 	return func(err LogError) {
 		select {
@@ -213,9 +213,9 @@ func ChannelErrorHandler(ch chan<- LogError) ErrorHandler {
 //
 // Example:
 //
-//	handler := flexlog.MultiErrorHandler(
-//	    flexlog.StderrErrorHandler,
-//	    flexlog.ChannelErrorHandler(errChan),
+//	handler := omni.MultiErrorHandler(
+//	    omni.StderrErrorHandler,
+//	    omni.ChannelErrorHandler(errChan),
 //	    customAlertHandler,
 //	)
 //	logger.SetErrorHandler(handler)
@@ -242,9 +242,9 @@ func MultiErrorHandler(handlers ...ErrorHandler) ErrorHandler {
 // Example:
 //
 //	// Only handle high and critical errors
-//	handler := flexlog.ThresholdErrorHandler(
-//	    flexlog.ErrorLevelHigh,
-//	    flexlog.StderrErrorHandler,
+//	handler := omni.ThresholdErrorHandler(
+//	    omni.ErrorLevelHigh,
+//	    omni.StderrErrorHandler,
 //	)
 //	logger.SetErrorHandler(handler)
 func ThresholdErrorHandler(threshold ErrorLevel, handler ErrorHandler) ErrorHandler {

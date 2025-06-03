@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestRateLimiterFilterPlugin_Name(t *testing.T) {
@@ -155,18 +155,18 @@ func TestParseLevelString(t *testing.T) {
 		input    string
 		expected int
 	}{
-		{"TRACE", flexlog.LevelTrace},
-		{"trace", flexlog.LevelTrace},
-		{"DEBUG", flexlog.LevelDebug},
-		{"debug", flexlog.LevelDebug},
-		{"INFO", flexlog.LevelInfo},
-		{"info", flexlog.LevelInfo},
-		{"WARN", flexlog.LevelWarn},
-		{"warn", flexlog.LevelWarn},
-		{"WARNING", flexlog.LevelWarn},
-		{"warning", flexlog.LevelWarn},
-		{"ERROR", flexlog.LevelError},
-		{"error", flexlog.LevelError},
+		{"TRACE", omni.LevelTrace},
+		{"trace", omni.LevelTrace},
+		{"DEBUG", omni.LevelDebug},
+		{"debug", omni.LevelDebug},
+		{"INFO", omni.LevelInfo},
+		{"info", omni.LevelInfo},
+		{"WARN", omni.LevelWarn},
+		{"warn", omni.LevelWarn},
+		{"WARNING", omni.LevelWarn},
+		{"warning", omni.LevelWarn},
+		{"ERROR", omni.LevelError},
+		{"error", omni.LevelError},
 		{"INVALID", -1},
 		{"", -1},
 	}
@@ -267,7 +267,7 @@ func TestRateLimiterFilter_BasicRateLimit(t *testing.T) {
 	blocked := 0
 	
 	for i := 0; i < 10; i++ {
-		if filter(flexlog.LevelInfo, "Test message", nil) {
+		if filter(omni.LevelInfo, "Test message", nil) {
 			allowed++
 		} else {
 			blocked++
@@ -308,7 +308,7 @@ func TestRateLimiterFilter_PerLevelRateLimit(t *testing.T) {
 	errorBlocked := 0
 	
 	for i := 0; i < 8; i++ {
-		if filter(flexlog.LevelError, "Error message", nil) {
+		if filter(omni.LevelError, "Error message", nil) {
 			errorAllowed++
 		} else {
 			errorBlocked++
@@ -327,7 +327,7 @@ func TestRateLimiterFilter_PerLevelRateLimit(t *testing.T) {
 	infoAllowed := 0
 	
 	for i := 0; i < 5; i++ {
-		if filter(flexlog.LevelInfo, "Info message", nil) {
+		if filter(omni.LevelInfo, "Info message", nil) {
 			infoAllowed++
 		}
 	}
@@ -362,7 +362,7 @@ func TestRateLimiterFilter_PatternRateLimit(t *testing.T) {
 	dbBlocked := 0
 	
 	for i := 0; i < 6; i++ {
-		if filter(flexlog.LevelInfo, "Database connection failed", nil) {
+		if filter(omni.LevelInfo, "Database connection failed", nil) {
 			dbAllowed++
 		} else {
 			dbBlocked++
@@ -381,7 +381,7 @@ func TestRateLimiterFilter_PatternRateLimit(t *testing.T) {
 	otherAllowed := 0
 	
 	for i := 0; i < 5; i++ {
-		if filter(flexlog.LevelInfo, "API request succeeded", nil) {
+		if filter(omni.LevelInfo, "API request succeeded", nil) {
 			otherAllowed++
 		}
 	}
@@ -421,7 +421,7 @@ func TestRateLimiterFilter_PatternInFields(t *testing.T) {
 			"operation": "query",
 		}
 		
-		if filter(flexlog.LevelWarn, "Operation failed", fields) {
+		if filter(omni.LevelWarn, "Operation failed", fields) {
 			fieldsAllowed++
 		} else {
 			fieldsBlocked++
@@ -454,7 +454,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	// Exhaust the burst
 	allowed := 0
 	for i := 0; i < 5; i++ {
-		if filter(flexlog.LevelInfo, "Test message", nil) {
+		if filter(omni.LevelInfo, "Test message", nil) {
 			allowed++
 		}
 	}
@@ -464,7 +464,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	}
 	
 	// Should be blocked now
-	if filter(flexlog.LevelInfo, "Should be blocked", nil) {
+	if filter(omni.LevelInfo, "Should be blocked", nil) {
 		t.Error("Message should be blocked after exhausting burst")
 	}
 	
@@ -472,7 +472,7 @@ func TestRateLimiterFilter_TokenRefill(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	
 	// Should allow at least one more message
-	if !filter(flexlog.LevelInfo, "Should be allowed after refill", nil) {
+	if !filter(omni.LevelInfo, "Should be allowed after refill", nil) {
 		t.Error("Message should be allowed after token refill")
 	}
 }
@@ -520,7 +520,7 @@ func TestRateLimiterFilterIntegration(t *testing.T) {
 		minAllow int
 	}{
 		{
-			level:    flexlog.LevelInfo,
+			level:    omni.LevelInfo,
 			message:  "Normal info message",
 			fields:   nil,
 			name:     "normal info",
@@ -528,7 +528,7 @@ func TestRateLimiterFilterIntegration(t *testing.T) {
 			minAllow: 10, // Should all be allowed (high global limit)
 		},
 		{
-			level:    flexlog.LevelError,
+			level:    omni.LevelError,
 			message:  "Error occurred",
 			fields:   nil,
 			name:     "error level",
@@ -536,7 +536,7 @@ func TestRateLimiterFilterIntegration(t *testing.T) {
 			minAllow: 8, // Should hit ERROR level limit
 		},
 		{
-			level:    flexlog.LevelWarn,
+			level:    omni.LevelWarn,
 			message:  "Critical system failure",
 			fields:   nil,
 			name:     "critical pattern",
@@ -586,7 +586,7 @@ func BenchmarkRateLimiterFilter_Basic(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		filter(flexlog.LevelInfo, "Benchmark message", nil)
+		filter(omni.LevelInfo, "Benchmark message", nil)
 	}
 }
 
@@ -612,7 +612,7 @@ func BenchmarkRateLimiterFilter_WithPatterns(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		filter(flexlog.LevelInfo, "Benchmark test message", nil)
+		filter(omni.LevelInfo, "Benchmark test message", nil)
 	}
 }
 
@@ -644,6 +644,6 @@ func BenchmarkRateLimiterFilter_WithFields(b *testing.B) {
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		filter(flexlog.LevelInfo, "Benchmark message", fields)
+		filter(omni.LevelInfo, "Benchmark message", fields)
 	}
 }

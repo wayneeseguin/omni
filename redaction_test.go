@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -13,9 +13,9 @@ import (
 )
 
 // createTestRedactionLogger creates a test logger that doesn't need flock
-func createTestRedactionLogger() *FlexLog {
+func createTestRedactionLogger() *Omni {
 	// Create a minimal logger for testing redaction functionality only
-	logger := &FlexLog{
+	logger := &Omni{
 		level:        LevelInfo,
 		format:       FormatText,
 		msgChan:      make(chan LogMessage, 10),
@@ -486,12 +486,12 @@ func TestCustomPatternRedaction(t *testing.T) {
 }
 
 // createTestLogger creates a logger that writes to the provided writer for testing
-func createTestLogger(writer io.Writer) *FlexLog {
+func createTestLogger(writer io.Writer) *Omni {
 	// Create a buffered writer
 	bufWriter := bufio.NewWriter(writer)
 
 	// Create a minimal logger for testing with required fields
-	logger := &FlexLog{
+	logger := &Omni{
 		level:        LevelInfo,
 		format:       FormatText,
 		msgChan:      make(chan LogMessage, 10),

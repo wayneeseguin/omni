@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // TestNATSBackend_Integration tests the NATS backend with a real NATS server
@@ -257,7 +257,7 @@ func TestNATSBackend_JSONFormat_Integration(t *testing.T) {
 	}
 }
 
-func TestNATSBackend_WithFlexLog_Integration(t *testing.T) {
+func TestNATSBackend_WithOmni_Integration(t *testing.T) {
 	// Skip if NATS is not available
 	conn, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -271,22 +271,22 @@ func TestNATSBackend_WithFlexLog_Integration(t *testing.T) {
 		t.Fatalf("Failed to initialize plugin: %v", err)
 	}
 
-	if err := flexlog.RegisterBackendPlugin(plugin); err != nil {
+	if err := omni.RegisterBackendPlugin(plugin); err != nil {
 		t.Fatalf("Failed to register plugin: %v", err)
 	}
 
-	// Create a FlexLog instance with NATS backend
-	logger := flexlog.New()
+	// Create a Omni instance with NATS backend
+	logger := omni.New()
 	defer logger.CloseAll()
 
 	// Add NATS destination
-	if err := logger.AddDestination("nats://localhost:4222/test.flexlog"); err != nil {
+	if err := logger.AddDestination("nats://localhost:4222/test.omni"); err != nil {
 		t.Fatalf("Failed to add NATS destination: %v", err)
 	}
 
 	// Subscribe to the subject
 	messages := make(chan *nats.Msg, 10)
-	sub, err := conn.Subscribe("test.flexlog", func(msg *nats.Msg) {
+	sub, err := conn.Subscribe("test.omni", func(msg *nats.Msg) {
 		messages <- msg
 	})
 	if err != nil {

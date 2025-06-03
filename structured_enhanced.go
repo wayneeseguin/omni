@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -117,13 +117,13 @@ type StructuredLogOptions struct {
 //
 // Example:
 //
-//	logger.SetStructuredLogOptions(flexlog.StructuredLogOptions{
+//	logger.SetStructuredLogOptions(omni.StructuredLogOptions{
 //	    SortFields:     true,
 //	    MaxFieldSize:   1024,
 //	    TruncateFields: true,
 //	    RequiredFields: []string{"request_id", "user_id"},
 //	})
-func (f *FlexLog) SetStructuredLogOptions(opts StructuredLogOptions) {
+func (f *Omni) SetStructuredLogOptions(opts StructuredLogOptions) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.structuredOpts = opts
@@ -134,7 +134,7 @@ func (f *FlexLog) SetStructuredLogOptions(opts StructuredLogOptions) {
 //
 // Returns:
 //   - StructuredLogOptions: A copy of the current options
-func (f *FlexLog) GetStructuredLogOptions() StructuredLogOptions {
+func (f *Omni) GetStructuredLogOptions() StructuredLogOptions {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.structuredOpts
@@ -149,7 +149,7 @@ func (f *FlexLog) GetStructuredLogOptions() StructuredLogOptions {
 // Returns:
 //   - map[string]interface{}: The processed fields with defaults applied
 //   - error: Validation error if any field fails validation
-func (f *FlexLog) ValidateAndNormalizeFields(fields map[string]interface{}) (map[string]interface{}, error) {
+func (f *Omni) ValidateAndNormalizeFields(fields map[string]interface{}) (map[string]interface{}, error) {
 	if fields == nil {
 		fields = make(map[string]interface{})
 	}
@@ -224,7 +224,7 @@ func (f *FlexLog) ValidateAndNormalizeFields(fields map[string]interface{}) (map
 //	    "user_id":    42,
 //	})
 //	requestLogger.Info("Processing request")  // Includes request_id and user_id
-func (f *FlexLog) WithFields(fields map[string]interface{}) Logger {
+func (f *Omni) WithFields(fields map[string]interface{}) Logger {
 	// This creates a lightweight wrapper that includes fields
 	return &fieldsLogger{
 		logger: f,
@@ -246,7 +246,7 @@ func (f *FlexLog) WithFields(fields map[string]interface{}) Logger {
 //
 //	userLogger := logger.WithField("user_id", 12345)
 //	userLogger.Info("User logged in")  // Includes user_id field
-func (f *FlexLog) WithField(key string, value interface{}) Logger {
+func (f *Omni) WithField(key string, value interface{}) Logger {
 	return f.WithFields(map[string]interface{}{key: value})
 }
 
@@ -265,7 +265,7 @@ func (f *FlexLog) WithField(key string, value interface{}) Logger {
 //	if err != nil {
 //	    logger.WithError(err).Error("Database query failed")
 //	}
-func (f *FlexLog) WithError(err error) Logger {
+func (f *Omni) WithError(err error) Logger {
 	if err == nil {
 		return f
 	}
@@ -283,7 +283,7 @@ func (f *FlexLog) WithError(err error) Logger {
 // Returns:
 //   - *LogEntry: The created log entry
 //   - error: Any validation error
-func (f *FlexLog) StructuredLogEntry(level int, message string, fields map[string]interface{}) (*LogEntry, error) {
+func (f *Omni) StructuredLogEntry(level int, message string, fields map[string]interface{}) (*LogEntry, error) {
 	// Merge parent fields if this is a child logger
 	if f.parent != nil && f.parentFields != nil {
 		merged := make(map[string]interface{}, len(f.parentFields)+len(fields))
@@ -447,7 +447,7 @@ func isEmptyValue(value interface{}) bool {
 }
 
 // addMetadataFields adds standard metadata fields to the log entry
-func addMetadataFields(entry *LogEntry, logger *FlexLog) {
+func addMetadataFields(entry *LogEntry, logger *Omni) {
 	// Add hostname if configured
 	if logger.includeHostname {
 		entry.Fields["hostname"] = getHostname()

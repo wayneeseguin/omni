@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"encoding/json"
@@ -101,7 +101,7 @@ var otherPatterns = sensitivePatterns[len(sensitivePatterns)-1:]
 // Example:
 //
 //	logger.LogRequest("POST", "/api/login", headers, body)
-func (f *FlexLog) LogRequest(method, path string, headers map[string][]string, body string) {
+func (f *Omni) LogRequest(method, path string, headers map[string][]string, body string) {
 	// Format string with placeholders for all values
 	format := "%s %s"
 	args := []interface{}{method, path}
@@ -137,7 +137,7 @@ func (f *FlexLog) LogRequest(method, path string, headers map[string][]string, b
 // Example:
 //
 //	logger.LogResponse(200, responseHeaders, responseBody)
-func (f *FlexLog) LogResponse(statusCode int, headers map[string][]string, body string) {
+func (f *Omni) LogResponse(statusCode int, headers map[string][]string, body string) {
 	// Format string with placeholders for all values
 	format := "Status: %d"
 	args := []interface{}{statusCode}
@@ -169,7 +169,7 @@ func (f *FlexLog) LogResponse(statusCode int, headers map[string][]string, body 
 //
 // Returns:
 //   - string: The redacted string
-func (f *FlexLog) redactSensitive(input string) string {
+func (f *Omni) redactSensitive(input string) string {
 	return f.redactSensitiveWithLevel(input, LevelInfo)
 }
 
@@ -182,7 +182,7 @@ func (f *FlexLog) redactSensitive(input string) string {
 //
 // Returns:
 //   - string: The redacted string
-func (f *FlexLog) redactSensitiveWithLevel(input string, level int) string {
+func (f *Omni) redactSensitiveWithLevel(input string, level int) string {
 	if input == "" {
 		return input
 	}
@@ -227,7 +227,7 @@ func (f *FlexLog) redactSensitiveWithLevel(input string, level int) string {
 //
 // Parameters:
 //   - v: The value to process (can be map, slice, or other types)
-func (f *FlexLog) recursiveRedact(v interface{}) {
+func (f *Omni) recursiveRedact(v interface{}) {
 	f.recursiveRedactWithPath(v, "")
 }
 
@@ -236,7 +236,7 @@ func (f *FlexLog) recursiveRedact(v interface{}) {
 // Parameters:
 //   - v: The value to process (can be map, slice, or other types)
 //   - currentPath: The current JSON path (e.g., "user.profile")
-func (f *FlexLog) recursiveRedactWithPath(v interface{}, currentPath string) {
+func (f *Omni) recursiveRedactWithPath(v interface{}, currentPath string) {
 	switch val := v.(type) {
 	case map[string]interface{}:
 		for k, v2 := range val {
@@ -249,8 +249,30 @@ func (f *FlexLog) recursiveRedactWithPath(v interface{}, currentPath string) {
 			// Check if this specific path should be redacted
 			if f.shouldRedactPath(fieldPath) {
 				val[k] = f.getReplacementForPath(fieldPath)
+			} else if str, ok := v2.(string); ok {
+				// Apply custom redaction patterns first to string values
+				f.mu.RLock()
+				redactor := f.redactor
+				f.mu.RUnlock()
+				redacted := str
+				if redactor != nil {
+					redacted = redactor.Redact(str)
+				}
+				
+				// If no custom pattern matched but field name is sensitive, use built-in redaction
+				if redacted == str && isSensitiveKey(k) {
+					redacted = "[REDACTED]"
+				}
+				
+				// Update the value if it was redacted
+				if redacted != str {
+					val[k] = redacted
+				}
+				
+				// Continue recursively even for strings in case of nested objects
+				f.recursiveRedactWithPath(v2, fieldPath)
 			} else if isSensitiveKey(k) {
-				// Fall back to keyword-based redaction
+				// Fall back to keyword-based redaction for non-string values
 				val[k] = "[REDACTED]"
 			} else {
 				// Continue recursively
@@ -271,6 +293,17 @@ func (f *FlexLog) recursiveRedactWithPath(v interface{}, currentPath string) {
 				// Check if the array element path should be redacted
 				if f.shouldRedactPath(indexPath) || f.shouldRedactPath(wildcardPath) {
 					val[i] = f.getReplacementForPath(indexPath)
+				} else if str, ok := item.(string); ok {
+					// Apply custom redaction patterns to string values in arrays
+					f.mu.RLock()
+					redactor := f.redactor
+					f.mu.RUnlock()
+					if redactor != nil {
+						redacted := redactor.Redact(str)
+						if redacted != str {
+							val[i] = redacted
+						}
+					}
 				}
 			}
 		}
@@ -278,7 +311,7 @@ func (f *FlexLog) recursiveRedactWithPath(v interface{}, currentPath string) {
 }
 
 // shouldRedactPath checks if a specific field path should be redacted
-func (f *FlexLog) shouldRedactPath(path string) bool {
+func (f *Omni) shouldRedactPath(path string) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	
@@ -302,7 +335,7 @@ func (f *FlexLog) shouldRedactPath(path string) bool {
 }
 
 // getReplacementForPath gets the replacement text for a specific field path
-func (f *FlexLog) getReplacementForPath(path string) string {
+func (f *Omni) getReplacementForPath(path string) string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	
@@ -342,7 +375,7 @@ func matchesPath(path, pattern string) bool {
 //
 // Returns:
 //   - string: The redacted string
-func (f *FlexLog) regexRedact(input string) string {
+func (f *Omni) regexRedact(input string) string {
 	result := input
 	
 	// Apply JSON field patterns first
@@ -518,7 +551,7 @@ func (r *Redactor) ClearCache() {
 //	    `password=\S+`,           // Redact password parameters
 //	    `api_key:\s*"[^"]+"`      // Redact API keys
 //	}, "[REDACTED]")
-func (f *FlexLog) SetRedaction(patterns []string, replace string) error {
+func (f *Omni) SetRedaction(patterns []string, replace string) error {
 	redactor, err := NewRedactor(patterns, replace)
 	if err != nil {
 		return err
@@ -547,7 +580,7 @@ func (f *FlexLog) SetRedaction(patterns []string, replace string) error {
 //	    SkipLevels: []int{LevelDebug}, // Don't redact debug logs
 //	    MaxCacheSize: 5000,
 //	})
-func (f *FlexLog) SetRedactionConfig(config *RedactionConfig) {
+func (f *Omni) SetRedactionConfig(config *RedactionConfig) {
 	f.mu.Lock()
 	f.redactionConfig = config
 	f.mu.Unlock()
@@ -557,7 +590,7 @@ func (f *FlexLog) SetRedactionConfig(config *RedactionConfig) {
 //
 // Returns:
 //   - *RedactionConfig: The current redaction configuration or nil if not set
-func (f *FlexLog) GetRedactionConfig() *RedactionConfig {
+func (f *Omni) GetRedactionConfig() *RedactionConfig {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.redactionConfig
@@ -568,7 +601,7 @@ func (f *FlexLog) GetRedactionConfig() *RedactionConfig {
 // Parameters:
 //   - level: The log level to configure
 //   - enable: Whether to enable redaction for this level
-func (f *FlexLog) EnableRedactionForLevel(level int, enable bool) {
+func (f *Omni) EnableRedactionForLevel(level int, enable bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -606,7 +639,7 @@ func (f *FlexLog) EnableRedactionForLevel(level int, enable bool) {
 }
 
 // ClearRedactionCache clears the redaction cache to free memory.
-func (f *FlexLog) ClearRedactionCache() {
+func (f *Omni) ClearRedactionCache() {
 	f.mu.RLock()
 	redactor := f.redactor
 	f.mu.RUnlock()
@@ -626,7 +659,7 @@ func (f *FlexLog) ClearRedactionCache() {
 //
 //	logger.AddFieldPathRule("user.profile.ssn", "[SSN-REDACTED]")
 //	logger.AddFieldPathRule("users.*.email", "[EMAIL-REDACTED]")
-func (f *FlexLog) AddFieldPathRule(path, replacement string) {
+func (f *Omni) AddFieldPathRule(path, replacement string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -649,7 +682,7 @@ func (f *FlexLog) AddFieldPathRule(path, replacement string) {
 //
 // Parameters:
 //   - path: The field path to remove
-func (f *FlexLog) RemoveFieldPathRule(path string) {
+func (f *Omni) RemoveFieldPathRule(path string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	
@@ -666,7 +699,7 @@ func (f *FlexLog) RemoveFieldPathRule(path string) {
 //
 // Returns:
 //   - []FieldPathRule: A copy of all field path rules
-func (f *FlexLog) GetFieldPathRules() []FieldPathRule {
+func (f *Omni) GetFieldPathRules() []FieldPathRule {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	
@@ -677,7 +710,7 @@ func (f *FlexLog) GetFieldPathRules() []FieldPathRule {
 }
 
 // ClearFieldPathRules removes all field path rules.
-func (f *FlexLog) ClearFieldPathRules() {
+func (f *Omni) ClearFieldPathRules() {
 	f.mu.Lock()
 	f.fieldPathRules = nil
 	f.mu.Unlock()

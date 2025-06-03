@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -33,7 +33,7 @@ const MoveLogFile = true
 // Returns:
 //   - *Destination: The created destination
 //   - error: Any error encountered during creation
-func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, error) {
+func (f *Omni) createDestination(uri string, backendType int) (*Destination, error) {
 	dest := &Destination{
 		URI:     uri,
 		Backend: backendType,
@@ -73,11 +73,11 @@ func (f *FlexLog) createDestination(uri string, backendType int) (*Destination, 
 //
 // Returns:
 //   - error: Any error encountered during setup
-func (f *FlexLog) setupFlockDestination(dest *Destination) error {
+func (f *Omni) setupFlockDestination(dest *Destination) error {
 	// Ensure directory exists
 	dir := filepath.Dir(dest.URI)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return NewFlexLogError(ErrCodeFileOpen, "mkdir", dir, err).
+		return NewOmniError(ErrCodeFileOpen, "mkdir", dir, err).
 			WithDestination(dest.Name)
 	}
 
@@ -90,10 +90,10 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 	// The OS will handle write serialization at the syscall level
 	locked, err := dest.Lock.TryRLock()
 	if err != nil {
-		return NewFlexLogError(ErrCodeFileLock, "lock", lockPath, err).
+		return NewOmniError(ErrCodeFileLock, "lock", lockPath, err).
 			WithDestination(dest.Name)
 	} else if !locked {
-		return NewFlexLogError(ErrCodeFileLock, "lock", lockPath,
+		return NewOmniError(ErrCodeFileLock, "lock", lockPath,
 			fmt.Errorf("file lock could not be acquired")).
 			WithDestination(dest.Name)
 	}
@@ -147,7 +147,7 @@ func (f *FlexLog) setupFlockDestination(dest *Destination) error {
 //
 // Returns:
 //   - error: Any error encountered during setup
-func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
+func (f *Omni) setupSyslogDestination(dest *Destination) error {
 	// Parse the URI to determine the network type and address
 	// Supported formats:
 	// - syslog:///dev/log (Unix socket)
@@ -183,7 +183,7 @@ func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
 		address:  address,
 		conn:     conn,
 		priority: 13, // default to notice priority (facility 1, severity 5)
-		tag:      "flexlog",
+		tag:      "omni",
 	}
 
 	dest.Writer = bufio.NewWriterSize(conn, defaultBufferSize)
@@ -198,7 +198,7 @@ func (f *FlexLog) setupSyslogDestination(dest *Destination) error {
 // Parameters:
 //   - dest: The destination to write to
 //   - msg: The message to write
-func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
+func (f *Omni) writeMessage(dest *Destination, msg *LogMessage) {
 	var err error
 	var bytes []byte
 
@@ -245,7 +245,7 @@ func (f *FlexLog) writeMessage(dest *Destination, msg *LogMessage) {
 }
 
 // formatMessage formats a log message based on the logger configuration
-func (f *FlexLog) formatMessage(level int, format string, args ...interface{}) ([]byte, error) {
+func (f *Omni) formatMessage(level int, format string, args ...interface{}) ([]byte, error) {
 	// Get a buffer from the pool
 	buf := GetBuffer()
 	defer PutBuffer(buf)
@@ -271,7 +271,7 @@ func (f *FlexLog) formatMessage(level int, format string, args ...interface{}) (
 }
 
 // formatEntry formats a structured log entry
-func (f *FlexLog) formatEntry(entry *LogEntry) ([]byte, error) {
+func (f *Omni) formatEntry(entry *LogEntry) ([]byte, error) {
 	// Get a buffer from the pool
 	buf := GetBuffer()
 	defer PutBuffer(buf)
@@ -354,7 +354,7 @@ func getLevelString(level int, format LevelFormat) string {
 //	if err != nil {
 //	    log.Fatal("Failed to add error log destination:", err)
 //	}
-func (f *FlexLog) AddDestination(uri string) error {
+func (f *Omni) AddDestination(uri string) error {
 	// First check if there's a plugin for this URI scheme
 	scheme := ""
 	if idx := strings.Index(uri, "://"); idx > 0 {
@@ -385,11 +385,11 @@ func (f *FlexLog) AddDestination(uri string) error {
 // Example:
 //
 //	// Add a file-based destination
-//	err := logger.AddDestinationWithBackend("/var/log/app.log", flexlog.BackendFlock)
+//	err := logger.AddDestinationWithBackend("/var/log/app.log", omni.BackendFlock)
 //
 //	// Add a syslog destination
-//	err := logger.AddDestinationWithBackend("localhost:514", flexlog.BackendSyslog)
-func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
+//	err := logger.AddDestinationWithBackend("localhost:514", omni.BackendSyslog)
+func (f *Omni) AddDestinationWithBackend(uri string, backendType int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -445,7 +445,7 @@ func (f *FlexLog) AddDestinationWithBackend(uri string, backendType int) error {
 //	if err != nil {
 //	    log.Printf("Failed to remove debug log: %v", err)
 //	}
-func (f *FlexLog) RemoveDestination(uri string) error {
+func (f *Omni) RemoveDestination(uri string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -517,7 +517,7 @@ func (f *FlexLog) RemoveDestination(uri string) error {
 //	if logger.EnableDestination("error-log") {
 //	    fmt.Println("Error logging re-enabled")
 //	}
-func (f *FlexLog) EnableDestination(name string) error {
+func (f *Omni) EnableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -548,7 +548,7 @@ func (f *FlexLog) EnableDestination(name string) error {
 //	if logger.DisableDestination("debug-log") {
 //	    fmt.Println("Debug logging temporarily disabled")
 //	}
-func (f *FlexLog) DisableDestination(name string) error {
+func (f *Omni) DisableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -579,7 +579,7 @@ func (f *FlexLog) DisableDestination(name string) error {
 //	if err != nil {
 //	    log.Printf("Error closing debug log: %v", err)
 //	}
-func (f *FlexLog) CloseDestination(name string) error {
+func (f *Omni) CloseDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -606,7 +606,7 @@ func (f *FlexLog) CloseDestination(name string) error {
 }
 
 // closeDestination closes a single destination
-func (f *FlexLog) closeDestination(dest *Destination) error {
+func (f *Omni) closeDestination(dest *Destination) error {
 	dest.mu.Lock()
 	defer dest.mu.Unlock()
 
@@ -661,7 +661,7 @@ func (f *FlexLog) closeDestination(dest *Destination) error {
 }
 
 // ListDestinations returns a list of all destinations
-func (f *FlexLog) ListDestinations() []string {
+func (f *Omni) ListDestinations() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -675,7 +675,7 @@ func (f *FlexLog) ListDestinations() []string {
 }
 
 // Flush flushes the primary destination
-func (f *FlexLog) Flush() error {
+func (f *Omni) Flush() error {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
@@ -699,7 +699,7 @@ func (f *FlexLog) Flush() error {
 //	if err := logger.FlushAll(); err != nil {
 //	    log.Printf("Warning: failed to flush all logs: %v", err)
 //	}
-func (f *FlexLog) FlushAll() error {
+func (f *Omni) FlushAll() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -720,7 +720,7 @@ func (f *FlexLog) FlushAll() error {
 
 // Sync ensures all pending log messages are written to their destinations
 // This is useful for testing or when you need to ensure all logs are written
-func (f *FlexLog) Sync() error {
+func (f *Omni) Sync() error {
 	// Don't sync if closed
 	if f.IsClosed() {
 		return nil
@@ -748,7 +748,7 @@ func (f *FlexLog) Sync() error {
 //	        log.Printf("Error closing logger: %v", err)
 //	    }
 //	}()
-func (f *FlexLog) Close() error {
+func (f *Omni) Close() error {
 	return f.CloseAll()
 }
 
@@ -778,7 +778,7 @@ func (f *FlexLog) Close() error {
 //	if err := logger.Shutdown(ctx); err != nil {
 //	    log.Printf("Logger shutdown error: %v", err)
 //	}
-func (f *FlexLog) Shutdown(ctx context.Context) error {
+func (f *Omni) Shutdown(ctx context.Context) error {
 	f.mu.Lock()
 	if f.closed {
 		f.mu.Unlock()
@@ -839,7 +839,7 @@ func (f *FlexLog) Shutdown(ctx context.Context) error {
 }
 
 // performShutdown does the actual shutdown work
-func (f *FlexLog) performShutdown() error {
+func (f *Omni) performShutdown() error {
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
@@ -897,7 +897,7 @@ func (f *FlexLog) performShutdown() error {
 //	if err := logger.CloseAll(); err != nil {
 //	    log.Printf("Error during logger shutdown: %v", err)
 //	}
-func (f *FlexLog) CloseAll() error {
+func (f *Omni) CloseAll() error {
 	// Use Shutdown with a reasonable timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -909,12 +909,12 @@ func (f *FlexLog) CloseAll() error {
 
 // AddWorker adds a worker for a destination (for testing)
 // DEPRECATED: No longer needed with single dispatcher architecture
-func (f *FlexLog) AddWorker(dest *Destination) {
+func (f *Omni) AddWorker(dest *Destination) {
 	// No-op - single dispatcher handles all destinations
 }
 
 // AddCustomDestination adds a custom destination with the provided writer (for testing)
-func (f *FlexLog) AddCustomDestination(name string, writer *bufio.Writer) *Destination {
+func (f *Omni) AddCustomDestination(name string, writer *bufio.Writer) *Destination {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -935,7 +935,7 @@ func (f *FlexLog) AddCustomDestination(name string, writer *bufio.Writer) *Desti
 }
 
 // SetDestinationName sets a destination's name (for testing)
-func (f *FlexLog) SetDestinationName(index int, name string) error {
+func (f *Omni) SetDestinationName(index int, name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -948,7 +948,7 @@ func (f *FlexLog) SetDestinationName(index int, name string) error {
 }
 
 // SetDestinationEnabled sets a destination's enabled flag (for testing)
-func (f *FlexLog) SetDestinationEnabled(index int, enabled bool) error {
+func (f *Omni) SetDestinationEnabled(index int, enabled bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -964,7 +964,7 @@ func (f *FlexLog) SetDestinationEnabled(index int, enabled bool) error {
 }
 
 // FlushDestination flushes a specific destination's buffer (for testing)
-func (f *FlexLog) FlushDestination(dest *Destination) error {
+func (f *Omni) FlushDestination(dest *Destination) error {
 	if dest == nil {
 		return fmt.Errorf("destination is nil")
 	}
@@ -980,7 +980,7 @@ func (f *FlexLog) FlushDestination(dest *Destination) error {
 // SetLogPath changes the path of the primary log file.
 // If no primary log file exists, an error will be returned.
 // This will close the current file, rename it if requested, and open a new one at the specified path.
-func (f *FlexLog) SetLogPath(newPath string, moveExistingFile bool) error {
+func (f *Omni) SetLogPath(newPath string, moveExistingFile bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

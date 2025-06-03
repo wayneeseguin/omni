@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 
 func TestContextAwareExample(t *testing.T) {
 	// Test logger creation
-	logger, err := flexlog.New("test_context.log")
+	logger, err := omni.New("test_context.log")
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestContextAwareExample(t *testing.T) {
 	}()
 
 	// Set level to TRACE to see detailed context tracking
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test handling a single request with context tracking
 	handleRequest(logger, "test-req-1")
@@ -56,12 +56,12 @@ func TestRequestHandling(t *testing.T) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "requests.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "requests.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test multiple request handling
 	requests := []string{"req-1", "req-2", "req-3"}
@@ -87,12 +87,12 @@ func TestFetchUser(t *testing.T) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "fetch_user.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "fetch_user.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test successful user fetch
 	ctx := context.WithValue(context.Background(), RequestIDKey{}, "test-fetch-1")
@@ -127,12 +127,12 @@ func TestValidatePermissions(t *testing.T) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "validate_permissions.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "validate_permissions.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test successful permission validation
 	ctx := context.WithValue(context.Background(), RequestIDKey{}, "test-perm-1")
@@ -190,12 +190,12 @@ func TestContextTimeout(t *testing.T) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "timeout.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "timeout.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test with very short timeout
 	ctx := context.WithValue(context.Background(), RequestIDKey{}, "test-timeout")
@@ -229,14 +229,14 @@ func BenchmarkHandleRequest(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
 	// Use higher log level for performance
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

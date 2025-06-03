@@ -1,19 +1,19 @@
-# FlexLog Best Practices Guide
+# Omni Best Practices Guide
 
-This guide covers best practices for using FlexLog effectively in production environments.
+This guide covers best practices for using Omni effectively in production environments.
 
 ## Logger Initialization
 
 ### DO: Initialize Once and Share
 ```go
 // Good: Create once and share across your application
-var logger *flexlog.FlexLog
+var logger *omni.Omni
 
 func init() {
     var err error
-    logger, err = flexlog.NewBuilder().
+    logger, err = omni.NewBuilder().
         WithPath("/var/log/app.log").
-        WithLevel(flexlog.LevelInfo).
+        WithLevel(omni.LevelInfo).
         WithJSON().
         WithRotation(100*1024*1024, 10).
         Build()
@@ -27,7 +27,7 @@ func init() {
 ```go
 // Bad: Creating new loggers for each operation
 func handleRequest() {
-    logger, _ := flexlog.New("/var/log/app.log")
+    logger, _ := omni.New("/var/log/app.log")
     defer logger.Close()
     logger.Info("Processing request")
 }
@@ -38,7 +38,7 @@ func handleRequest() {
 ### Always Defer Close
 ```go
 // Good: Ensure proper cleanup
-logger, err := flexlog.New("/var/log/app.log")
+logger, err := omni.New("/var/log/app.log")
 if err != nil {
     return err
 }
@@ -48,7 +48,7 @@ defer logger.Close()
 ### Graceful Shutdown
 ```go
 // Good: Use context for graceful shutdown
-func shutdown(logger *flexlog.FlexLog) {
+func shutdown(logger *omni.Omni) {
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
     
@@ -63,7 +63,7 @@ func shutdown(logger *flexlog.FlexLog) {
 ### Set Up Error Handlers
 ```go
 // Good: Handle logging errors gracefully
-logger.SetErrorHandler(func(err flexlog.LogError) {
+logger.SetErrorHandler(func(err omni.LogError) {
     // Send to monitoring system
     metrics.IncrementCounter("logging.errors", map[string]string{
         "level": err.Level,
@@ -80,10 +80,10 @@ logger.SetErrorHandler(func(err flexlog.LogError) {
 ```go
 // Good: Handle specific error types
 if err := logger.AddDestination("/var/log/backup.log"); err != nil {
-    if flexlog.IsFileError(err) {
+    if omni.IsFileError(err) {
         // Handle file permission issues
         return fmt.Errorf("check file permissions: %w", err)
-    } else if flexlog.IsConfigError(err) {
+    } else if omni.IsConfigError(err) {
         // Handle configuration issues
         return fmt.Errorf("invalid configuration: %w", err)
     }
@@ -155,26 +155,26 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 ### Use Appropriate Log Levels
 ```go
 // Good: Use debug/trace for development, info and above for production
-if logger.IsLevelEnabled(flexlog.LevelDebug) {
+if logger.IsLevelEnabled(omni.LevelDebug) {
     logger.WithField("payload", request.Body).Debug("Request payload")
 }
 
 // Production configuration
-logger.SetLevel(flexlog.LevelInfo)
+logger.SetLevel(omni.LevelInfo)
 ```
 
 ### Enable Sampling for High-Volume Logs
 ```go
 // Good: Sample non-critical logs
 logger.EnableLevelBasedSampling(map[int]float64{
-    flexlog.LevelDebug: 0.01,  // 1% of debug logs
-    flexlog.LevelInfo:  0.1,   // 10% of info logs
-    flexlog.LevelWarn:  1.0,   // 100% of warnings
-    flexlog.LevelError: 1.0,   // 100% of errors
+    omni.LevelDebug: 0.01,  // 1% of debug logs
+    omni.LevelInfo:  0.1,   // 10% of info logs
+    omni.LevelWarn:  1.0,   // 100% of warnings
+    omni.LevelError: 1.0,   // 100% of errors
 })
 
 // For specific patterns
-logger.EnablePatternBasedSampling([]flexlog.PatternSamplingRule{
+logger.EnablePatternBasedSampling([]omni.PatternSamplingRule{
     {
         Pattern: "health check",
         Rate:    0.001, // Sample 0.1% of health checks
@@ -186,10 +186,10 @@ logger.EnablePatternBasedSampling([]flexlog.PatternSamplingRule{
 ```go
 // Good: Adjust buffer size based on load
 // For high-throughput applications
-export FLEXLOG_CHANNEL_SIZE=10000
+export OMNI_CHANNEL_SIZE=10000
 
 // Or in code
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
     WithChannelSize(10000).
     Build()
@@ -200,7 +200,7 @@ logger, _ := flexlog.NewBuilder().
 ### Configure Rotation Properly
 ```go
 // Good: Set appropriate rotation limits
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
     WithRotation(100*1024*1024, 10). // 100MB files, keep 10
     WithGzipCompression().            // Compress rotated files
@@ -244,11 +244,11 @@ func handleRequest(ctx context.Context) {
     traceID := extractTraceID(ctx)
     
     // Add to context
-    ctx = flexlog.WithTraceID(ctx, traceID)
-    ctx = flexlog.WithRequestID(ctx, generateRequestID())
+    ctx = omni.WithTraceID(ctx, traceID)
+    ctx = omni.WithRequestID(ctx, generateRequestID())
     
     // Log with context
-    logger.StructuredLogWithContext(ctx, flexlog.LevelInfo, 
+    logger.StructuredLogWithContext(ctx, omni.LevelInfo, 
         "Processing request", nil)
     
     // Pass context to downstream services
@@ -260,8 +260,8 @@ func handleRequest(ctx context.Context) {
 ```go
 // Good: Use context logger for automatic field inclusion
 func processUser(ctx context.Context, userID string) {
-    ctx = flexlog.WithUserID(ctx, userID)
-    ctxLogger := flexlog.NewContextLogger(logger, ctx)
+    ctx = omni.WithUserID(ctx, userID)
+    ctxLogger := omni.NewContextLogger(logger, ctx)
     
     ctxLogger.Info("Processing user") // Automatically includes user_id
     
@@ -275,9 +275,9 @@ func processUser(ctx context.Context, userID string) {
 ### Redact Sensitive Information
 ```go
 // Good: Use redaction for sensitive data
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
-    WithRedaction(flexlog.RedactionConfig{
+    WithRedaction(omni.RedactionConfig{
         Enabled: true,
         Patterns: []string{
             `\b\d{16}\b`,              // Credit card numbers
@@ -307,7 +307,7 @@ func logUserAction(user User, action string) {
 ### Use Interfaces for Testability
 ```go
 // Good: Accept logger interface
-func processOrder(logger flexlog.Logger, order Order) error {
+func processOrder(logger omni.Logger, order Order) error {
     logger.WithField("order_id", order.ID).Info("Processing order")
     // ... process order ...
     return nil
@@ -328,7 +328,7 @@ func TestProcessOrder(t *testing.T) {
 func TestLoggingBehavior(t *testing.T) {
     // Create test logger
     tmpFile := filepath.Join(t.TempDir(), "test.log")
-    logger, err := flexlog.New(tmpFile)
+    logger, err := omni.New(tmpFile)
     require.NoError(t, err)
     defer logger.Close()
     
@@ -351,18 +351,18 @@ func TestLoggingBehavior(t *testing.T) {
 ### Export Metrics
 ```go
 // Good: Expose metrics for monitoring
-func exposeMetrics(logger *flexlog.FlexLog) {
+func exposeMetrics(logger *omni.Omni) {
     http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
         metrics := logger.GetMetrics()
         
-        fmt.Fprintf(w, "# HELP flexlog_messages_total Total messages logged\n")
-        fmt.Fprintf(w, "flexlog_messages_total %d\n", metrics.TotalMessages)
+        fmt.Fprintf(w, "# HELP omni_messages_total Total messages logged\n")
+        fmt.Fprintf(w, "omni_messages_total %d\n", metrics.TotalMessages)
         
-        fmt.Fprintf(w, "# HELP flexlog_errors_total Total logging errors\n")
-        fmt.Fprintf(w, "flexlog_errors_total %d\n", metrics.ErrorCount)
+        fmt.Fprintf(w, "# HELP omni_errors_total Total logging errors\n")
+        fmt.Fprintf(w, "omni_errors_total %d\n", metrics.ErrorCount)
         
-        fmt.Fprintf(w, "# HELP flexlog_channel_usage Channel buffer usage\n")
-        fmt.Fprintf(w, "flexlog_channel_usage %f\n", metrics.ChannelUsage)
+        fmt.Fprintf(w, "# HELP omni_channel_usage Channel buffer usage\n")
+        fmt.Fprintf(w, "omni_channel_usage %f\n", metrics.ChannelUsage)
     })
 }
 ```
@@ -370,12 +370,12 @@ func exposeMetrics(logger *flexlog.FlexLog) {
 ### Set Up Alerts
 ```go
 // Good: Alert on critical conditions
-func monitorLogger(logger *flexlog.FlexLog) {
+func monitorLogger(logger *omni.Omni) {
     errorChan := logger.GetErrors()
     
     for err := range errorChan {
         // Check severity
-        if err.Severity == flexlog.ErrorLevelHigh {
+        if err.Severity == omni.ErrorLevelHigh {
             alert := Alert{
                 Title:    "Critical logging error",
                 Message:  fmt.Sprintf("%s: %v", err.Source, err.Err),
@@ -395,7 +395,7 @@ func monitorLogger(logger *flexlog.FlexLog) {
 logger.Debug(fmt.Sprintf("User data: %+v", expensiveUserDataDump()))
 
 // Good: Check level first
-if logger.IsLevelEnabled(flexlog.LevelDebug) {
+if logger.IsLevelEnabled(omni.LevelDebug) {
     logger.Debug(fmt.Sprintf("User data: %+v", expensiveUserDataDump()))
 }
 ```
@@ -420,10 +420,10 @@ logger.Info("Processed items", "count", processed)
 ### 3. Not Setting Production Defaults
 ```go
 // Bad: Using development settings in production
-logger, _ := flexlog.New("/var/log/app.log")
+logger, _ := omni.New("/var/log/app.log")
 
 // Good: Use production defaults
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
     WithProductionDefaults().
     Build()

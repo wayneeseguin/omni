@@ -1,4 +1,4 @@
-// Package main implements a rate limiter filter plugin for FlexLog
+// Package main implements a rate limiter filter plugin for Omni
 package main
 
 import (
@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // RateLimiterFilterPlugin implements the FilterPlugin interface
@@ -56,7 +56,7 @@ func (p *RateLimiterFilterPlugin) Shutdown(ctx context.Context) error {
 }
 
 // CreateFilter creates a new rate limiter filter instance
-func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (flexlog.FilterFunc, error) {
+func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (omni.FilterFunc, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -238,15 +238,15 @@ func toLower(c byte) byte {
 func parseLevelString(levelStr string) int {
 	switch levelStr {
 	case "TRACE", "trace":
-		return flexlog.LevelTrace
+		return omni.LevelTrace
 	case "DEBUG", "debug":
-		return flexlog.LevelDebug
+		return omni.LevelDebug
 	case "INFO", "info":
-		return flexlog.LevelInfo
+		return omni.LevelInfo
 	case "WARN", "warn", "WARNING", "warning":
-		return flexlog.LevelWarn
+		return omni.LevelWarn
 	case "ERROR", "error":
-		return flexlog.LevelError
+		return omni.LevelError
 	default:
 		return -1 // Invalid level
 	}
@@ -271,18 +271,18 @@ func containsPatternInFields(fields map[string]interface{}, pattern string) bool
 	return false
 }
 
-// FlexLogPlugin is the plugin entry point
-var FlexLogPlugin = &RateLimiterFilterPlugin{}
+// OmniPlugin is the plugin entry point
+var OmniPlugin = &RateLimiterFilterPlugin{}
 
 func main() {
 	// Example usage demonstrating the Rate Limiter Filter plugin
 	fmt.Println("Rate Limiter Filter Plugin")
-	fmt.Printf("Name: %s\n", FlexLogPlugin.Name())
-	fmt.Printf("Version: %s\n", FlexLogPlugin.Version())
-	fmt.Printf("Filter type: %s\n", FlexLogPlugin.FilterType())
+	fmt.Printf("Name: %s\n", OmniPlugin.Name())
+	fmt.Printf("Version: %s\n", OmniPlugin.Version())
+	fmt.Printf("Filter type: %s\n", OmniPlugin.FilterType())
 	
 	// Initialize the plugin
-	if err := FlexLogPlugin.Initialize(map[string]interface{}{}); err != nil {
+	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to initialize plugin: %v\n", err)
 		return
 	}
@@ -295,7 +295,7 @@ func main() {
 		"burst": 5.0,  // burst capacity of 5 (smaller for clearer demo)
 	}
 	
-	basicFilter, err := FlexLogPlugin.CreateFilter(basicConfig)
+	basicFilter, err := OmniPlugin.CreateFilter(basicConfig)
 	if err != nil {
 		fmt.Printf("Failed to create basic filter: %v\n", err)
 		return
@@ -307,7 +307,7 @@ func main() {
 	blocked := 0
 	
 	for i := 0; i < 10; i++ {
-		result := basicFilter(flexlog.LevelInfo, fmt.Sprintf("Message %d", i+1), nil)
+		result := basicFilter(omni.LevelInfo, fmt.Sprintf("Message %d", i+1), nil)
 		fmt.Printf("  Message %d: %v\n", i+1, result)
 		if result {
 			allowed++
@@ -342,7 +342,7 @@ func main() {
 		},
 	}
 	
-	advancedFilter, err := FlexLogPlugin.CreateFilter(advancedConfig)
+	advancedFilter, err := OmniPlugin.CreateFilter(advancedConfig)
 	if err != nil {
 		fmt.Printf("Failed to create advanced filter: %v\n", err)
 		return
@@ -354,7 +354,7 @@ func main() {
 	errorBlocked := 0
 	
 	for i := 0; i < 8; i++ {
-		result := advancedFilter(flexlog.LevelError, fmt.Sprintf("Error message %d", i+1), nil)
+		result := advancedFilter(omni.LevelError, fmt.Sprintf("Error message %d", i+1), nil)
 		fmt.Printf("  ERROR %d: %v\n", i+1, result)
 		if result {
 			errorAllowed++
@@ -371,7 +371,7 @@ func main() {
 	dbBlocked := 0
 	
 	for i := 0; i < 6; i++ {
-		result := advancedFilter(flexlog.LevelInfo, fmt.Sprintf("Database connection %d failed", i+1), nil)
+		result := advancedFilter(omni.LevelInfo, fmt.Sprintf("Database connection %d failed", i+1), nil)
 		fmt.Printf("  DB %d: %v\n", i+1, result)
 		if result {
 			dbAllowed++
@@ -394,7 +394,7 @@ func main() {
 			"user_id":   12345,
 		}
 		
-		if advancedFilter(flexlog.LevelWarn, fmt.Sprintf("Query timeout %d", i+1), fields) {
+		if advancedFilter(omni.LevelWarn, fmt.Sprintf("Query timeout %d", i+1), fields) {
 			fieldsAllowed++
 		} else {
 			fieldsBlocked++
@@ -412,7 +412,7 @@ func main() {
 	postRefillAllowed := 0
 	
 	for i := 0; i < 5; i++ {
-		if basicFilter(flexlog.LevelInfo, fmt.Sprintf("Post-refill message %d", i+1), nil) {
+		if basicFilter(omni.LevelInfo, fmt.Sprintf("Post-refill message %d", i+1), nil) {
 			postRefillAllowed++
 		}
 	}
@@ -421,7 +421,7 @@ func main() {
 	
 	// Shutdown the plugin
 	ctx := context.Background()
-	if err := FlexLogPlugin.Shutdown(ctx); err != nil {
+	if err := OmniPlugin.Shutdown(ctx); err != nil {
 		fmt.Printf("Failed to shutdown plugin: %v\n", err)
 	} else {
 		fmt.Println("\nPlugin shutdown successfully")

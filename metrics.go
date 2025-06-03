@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"sync/atomic"
@@ -64,9 +64,9 @@ type DestinationMetrics struct {
 // Example:
 //
 //	metrics := logger.GetMetrics()
-//	fmt.Printf("Messages logged: %d\n", metrics.MessagesLogged[flexlog.LevelInfo])
+//	fmt.Printf("Messages logged: %d\n", metrics.MessagesLogged[omni.LevelInfo])
 //	fmt.Printf("Queue utilization: %.2f%%\n", metrics.QueueUtilization*100)
-func (f *FlexLog) GetMetrics() LoggerMetrics {
+func (f *Omni) GetMetrics() LoggerMetrics {
 	// Collect data that requires f.mu lock
 	f.mu.RLock()
 	queueDepth := len(f.msgChan)
@@ -183,7 +183,7 @@ func (f *FlexLog) GetMetrics() LoggerMetrics {
 //
 // Note: This operation is thread-safe but may briefly impact metric collection accuracy
 // during the reset process.
-func (f *FlexLog) ResetMetrics() {
+func (f *Omni) ResetMetrics() {
 	// Get a copy of destinations to avoid holding f.mu while locking dest.mu
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
@@ -235,7 +235,7 @@ func (f *FlexLog) ResetMetrics() {
 //
 // Parameters:
 //   - level: The log level to track
-func (f *FlexLog) trackMessageLogged(level int) {
+func (f *Omni) trackMessageLogged(level int) {
 	// Use LoadOrStore to ensure the counter exists
 	val, _ := f.messagesByLevel.LoadOrStore(level, &atomic.Uint64{})
 	counter := val.(*atomic.Uint64)
@@ -244,19 +244,19 @@ func (f *FlexLog) trackMessageLogged(level int) {
 
 // trackMessageDropped increments the dropped message counter.
 // Called when a message cannot be sent to the processing channel due to backpressure.
-func (f *FlexLog) trackMessageDropped() {
+func (f *Omni) trackMessageDropped() {
 	atomic.AddUint64(&f.messagesDropped, 1)
 }
 
 // trackRotation increments the rotation counter.
 // Called when a log file is successfully rotated.
-func (f *FlexLog) trackRotation() {
+func (f *Omni) trackRotation() {
 	atomic.AddUint64(&f.rotationCount, 1)
 }
 
 // trackCompression increments the compression counter.
 // Called when a log file is successfully compressed.
-func (f *FlexLog) trackCompression() {
+func (f *Omni) trackCompression() {
 	atomic.AddUint64(&f.compressionCount, 1)
 }
 
@@ -267,7 +267,7 @@ func (f *FlexLog) trackCompression() {
 // Parameters:
 //   - bytes: Number of bytes written
 //   - duration: Time taken for the write operation
-func (f *FlexLog) trackWrite(bytes int64, duration time.Duration) {
+func (f *Omni) trackWrite(bytes int64, duration time.Duration) {
 	atomic.AddUint64(&f.bytesWritten, uint64(bytes))
 	atomic.AddUint64(&f.writeCount, 1)
 	atomic.AddInt64(&f.totalWriteTime, int64(duration))
@@ -322,11 +322,11 @@ func (dest *Destination) trackRotation() {
 //
 // Example:
 //
-//	count := logger.GetMessageCount(flexlog.LevelError)
+//	count := logger.GetMessageCount(omni.LevelError)
 //	if count > threshold {
 //	    // Alert on high error rate
 //	}
-func (f *FlexLog) GetMessageCount(level int) uint64 {
+func (f *Omni) GetMessageCount(level int) uint64 {
 	if val, ok := f.messagesByLevel.Load(level); ok {
 		if counter, ok := val.(*atomic.Uint64); ok {
 			return counter.Load()
@@ -346,7 +346,7 @@ func (f *FlexLog) GetMessageCount(level int) uint64 {
 //	if err := logger.GetLastError(); err != nil {
 //	    fmt.Printf("Last error: %v at %v\n", err.Message, err.Time)
 //	}
-func (f *FlexLog) GetLastError() *LogError {
+func (f *Omni) GetLastError() *LogError {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.lastError

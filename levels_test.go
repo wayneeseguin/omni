@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"os"
@@ -248,7 +248,7 @@ func TestChannelFullFallback(t *testing.T) {
 	// We'll create a scenario where the channel cannot accept messages
 
 	// Create a minimal logger without starting it
-	logger := &FlexLog{
+	logger := &Omni{
 		level:   LevelDebug,
 		msgChan: make(chan LogMessage, 1), // Small channel
 		closed:  false,

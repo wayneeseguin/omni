@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"errors"
@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-func TestFlexLogError_Error(t *testing.T) {
+func TestOmniError_Error(t *testing.T) {
 	tests := []struct {
 		name     string
-		err      *FlexLogError
+		err      *OmniError
 		expected string
 	}{
 		{
 			name: "error with destination",
-			err: &FlexLogError{
+			err: &OmniError{
 				Code:        ErrCodeFileWrite,
 				Op:          "write",
 				Path:        "/tmp/test.log",
@@ -27,7 +27,7 @@ func TestFlexLogError_Error(t *testing.T) {
 		},
 		{
 			name: "error without destination",
-			err: &FlexLogError{
+			err: &OmniError{
 				Code: ErrCodeFileRotate,
 				Op:   "rotate",
 				Path: "/tmp/test.log",
@@ -48,9 +48,9 @@ func TestFlexLogError_Error(t *testing.T) {
 	}
 }
 
-func TestFlexLogError_Unwrap(t *testing.T) {
+func TestOmniError_Unwrap(t *testing.T) {
 	originalErr := errors.New("original error")
-	flexErr := &FlexLogError{
+	omniErr := &OmniError{
 		Code: ErrCodeFileWrite,
 		Op:   "write",
 		Path: "/tmp/test.log",
@@ -58,29 +58,29 @@ func TestFlexLogError_Unwrap(t *testing.T) {
 		Time: time.Now(),
 	}
 
-	unwrapped := flexErr.Unwrap()
+	unwrapped := omniErr.Unwrap()
 	if unwrapped != originalErr {
 		t.Errorf("Unwrap() = %v, want %v", unwrapped, originalErr)
 	}
 }
 
-func TestFlexLogError_Is(t *testing.T) {
+func TestOmniError_Is(t *testing.T) {
 	originalErr := errors.New("original error")
-	flexErr1 := &FlexLogError{
+	omniErr1 := &OmniError{
 		Code: ErrCodeFileWrite,
 		Op:   "write",
 		Path: "/tmp/test.log",
 		Err:  originalErr,
 		Time: time.Now(),
 	}
-	flexErr2 := &FlexLogError{
+	omniErr2 := &OmniError{
 		Code: ErrCodeFileWrite,
 		Op:   "write",
 		Path: "/tmp/other.log",
 		Err:  errors.New("different error"),
 		Time: time.Now(),
 	}
-	flexErr3 := &FlexLogError{
+	omniErr3 := &OmniError{
 		Code: ErrCodeFileFlush,
 		Op:   "flush",
 		Path: "/tmp/test.log",
@@ -90,37 +90,37 @@ func TestFlexLogError_Is(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		err      *FlexLogError
+		err      *OmniError
 		target   error
 		expected bool
 	}{
 		{
 			name:     "same error code",
-			err:      flexErr1,
-			target:   flexErr2,
+			err:      omniErr1,
+			target:   omniErr2,
 			expected: true,
 		},
 		{
 			name:     "different error code",
-			err:      flexErr1,
-			target:   flexErr3,
+			err:      omniErr1,
+			target:   omniErr3,
 			expected: false,
 		},
 		{
 			name:     "underlying error match",
-			err:      flexErr1,
+			err:      omniErr1,
 			target:   originalErr,
 			expected: true,
 		},
 		{
 			name:     "nil target",
-			err:      flexErr1,
+			err:      omniErr1,
 			target:   nil,
 			expected: false,
 		},
 		{
 			name:     "different error type",
-			err:      flexErr1,
+			err:      omniErr1,
 			target:   errors.New("different"),
 			expected: false,
 		},
@@ -136,51 +136,51 @@ func TestFlexLogError_Is(t *testing.T) {
 	}
 }
 
-func TestNewFlexLogError(t *testing.T) {
+func TestNewOmniError(t *testing.T) {
 	originalErr := errors.New("test error")
-	flexErr := NewFlexLogError(ErrCodeFileWrite, "write", "/tmp/test.log", originalErr)
+	omniErr := NewOmniError(ErrCodeFileWrite, "write", "/tmp/test.log", originalErr)
 
-	if flexErr.Code != ErrCodeFileWrite {
-		t.Errorf("Code = %v, want %v", flexErr.Code, ErrCodeFileWrite)
+	if omniErr.Code != ErrCodeFileWrite {
+		t.Errorf("Code = %v, want %v", omniErr.Code, ErrCodeFileWrite)
 	}
-	if flexErr.Op != "write" {
-		t.Errorf("Op = %v, want %v", flexErr.Op, "write")
+	if omniErr.Op != "write" {
+		t.Errorf("Op = %v, want %v", omniErr.Op, "write")
 	}
-	if flexErr.Path != "/tmp/test.log" {
-		t.Errorf("Path = %v, want %v", flexErr.Path, "/tmp/test.log")
+	if omniErr.Path != "/tmp/test.log" {
+		t.Errorf("Path = %v, want %v", omniErr.Path, "/tmp/test.log")
 	}
-	if flexErr.Err != originalErr {
-		t.Errorf("Err = %v, want %v", flexErr.Err, originalErr)
+	if omniErr.Err != originalErr {
+		t.Errorf("Err = %v, want %v", omniErr.Err, originalErr)
 	}
-	if flexErr.Context == nil {
+	if omniErr.Context == nil {
 		t.Error("Context should be initialized")
 	}
-	if time.Since(flexErr.Time) > time.Second {
+	if time.Since(omniErr.Time) > time.Second {
 		t.Error("Time should be recent")
 	}
 }
 
-func TestFlexLogError_WithDestination(t *testing.T) {
-	flexErr := NewFlexLogError(ErrCodeFileWrite, "write", "/tmp/test.log", nil)
-	result := flexErr.WithDestination("test-dest")
+func TestOmniError_WithDestination(t *testing.T) {
+	omniErr := NewOmniError(ErrCodeFileWrite, "write", "/tmp/test.log", nil)
+	result := omniErr.WithDestination("test-dest")
 
-	if result != flexErr {
+	if result != omniErr {
 		t.Error("WithDestination should return the same instance")
 	}
-	if flexErr.Destination != "test-dest" {
-		t.Errorf("Destination = %v, want %v", flexErr.Destination, "test-dest")
+	if omniErr.Destination != "test-dest" {
+		t.Errorf("Destination = %v, want %v", omniErr.Destination, "test-dest")
 	}
 }
 
-func TestFlexLogError_WithContext(t *testing.T) {
-	flexErr := NewFlexLogError(ErrCodeFileWrite, "write", "/tmp/test.log", nil)
-	result := flexErr.WithContext("key", "value")
+func TestOmniError_WithContext(t *testing.T) {
+	omniErr := NewOmniError(ErrCodeFileWrite, "write", "/tmp/test.log", nil)
+	result := omniErr.WithContext("key", "value")
 
-	if result != flexErr {
+	if result != omniErr {
 		t.Error("WithContext should return the same instance")
 	}
-	if flexErr.Context["key"] != "value" {
-		t.Errorf("Context[key] = %v, want %v", flexErr.Context["key"], "value")
+	if omniErr.Context["key"] != "value" {
+		t.Errorf("Context[key] = %v, want %v", omniErr.Context["key"], "value")
 	}
 }
 
@@ -189,7 +189,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		fn       func() *FlexLogError
+		fn       func() *OmniError
 		code     ErrorCode
 		op       string
 		path     string
@@ -197,7 +197,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 	}{
 		{
 			name:     "ErrFileOpen",
-			fn:       func() *FlexLogError { return ErrFileOpen("/tmp/test.log", originalErr) },
+			fn:       func() *OmniError { return ErrFileOpen("/tmp/test.log", originalErr) },
 			code:     ErrCodeFileOpen,
 			op:       "open",
 			path:     "/tmp/test.log",
@@ -205,7 +205,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrFileWrite",
-			fn:       func() *FlexLogError { return ErrFileWrite("/tmp/test.log", originalErr) },
+			fn:       func() *OmniError { return ErrFileWrite("/tmp/test.log", originalErr) },
 			code:     ErrCodeFileWrite,
 			op:       "write",
 			path:     "/tmp/test.log",
@@ -213,7 +213,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrFileFlush",
-			fn:       func() *FlexLogError { return ErrFileFlush("/tmp/test.log", originalErr) },
+			fn:       func() *OmniError { return ErrFileFlush("/tmp/test.log", originalErr) },
 			code:     ErrCodeFileFlush,
 			op:       "flush",
 			path:     "/tmp/test.log",
@@ -221,7 +221,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrFileRotate",
-			fn:       func() *FlexLogError { return ErrFileRotate("/tmp/test.log", originalErr) },
+			fn:       func() *OmniError { return ErrFileRotate("/tmp/test.log", originalErr) },
 			code:     ErrCodeFileRotate,
 			op:       "rotate",
 			path:     "/tmp/test.log",
@@ -229,7 +229,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrChannelFull",
-			fn:       func() *FlexLogError { return NewChannelFullError("write") },
+			fn:       func() *OmniError { return NewChannelFullError("write") },
 			code:     ErrCodeChannelFull,
 			op:       "write",
 			path:     "",
@@ -237,7 +237,7 @@ func TestErrorHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "ErrDestinationNotFound",
-			fn:       func() *FlexLogError { return NewDestinationNotFoundError("test-dest") },
+			fn:       func() *OmniError { return NewDestinationNotFoundError("test-dest") },
 			code:     ErrCodeDestinationNotFound,
 			op:       "find",
 			path:     "test-dest",
@@ -293,22 +293,22 @@ func TestIsRetryable(t *testing.T) {
 		},
 		{
 			name:     "channel full error",
-			err:      NewFlexLogError(ErrCodeChannelFull, "write", "", nil),
+			err:      NewOmniError(ErrCodeChannelFull, "write", "", nil),
 			expected: true,
 		},
 		{
 			name:     "compression queue full error",
-			err:      NewFlexLogError(ErrCodeCompressionQueueFull, "compress", "", nil),
+			err:      NewOmniError(ErrCodeCompressionQueueFull, "compress", "", nil),
 			expected: true,
 		},
 		{
 			name:     "file lock error",
-			err:      NewFlexLogError(ErrCodeFileLock, "lock", "", nil),
+			err:      NewOmniError(ErrCodeFileLock, "lock", "", nil),
 			expected: true,
 		},
 		{
 			name:     "file write error",
-			err:      NewFlexLogError(ErrCodeFileWrite, "write", "", nil),
+			err:      NewOmniError(ErrCodeFileWrite, "write", "", nil),
 			expected: false,
 		},
 		{
@@ -454,8 +454,8 @@ func TestContainsHelper(t *testing.T) {
 }
 
 // Benchmark tests for error handling
-func BenchmarkFlexLogError_Error(b *testing.B) {
-	err := &FlexLogError{
+func BenchmarkOmniError_Error(b *testing.B) {
+	err := &OmniError{
 		Code:        ErrCodeFileWrite,
 		Op:          "write",
 		Path:        "/tmp/test.log",
@@ -471,7 +471,7 @@ func BenchmarkFlexLogError_Error(b *testing.B) {
 }
 
 func BenchmarkIsRetryable(b *testing.B) {
-	err := NewFlexLogError(ErrCodeChannelFull, "write", "", nil)
+	err := NewOmniError(ErrCodeChannelFull, "write", "", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"runtime"
@@ -21,12 +21,12 @@ import (
 //
 // Example:
 //
-//	logger.StructuredLog(flexlog.LevelInfo, "User action", map[string]interface{}{
+//	logger.StructuredLog(omni.LevelInfo, "User action", map[string]interface{}{
 //		"user_id": 123,
 //		"action": "login",
 //		"ip": "192.168.1.1",
 //	})
-func (f *FlexLog) StructuredLog(level int, message string, fields map[string]interface{}) {
+func (f *Omni) StructuredLog(level int, message string, fields map[string]interface{}) {
 	// Check if we should log this based on filters and sampling
 	if !f.shouldLog(level, message, fields) {
 		return
@@ -88,7 +88,7 @@ func (f *FlexLog) StructuredLog(level int, message string, fields map[string]int
 //		"params": params,
 //		"caller": "api/handler.go:42",
 //	})
-func (f *FlexLog) TraceWithFields(message string, fields map[string]interface{}) {
+func (f *Omni) TraceWithFields(message string, fields map[string]interface{}) {
 	f.StructuredLog(LevelTrace, message, fields)
 }
 
@@ -106,7 +106,7 @@ func (f *FlexLog) TraceWithFields(message string, fields map[string]interface{})
 //		"hit": true,
 //		"latency_ms": 0.5,
 //	})
-func (f *FlexLog) DebugWithFields(message string, fields map[string]interface{}) {
+func (f *Omni) DebugWithFields(message string, fields map[string]interface{}) {
 	f.StructuredLog(LevelDebug, message, fields)
 }
 
@@ -125,7 +125,7 @@ func (f *FlexLog) DebugWithFields(message string, fields map[string]interface{})
 //		"currency": "USD",
 //		"method": "credit_card",
 //	})
-func (f *FlexLog) InfoWithFields(message string, fields map[string]interface{}) {
+func (f *Omni) InfoWithFields(message string, fields map[string]interface{}) {
 	f.StructuredLog(LevelInfo, message, fields)
 }
 
@@ -143,7 +143,7 @@ func (f *FlexLog) InfoWithFields(message string, fields map[string]interface{}) 
 //		"threshold": 80.0,
 //		"process": "worker-1",
 //	})
-func (f *FlexLog) WarnWithFields(message string, fields map[string]interface{}) {
+func (f *Omni) WarnWithFields(message string, fields map[string]interface{}) {
 	f.StructuredLog(LevelWarn, message, fields)
 }
 
@@ -163,6 +163,6 @@ func (f *FlexLog) WarnWithFields(message string, fields map[string]interface{}) 
 //		"error": err.Error(),
 //		"retry_count": 3,
 //	})
-func (f *FlexLog) ErrorWithFields(message string, fields map[string]interface{}) {
+func (f *Omni) ErrorWithFields(message string, fields map[string]interface{}) {
 	f.StructuredLog(LevelError, message, fields)
 }

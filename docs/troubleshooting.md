@@ -1,6 +1,6 @@
-# FlexLog Troubleshooting Guide
+# Omni Troubleshooting Guide
 
-This guide helps you diagnose and resolve common issues with FlexLog.
+This guide helps you diagnose and resolve common issues with Omni.
 
 ## Common Issues
 
@@ -14,7 +14,7 @@ Your application seems to be running, but no logs are being written to the log f
 **A. Logger Not Properly Initialized**
 ```go
 // Check if logger was created successfully
-logger, err := flexlog.New("/var/log/app.log")
+logger, err := omni.New("/var/log/app.log")
 if err != nil {
     // This error often gets ignored
     log.Fatalf("Failed to create logger: %v", err)
@@ -27,7 +27,7 @@ if err != nil {
 fmt.Printf("Current log level: %d\n", logger.GetLevel())
 
 // If you're trying to log Debug messages but level is Info or higher
-logger.SetLevel(flexlog.LevelDebug)
+logger.SetLevel(omni.LevelDebug)
 ```
 
 **C. Channel Buffer Full**
@@ -37,23 +37,23 @@ metrics := logger.GetMetrics()
 fmt.Printf("Channel usage: %.2f%%\n", metrics.ChannelUsage * 100)
 
 // If near 100%, increase buffer size
-export FLEXLOG_CHANNEL_SIZE=10000
+export OMNI_CHANNEL_SIZE=10000
 ```
 
 **D. Logger Closed Prematurely**
 ```go
 // Bad: Logger closes immediately
 func init() {
-    logger, _ := flexlog.New("/var/log/app.log")
+    logger, _ := omni.New("/var/log/app.log")
     defer logger.Close() // Closes as soon as init() returns!
 }
 
 // Good: Close at program exit
-var logger *flexlog.FlexLog
+var logger *omni.Omni
 
 func main() {
     var err error
-    logger, err = flexlog.New("/var/log/app.log")
+    logger, err = omni.New("/var/log/app.log")
     if err != nil {
         log.Fatal(err)
     }
@@ -99,7 +99,7 @@ logPath := filepath.Join(homeDir, "logs", "app.log")
 // Ensure directory exists
 os.MkdirAll(filepath.Dir(logPath), 0755)
 
-logger, err := flexlog.New(logPath)
+logger, err := omni.New(logPath)
 ```
 
 ### 3. File Lock Errors
@@ -128,7 +128,7 @@ fuser /var/log/app.log
 // Each instance uses a different file
 instanceID := os.Getenv("INSTANCE_ID")
 logPath := fmt.Sprintf("/var/log/app-%s.log", instanceID)
-logger, _ := flexlog.New(logPath)
+logger, _ := omni.New(logPath)
 ```
 
 **C. Use Syslog Backend**
@@ -151,7 +151,7 @@ metrics := logger.GetMetrics()
 fmt.Printf("Channel capacity: %d\n", metrics.ChannelCapacity)
 
 // Use reasonable buffer size
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithChannelSize(1000). // Instead of 100000
     Build()
 ```
@@ -160,7 +160,7 @@ logger, _ := flexlog.NewBuilder().
 ```go
 // Monitor compression queue
 // If files aren't being compressed fast enough
-logger.SetCompression(flexlog.CompressionNone) // Disable temporarily
+logger.SetCompression(omni.CompressionNone) // Disable temporarily
 ```
 
 **C. Too Many Destinations**
@@ -187,7 +187,7 @@ rate := logger.GetSamplingRate()
 fmt.Printf("Sampling rate: %.2f\n", rate)
 
 // Disable sampling to see all logs
-logger.SetSampling(flexlog.SamplingNone, 0)
+logger.SetSampling(omni.SamplingNone, 0)
 ```
 
 **B. Ensure Proper Shutdown**
@@ -207,7 +207,7 @@ func cleanup() {
 **C. Check Error Handler**
 ```go
 // Set up error monitoring
-logger.SetErrorHandler(func(err flexlog.LogError) {
+logger.SetErrorHandler(func(err omni.LogError) {
     fmt.Fprintf(os.Stderr, "Logging error: %v\n", err)
 })
 ```
@@ -255,8 +255,8 @@ Log aggregation tools can't parse JSON logs.
 **A. Verify Format Setting**
 ```go
 // Check current format
-if logger.GetFormat() != flexlog.FormatJSON {
-    logger.SetFormat(flexlog.FormatJSON)
+if logger.GetFormat() != omni.FormatJSON {
+    logger.SetFormat(omni.FormatJSON)
 }
 ```
 
@@ -284,7 +284,7 @@ Logging is causing application slowdown.
 
 **1. Check Metrics**
 ```go
-func diagnosePerformance(logger *flexlog.FlexLog) {
+func diagnosePerformance(logger *omni.Omni) {
     metrics := logger.GetMetrics()
     
     fmt.Printf("Total messages: %d\n", metrics.TotalMessages)
@@ -310,12 +310,12 @@ func init() {
 **3. Optimize Configuration**
 ```go
 // For high-performance scenarios
-logger, _ := flexlog.NewBuilder().
+logger, _ := omni.NewBuilder().
     WithPath("/var/log/app.log").
     WithChannelSize(10000).
     WithBatching(100, 10*time.Millisecond).
-    WithCompression(flexlog.CompressionNone). // Compress separately
-    WithSampling(flexlog.SamplingRandom, 0.1).
+    WithCompression(omni.CompressionNone). // Compress separately
+    WithSampling(omni.SamplingRandom, 0.1).
     Build()
 ```
 
@@ -325,13 +325,13 @@ logger, _ := flexlog.NewBuilder().
 
 ```go
 // Temporary debug helper
-func debugLogger(logger *flexlog.FlexLog) {
+func debugLogger(logger *omni.Omni) {
     ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
     
     for range ticker.C {
         metrics := logger.GetMetrics()
-        log.Printf("FlexLog Debug - Messages: %d, Errors: %d, Channel: %.1f%%, Destinations: %d",
+        log.Printf("Omni Debug - Messages: %d, Errors: %d, Channel: %.1f%%, Destinations: %d",
             metrics.TotalMessages,
             metrics.ErrorCount,
             metrics.ChannelUsage * 100,
@@ -357,11 +357,11 @@ grep "trace_id.*${traceID}" /var/log/app.log
 // Minimal test case
 func testLogging() error {
     // Create temporary logger
-    tmpDir, _ := os.MkdirTemp("", "flexlog-test")
+    tmpDir, _ := os.MkdirTemp("", "omni-test")
     defer os.RemoveAll(tmpDir)
     
     logPath := filepath.Join(tmpDir, "test.log")
-    logger, err := flexlog.New(logPath)
+    logger, err := omni.New(logPath)
     if err != nil {
         return fmt.Errorf("create logger: %w", err)
     }
@@ -393,10 +393,10 @@ func testLogging() error {
 
 ### 1. Enable Verbose Error Reporting
 ```go
-logger.SetErrorHandler(func(err flexlog.LogError) {
+logger.SetErrorHandler(func(err omni.LogError) {
     // Print full error details
     fmt.Fprintf(os.Stderr, 
-        "[%s] FlexLog Error:\n"+
+        "[%s] Omni Error:\n"+
         "  Level: %s\n"+
         "  Source: %s\n"+
         "  Error: %v\n"+
@@ -430,7 +430,7 @@ df -h /path/to/logdir/
 ulimit -a
 
 # Open files
-lsof -p $(pgrep your-app) | grep -E '(log|flexlog)'
+lsof -p $(pgrep your-app) | grep -E '(log|omni)'
 ```
 
 ### 3. Create Minimal Reproduction
@@ -439,12 +439,12 @@ lsof -p $(pgrep your-app) | grep -E '(log|flexlog)'
 package main
 
 import (
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
     "log"
 )
 
 func main() {
-    logger, err := flexlog.New("/tmp/test.log")
+    logger, err := omni.New("/tmp/test.log")
     if err != nil {
         log.Fatal(err)
     }
@@ -456,11 +456,11 @@ func main() {
 ```
 
 ### 4. Check GitHub Issues
-Search existing issues: https://github.com/wayneeseguin/flexlog/issues
+Search existing issues: https://github.com/wayneeseguin/omni/issues
 
 ### 5. File a Bug Report
 Include:
-- FlexLog version
+- Omni version
 - Go version
 - Operating system
 - Minimal reproduction code

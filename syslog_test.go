@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"net"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // mockSyslogServer creates a simple mock syslog server for testing
@@ -115,7 +115,7 @@ func TestNewSyslog(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Note: This will fail to connect in most test environments
 			// We're testing the URI parsing and initialization logic
-			logger, err := flexlog.NewSyslog(tt.address, tt.tag)
+			logger, err := omni.NewSyslog(tt.address, tt.tag)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
@@ -141,7 +141,7 @@ func TestSetSyslogTag(t *testing.T) {
 	addr := server.listener.Addr().String()
 
 	// Create logger with syslog backend
-	logger, err := flexlog.NewSyslog(addr, "initial-tag")
+	logger, err := omni.NewSyslog(addr, "initial-tag")
 	if err != nil {
 		t.Fatalf("Failed to create syslog logger: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestSetSyslogTag(t *testing.T) {
 	// Find the syslog destination URI
 	var syslogURI string
 	for _, dest := range logger.Destinations {
-		if dest.Backend == flexlog.BackendSyslog {
+		if dest.Backend == omni.BackendSyslog {
 			syslogURI = dest.URI
 			break
 		}
@@ -189,7 +189,7 @@ func TestSetSyslogPriority(t *testing.T) {
 	addr := server.listener.Addr().String()
 
 	// Create logger with syslog backend
-	logger, err := flexlog.NewSyslog(addr, "test")
+	logger, err := omni.NewSyslog(addr, "test")
 	if err != nil {
 		t.Fatalf("Failed to create syslog logger: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestSetSyslogPriority(t *testing.T) {
 	// Find the syslog destination URI
 	var syslogURI string
 	for _, dest := range logger.Destinations {
-		if dest.Backend == flexlog.BackendSyslog {
+		if dest.Backend == omni.BackendSyslog {
 			syslogURI = dest.URI
 			break
 		}
@@ -275,7 +275,7 @@ func TestReconnectSyslog(t *testing.T) {
 	addr := server.listener.Addr().String()
 
 	// Create logger with syslog backend
-	logger, err := flexlog.NewSyslog(addr, "test")
+	logger, err := omni.NewSyslog(addr, "test")
 	if err != nil {
 		server.stop()
 		t.Fatalf("Failed to create syslog logger: %v", err)
@@ -347,7 +347,7 @@ func TestSyslogURIParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// We can't easily test the internal URI parsing without connecting
 			// This test mainly documents the expected behavior
-			logger, _ := flexlog.NewSyslog(tt.address, "test")
+			logger, _ := omni.NewSyslog(tt.address, "test")
 			if logger != nil {
 				logger.CloseAll()
 			}
@@ -364,11 +364,11 @@ func TestSyslogIntegration(t *testing.T) {
 		"/var/run/log",
 	}
 
-	var logger *flexlog.FlexLog
+	var logger *omni.Omni
 	var connectedPath string
 
 	for _, path := range socketPaths {
-		l, err := flexlog.NewSyslog(path, "flexlog-test")
+		l, err := omni.NewSyslog(path, "omni-test")
 		if err == nil {
 			logger = l
 			connectedPath = path
@@ -384,13 +384,13 @@ func TestSyslogIntegration(t *testing.T) {
 	t.Logf("Connected to syslog at %s", connectedPath)
 
 	// Test different log levels
-	logger.Debug("Debug message from flexlog test")
-	logger.Info("Info message from flexlog test")
-	logger.Warn("Warning message from flexlog test")
-	logger.Error("Error message from flexlog test")
+	logger.Debug("Debug message from omni test")
+	logger.Info("Info message from omni test")
+	logger.Warn("Warning message from omni test")
+	logger.Error("Error message from omni test")
 
 	// Test structured logging
-	logger.StructuredLog(flexlog.LevelInfo, "Structured log test", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "Structured log test", map[string]interface{}{
 		"component": "test",
 		"version":   "1.0",
 	})
@@ -405,14 +405,14 @@ func TestSyslogIntegration(t *testing.T) {
 func TestSyslogWithMultipleDestinations(t *testing.T) {
 	// Create a regular file destination
 	tempFile := t.TempDir() + "/test.log"
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Try to add a syslog destination (may fail if no syslog available)
-	err = logger.AddDestinationWithBackend("syslog://localhost:514", flexlog.BackendSyslog)
+	err = logger.AddDestinationWithBackend("syslog://localhost:514", omni.BackendSyslog)
 
 	// Log a message regardless of whether syslog was added
 	logger.Info("Test message to multiple destinations")
@@ -437,13 +437,13 @@ func TestSyslogErrorHandling(t *testing.T) {
 	// Test various error conditions
 
 	// Invalid address should fail
-	logger, err := flexlog.NewSyslog("", "test")
+	logger, err := omni.NewSyslog("", "test")
 	if logger != nil {
 		logger.CloseAll()
 	}
 
 	// Test with definitely unreachable address
-	logger2, err2 := flexlog.NewSyslog("255.255.255.255:514", "test")
+	logger2, err2 := omni.NewSyslog("255.255.255.255:514", "test")
 	if logger2 != nil {
 		defer logger2.CloseAll()
 

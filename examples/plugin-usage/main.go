@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
@@ -22,12 +22,12 @@ func main() {
 		log.Fatalf("Failed to initialize XML formatter plugin: %v", err)
 	}
 	
-	if err := flexlog.RegisterFormatterPlugin(xmlPlugin); err != nil {
+	if err := omni.RegisterFormatterPlugin(xmlPlugin); err != nil {
 		log.Fatalf("Failed to register XML formatter plugin: %v", err)
 	}
 	
 	// Create logger with XML formatter using builder
-	logger, err := flexlog.NewBuilder().
+	logger, err := omni.NewBuilder().
 		WithDestination("/tmp/app-xml.log").
 		WithJSON(). // Enable JSON for structured logging compatibility
 		Build()
@@ -59,14 +59,14 @@ func main() {
 		log.Fatalf("Failed to initialize Redis backend plugin: %v", err)
 	}
 	
-	if err := flexlog.RegisterBackendPlugin(redisPlugin); err != nil {
+	if err := omni.RegisterBackendPlugin(redisPlugin); err != nil {
 		log.Fatalf("Failed to register Redis backend plugin: %v", err)
 	}
 	
 	// Create logger with fallback destination
-	redisLogger, err := flexlog.NewBuilder().
+	redisLogger, err := omni.NewBuilder().
 		WithDestination("/tmp/app-fallback.log"). // Fallback destination
-		WithLevel(flexlog.LevelInfo).
+		WithLevel(omni.LevelInfo).
 		Build()
 	if err != nil {
 		log.Fatalf("Failed to create Redis logger: %v", err)
@@ -98,7 +98,7 @@ func main() {
 		log.Fatalf("Failed to initialize rate limiter filter plugin: %v", err)
 	}
 	
-	if err := flexlog.RegisterFilterPlugin(rateLimiterPlugin); err != nil {
+	if err := omni.RegisterFilterPlugin(rateLimiterPlugin); err != nil {
 		log.Fatalf("Failed to register rate limiter filter plugin: %v", err)
 	}
 	
@@ -124,10 +124,10 @@ func main() {
 	}
 	
 	// Create logger with rate limiting
-	filteredLogger, err := flexlog.NewBuilder().
+	filteredLogger, err := omni.NewBuilder().
 		WithDestination("/tmp/app-filtered.log").
 		WithFilter(filterFunc).
-		WithLevel(flexlog.LevelDebug). // Enable debug logging
+		WithLevel(omni.LevelDebug). // Enable debug logging
 		Build()
 	if err != nil {
 		log.Fatalf("Failed to create filtered logger: %v", err)
@@ -169,7 +169,7 @@ func main() {
 	fmt.Println("\n=== Example 4: Plugin Management ===")
 	
 	// List loaded plugins
-	manager := flexlog.GetPluginManager()
+	manager := omni.GetPluginManager()
 	plugins := manager.GetPluginInfo()
 	
 	fmt.Printf("Loaded plugins (%d):\n", len(plugins))
@@ -185,14 +185,14 @@ func main() {
 	fmt.Println("\n=== Example 5: Plugin Discovery ===")
 	
 	// Set plugin search paths
-	flexlog.SetPluginSearchPaths([]string{
+	omni.SetPluginSearchPaths([]string{
 		"./plugins",
-		"/usr/local/lib/flexlog/plugins",
-		os.Getenv("HOME") + "/.flexlog/plugins",
+		"/usr/local/lib/omni/plugins",
+		os.Getenv("HOME") + "/.omni/plugins",
 	})
 	
 	// Discover and load plugins (would work with actual plugin files)
-	if err := flexlog.DiscoverAndLoadPlugins(); err != nil {
+	if err := omni.DiscoverAndLoadPlugins(); err != nil {
 		fmt.Printf("Plugin discovery completed with some errors: %v\n", err)
 	} else {
 		fmt.Println("Plugin discovery completed successfully")
@@ -202,12 +202,12 @@ func main() {
 	fmt.Println("\n=== Example 6: Advanced Plugin Configuration ===")
 	
 	// Create logger with multiple features
-	advancedLogger, err := flexlog.NewBuilder().
+	advancedLogger, err := omni.NewBuilder().
 		WithDestination("/tmp/app-advanced.log").
-		WithLevel(flexlog.LevelDebug).
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		WithRotation(1024*1024, 5). // 1MB rotation, keep 5 files
-		WithCompression(flexlog.CompressionGzip, 2). // Gzip compression with 2 workers
+		WithCompression(omni.CompressionGzip, 2). // Gzip compression with 2 workers
 		WithTimestampFormat(time.RFC3339Nano).
 		Build()
 	if err != nil {
@@ -265,7 +265,7 @@ func (p *XMLFormatterPlugin) Shutdown(ctx context.Context) error {
 	return nil
 }
 func (p *XMLFormatterPlugin) FormatName() string { return "xml" }
-func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (flexlog.Formatter, error) {
+func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (omni.Formatter, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -274,7 +274,7 @@ func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (fle
 
 type MockXMLFormatter struct{}
 
-func (f *MockXMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
+func (f *MockXMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
 	// Extract message text
 	messageText := ""
 	if msg.Entry != nil && msg.Entry.Message != "" {
@@ -287,7 +287,7 @@ func (f *MockXMLFormatter) Format(msg flexlog.LogMessage) ([]byte, error) {
 	
 	// Create basic XML format
 	xml := fmt.Sprintf("<log><level>%s</level><message>%s</message><time>%s</time>",
-		flexlog.LevelName(msg.Level), messageText, msg.Timestamp.Format(time.RFC3339))
+		omni.LevelName(msg.Level), messageText, msg.Timestamp.Format(time.RFC3339))
 	
 	// Add fields if available
 	if msg.Entry != nil && msg.Entry.Fields != nil {
@@ -318,7 +318,7 @@ func (p *RedisBackendPlugin) Shutdown(ctx context.Context) error {
 	return nil
 }
 func (p *RedisBackendPlugin) SupportedSchemes() []string { return []string{"redis"} }
-func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (flexlog.Backend, error) {
+func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
@@ -353,7 +353,7 @@ func (p *RateLimiterFilterPlugin) Shutdown(ctx context.Context) error {
 	return nil
 }
 func (p *RateLimiterFilterPlugin) FilterType() string { return "rate-limiter" }
-func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (flexlog.FilterFunc, error) {
+func (p *RateLimiterFilterPlugin) CreateFilter(config map[string]interface{}) (omni.FilterFunc, error) {
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}

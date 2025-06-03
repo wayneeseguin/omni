@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"hash/fnv"
@@ -37,7 +37,7 @@ func defaultSampleKeyFunc(level int, message string, fields map[string]interface
 //	    }
 //	    return msg
 //	})
-func (f *FlexLog) SetSampleKeyFunc(keyFunc func(level int, message string, fields map[string]interface{}) string) {
+func (f *Omni) SetSampleKeyFunc(keyFunc func(level int, message string, fields map[string]interface{}) string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if keyFunc != nil {
@@ -56,7 +56,7 @@ func (f *FlexLog) SetSampleKeyFunc(keyFunc func(level int, message string, field
 //
 // Returns:
 //   - bool: true if the message should be logged, false otherwise
-func (f *FlexLog) shouldLog(level int, message string, fields map[string]interface{}) bool {
+func (f *Omni) shouldLog(level int, message string, fields map[string]interface{}) bool {
 	// Use enhanced sampling if metrics are initialized
 	if f.samplingMetrics != nil {
 		return f.shouldLogEnhanced(level, message, fields)
@@ -111,7 +111,7 @@ func (f *FlexLog) shouldLog(level int, message string, fields map[string]interfa
 //
 // Returns:
 //   - float64: The current sampling rate
-func (f *FlexLog) GetSamplingRate() float64 {
+func (f *Omni) GetSamplingRate() float64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.samplingRate
@@ -126,7 +126,7 @@ func (f *FlexLog) GetSamplingRate() float64 {
 //
 // Returns:
 //   - error: Always returns nil (kept for interface compatibility)
-func (f *FlexLog) SetSampling(strategy int, rate float64) error {
+func (f *Omni) SetSampling(strategy int, rate float64) error {
 	f.SetSamplingStrategy(SamplingStrategy(strategy), rate)
 	return nil
 }
@@ -146,9 +146,9 @@ func (f *FlexLog) SetSampling(strategy int, rate float64) error {
 //
 // Example:
 //
-//	logger.SetSamplingStrategy(flexlog.SamplingRandom, 0.1)     // Log 10% randomly
-//	logger.SetSamplingStrategy(flexlog.SamplingInterval, 100)   // Log every 100th message
-func (f *FlexLog) SetSamplingStrategy(strategy SamplingStrategy, rate float64) {
+//	logger.SetSamplingStrategy(omni.SamplingRandom, 0.1)     // Log 10% randomly
+//	logger.SetSamplingStrategy(omni.SamplingInterval, 100)   // Log every 100th message
+func (f *Omni) SetSamplingStrategy(strategy SamplingStrategy, rate float64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

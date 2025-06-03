@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // ensureNATSPluginRegistered ensures the NATS plugin is registered (helper for tests)
@@ -18,20 +18,20 @@ func ensureNATSPluginRegistered(t *testing.T) {
 	}
 
 	// Register the plugin (ignore if already registered)
-	if err := flexlog.RegisterBackendPlugin(plugin); err != nil {
+	if err := omni.RegisterBackendPlugin(plugin); err != nil {
 		if !strings.Contains(err.Error(), "already registered") {
 			t.Fatalf("Failed to register plugin: %v", err)
 		}
 	}
 }
 
-// TestMultipleNATSDestinations tests FlexLog with multiple NATS destinations
+// TestMultipleNATSDestinations tests Omni with multiple NATS destinations
 func TestMultipleNATSDestinations(t *testing.T) {
 	ensureNATSPluginRegistered(t)
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -159,7 +159,7 @@ func TestMultipleNATSDestinations(t *testing.T) {
 
 	// Test destination metrics
 	for _, dest := range dests {
-		if dest.Backend == flexlog.BackendPlugin {
+		if dest.Backend == omni.BackendPlugin {
 			t.Logf("Destination %s added successfully (Backend: %d)",
 				dest.Name,
 				dest.Backend)
@@ -172,9 +172,9 @@ func TestMultipleNATSDestinationsWithFailover(t *testing.T) {
 	ensureNATSPluginRegistered(t)
 
 	// Create logger with primary file destination
-	logger, err := flexlog.NewBuilder().
-		WithDestination("/tmp/flexlog-nats-test.log").
-		WithLevel(flexlog.LevelInfo).
+	logger, err := omni.NewBuilder().
+		WithDestination("/tmp/omni-nats-test.log").
+		WithLevel(omni.LevelInfo).
 		Build()
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -224,11 +224,11 @@ func TestNATSDestinationRouting(t *testing.T) {
 	ensureNATSPluginRegistered(t)
 
 	// Create multiple loggers for different purposes
-	loggers := make(map[string]*flexlog.FlexLog)
+	loggers := make(map[string]*omni.Omni)
 
 	// Application logger - routes to different subjects by level
-	appLogger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	appLogger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -237,8 +237,8 @@ func TestNATSDestinationRouting(t *testing.T) {
 	loggers["app"] = appLogger
 
 	// Audit logger - dedicated for audit events
-	auditLogger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	auditLogger, err := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -247,8 +247,8 @@ func TestNATSDestinationRouting(t *testing.T) {
 	loggers["audit"] = auditLogger
 
 	// Metrics logger - for performance metrics
-	metricsLogger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	metricsLogger, err := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -360,7 +360,7 @@ func TestNATSDestinationRouting(t *testing.T) {
 		t.Logf("\nLogger: %s", name)
 		dests := logger.Destinations
 		for _, dest := range dests {
-			if dest.Backend == flexlog.BackendPlugin {
+			if dest.Backend == omni.BackendPlugin {
 				t.Logf("  - %s: Backend=%d, Enabled=%t",
 					dest.URI,
 					dest.Backend,
@@ -375,8 +375,8 @@ func TestNATSSubjectHierarchy(t *testing.T) {
 	ensureNATSPluginRegistered(t)
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -436,8 +436,8 @@ func TestNATSPerformanceWithMultipleDestinations(t *testing.T) {
 	ensureNATSPluginRegistered(t)
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -497,7 +497,7 @@ func TestNATSPerformanceWithMultipleDestinations(t *testing.T) {
 	// Check destination configuration
 	dests := logger.Destinations
 	for _, dest := range dests {
-		if dest.Backend == flexlog.BackendPlugin {
+		if dest.Backend == omni.BackendPlugin {
 			t.Logf("\nDestination: %s", dest.URI)
 			t.Logf("  Backend: %d", dest.Backend)
 			t.Logf("  Enabled: %t", dest.Enabled)

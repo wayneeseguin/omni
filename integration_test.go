@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -168,13 +168,13 @@ func TestConcurrentMultiDestination(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Set a larger channel size for this test
-	oldSize := os.Getenv("FLEXLOG_CHANNEL_SIZE")
-	os.Setenv("FLEXLOG_CHANNEL_SIZE", "1000")
+	oldSize := os.Getenv("OMNI_CHANNEL_SIZE")
+	os.Setenv("OMNI_CHANNEL_SIZE", "1000")
 	defer func() {
 		if oldSize != "" {
-			os.Setenv("FLEXLOG_CHANNEL_SIZE", oldSize)
+			os.Setenv("OMNI_CHANNEL_SIZE", oldSize)
 		} else {
-			os.Unsetenv("FLEXLOG_CHANNEL_SIZE")
+			os.Unsetenv("OMNI_CHANNEL_SIZE")
 		}
 	}()
 

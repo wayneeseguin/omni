@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -28,12 +28,12 @@ func NewPluginDiscovery(manager *PluginManager) *PluginDiscovery {
 func getDefaultSearchPaths() []string {
 	paths := []string{
 		"./plugins",
-		"/usr/local/lib/flexlog/plugins",
-		"/usr/lib/flexlog/plugins",
+		"/usr/local/lib/omni/plugins",
+		"/usr/lib/omni/plugins",
 	}
 	
 	// Add paths from environment variable
-	if envPaths := os.Getenv("FLEXLOG_PLUGIN_PATH"); envPaths != "" {
+	if envPaths := os.Getenv("OMNI_PLUGIN_PATH"); envPaths != "" {
 		for _, path := range strings.Split(envPaths, ":") {
 			if path = strings.TrimSpace(path); path != "" {
 				paths = append(paths, path)
@@ -43,7 +43,7 @@ func getDefaultSearchPaths() []string {
 	
 	// Add user-specific plugin directory
 	if homeDir, err := os.UserHomeDir(); err == nil {
-		userPluginDir := filepath.Join(homeDir, ".flexlog", "plugins")
+		userPluginDir := filepath.Join(homeDir, ".omni", "plugins")
 		paths = append(paths, userPluginDir)
 	}
 	
@@ -186,8 +186,8 @@ func (pd *PluginDiscovery) ScanForPluginConfigs() ([]string, error) {
 		
 		configs = append(configs, matches...)
 		
-		// Also look for flexlog-plugins.json
-		globalConfig := filepath.Join(searchPath, "flexlog-plugins.json")
+		// Also look for omni-plugins.json
+		globalConfig := filepath.Join(searchPath, "omni-plugins.json")
 		if _, err := os.Stat(globalConfig); err == nil {
 			configs = append(configs, globalConfig)
 		}

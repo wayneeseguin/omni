@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"errors"
@@ -66,17 +66,17 @@ func TestRecoveryManager_DetermineStrategy(t *testing.T) {
 		},
 		{
 			name:     "retryable channel full error",
-			err:      NewFlexLogError(ErrCodeChannelFull, "write", "", nil),
+			err:      NewOmniError(ErrCodeChannelFull, "write", "", nil),
 			expected: RecoveryBuffer,
 		},
 		{
 			name:     "file write error",
-			err:      NewFlexLogError(ErrCodeFileWrite, "write", "", nil),
+			err:      NewOmniError(ErrCodeFileWrite, "write", "", nil),
 			expected: RecoveryFallback,
 		},
 		{
 			name:     "disabled destination",
-			err:      NewFlexLogError(ErrCodeDestinationDisabled, "write", "", nil),
+			err:      NewOmniError(ErrCodeDestinationDisabled, "write", "", nil),
 			expected: RecoveryDrop,
 		},
 		{
@@ -142,7 +142,7 @@ func TestRecoveryManager_FallbackWrite(t *testing.T) {
 	defer rm.Close()
 
 	// Create a mock logger
-	logger := &FlexLog{}
+	logger := &Omni{}
 
 	// Test structured message
 	msg := LogMessage{
@@ -178,7 +178,7 @@ func TestRecoveryManager_FlushBuffer(t *testing.T) {
 	rm := NewRecoveryManager(DefaultRecoveryConfig())
 
 	// Create a mock logger with a channel
-	logger := &FlexLog{
+	logger := &Omni{
 		msgChan: make(chan LogMessage, 2),
 	}
 
@@ -228,19 +228,19 @@ func TestRecoveryManager_HandleError(t *testing.T) {
 		{
 			name:           "fallback strategy with write error",
 			strategy:       RecoveryFallback,
-			err:            NewFlexLogError(ErrCodeFileWrite, "write", "", nil),
+			err:            NewOmniError(ErrCodeFileWrite, "write", "", nil),
 			expectFallback: true,
 		},
 		{
 			name:         "buffer strategy with channel full",
 			strategy:     RecoveryBuffer,
-			err:          NewFlexLogError(ErrCodeChannelFull, "write", "", nil),
+			err:          NewOmniError(ErrCodeChannelFull, "write", "", nil),
 			expectBuffer: true,
 		},
 		{
 			name:       "drop strategy with disabled destination",
 			strategy:   RecoveryDrop,
-			err:        NewFlexLogError(ErrCodeDestinationDisabled, "write", "", nil),
+			err:        NewOmniError(ErrCodeDestinationDisabled, "write", "", nil),
 			expectDrop: true,
 		},
 	}
@@ -255,7 +255,7 @@ func TestRecoveryManager_HandleError(t *testing.T) {
 			defer rm.Close()
 
 			// Create mock logger and destination
-			logger := &FlexLog{
+			logger := &Omni{
 				msgChan: make(chan LogMessage, 1),
 			}
 			dest := &Destination{Name: "test-dest"}
@@ -313,7 +313,7 @@ func TestRecoveryManager_RetryOperation(t *testing.T) {
 		defer rm.Close()
 
 		// Create minimal mock logger
-		logger := &FlexLog{
+		logger := &Omni{
 			messagesDropped: 0,
 		}
 		dest := &Destination{Name: "test-dest"}
@@ -353,7 +353,7 @@ func TestRecoveryManager_RetryOperation(t *testing.T) {
 		rm := NewRecoveryManager(config)
 		defer rm.Close()
 
-		logger := &FlexLog{}
+		logger := &Omni{}
 		dest := &Destination{Name: "test-dest"}
 		msg := LogMessage{Format: "test message"}
 
@@ -383,7 +383,7 @@ func TestRecoveryManager_RetryOperation(t *testing.T) {
 		rm := NewRecoveryManager(config)
 		defer rm.Close()
 
-		logger := &FlexLog{}
+		logger := &Omni{}
 		dest := &Destination{Name: "test-dest"}
 		msg := LogMessage{Format: "test message"}
 
@@ -411,7 +411,7 @@ func TestRecoveryManager_Close(t *testing.T) {
 	rm := NewRecoveryManager(config)
 
 	// Create fallback file
-	logger := &FlexLog{}
+	logger := &Omni{}
 	msg := LogMessage{Format: "test"}
 	rm.fallbackWrite(logger, msg)
 
@@ -427,8 +427,8 @@ func TestRecoveryManager_Close(t *testing.T) {
 	}
 }
 
-func TestFlexLog_SetRecoveryConfig(t *testing.T) {
-	logger := &FlexLog{}
+func TestOmni_SetRecoveryConfig(t *testing.T) {
+	logger := &Omni{}
 
 	config := &RecoveryConfig{
 		MaxRetries: 5,
@@ -449,7 +449,7 @@ func TestFlexLog_SetRecoveryConfig(t *testing.T) {
 // Benchmark tests
 func BenchmarkRecoveryManager_DetermineStrategy(b *testing.B) {
 	rm := NewRecoveryManager(DefaultRecoveryConfig())
-	err := NewFlexLogError(ErrCodeFileWrite, "write", "", nil)
+	err := NewOmniError(ErrCodeFileWrite, "write", "", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -475,7 +475,7 @@ func BenchmarkRecoveryManager_FallbackWrite(b *testing.B) {
 	rm := NewRecoveryManager(config)
 	defer rm.Close()
 
-	logger := &FlexLog{}
+	logger := &Omni{}
 	msg := LogMessage{Format: "test message"}
 
 	b.ResetTimer()

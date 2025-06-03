@@ -1,10 +1,10 @@
-# FlexLog Architecture
+# Omni Architecture
 
-This document describes the internal architecture of FlexLog, design decisions, and extension points for developers who want to understand or extend the library.
+This document describes the internal architecture of Omni, design decisions, and extension points for developers who want to understand or extend the library.
 
 ## Overview
 
-FlexLog is designed as a high-performance, flexible logging library with these core principles:
+Omni is designed as a high-performance, flexible logging library with these core principles:
 
 1. **Non-blocking**: Logging operations should never block the application
 2. **Process-safe**: Multiple processes can safely write to the same log file
@@ -39,10 +39,10 @@ FlexLog is designed as a high-performance, flexible logging library with these c
 
 ## Core Components
 
-### 1. FlexLog Structure
+### 1. Omni Structure
 
 ```go
-type FlexLog struct {
+type Omni struct {
     // Message handling
     messages     chan LogMessage      // Buffered channel for async processing
     done         chan struct{}        // Shutdown signal
@@ -75,7 +75,7 @@ type FlexLog struct {
 
 #### Step 1: Message Creation
 ```go
-func (f *FlexLog) Info(args ...interface{}) {
+func (f *Omni) Info(args ...interface{}) {
     // Fast path: level check
     if !f.IsLevelEnabled(LevelInfo) {
         return
@@ -102,7 +102,7 @@ func (f *FlexLog) Info(args ...interface{}) {
 
 #### Step 2: Background Processing
 ```go
-func (f *FlexLog) processMessages() {
+func (f *Omni) processMessages() {
     defer f.wg.Done()
     
     for {
@@ -121,7 +121,7 @@ func (f *FlexLog) processMessages() {
 
 #### Step 3: Message Handling
 ```go
-func (f *FlexLog) handleMessage(msg LogMessage) {
+func (f *Omni) handleMessage(msg LogMessage) {
     // 1. Apply filters
     if !f.shouldLog(msg) {
         return
@@ -172,19 +172,19 @@ type Destination struct {
 
 ### 4. Synchronization Strategy
 
-FlexLog uses a careful locking hierarchy to prevent deadlocks:
+Omni uses a careful locking hierarchy to prevent deadlocks:
 
 ```
 Lock Order (must be acquired in this order):
-1. FlexLog.mu          - Protects logger state
+1. Omni.mu          - Protects logger state
 2. Destination.mu      - Protects destination state  
 3. File locks (flock)  - Process-level synchronization
 ```
 
 Example:
 ```go
-func (f *FlexLog) rotateDestination(dest *Destination) error {
-    // 1. Lock FlexLog first (if needed)
+func (f *Omni) rotateDestination(dest *Destination) error {
+    // 1. Lock Omni first (if needed)
     f.mu.Lock()
     defer f.mu.Unlock()
     
@@ -258,7 +258,7 @@ type Backend interface {
 
 ```go
 // Level check (hot path)
-func (f *FlexLog) IsLevelEnabled(level int) bool {
+func (f *Omni) IsLevelEnabled(level int) bool {
     return level >= int(f.level.Load())
 }
 
@@ -299,7 +299,7 @@ func (b *CustomBackend) SupportsAtomic() bool {
 }
 
 // Register backend
-flexlog.RegisterBackend("custom", func(uri string) (Backend, error) {
+omni.RegisterBackend("custom", func(uri string) (Backend, error) {
     return &CustomBackend{}, nil
 })
 ```
@@ -353,7 +353,7 @@ Add processing stages:
 ```go
 type Middleware func(LogMessage) LogMessage
 
-func (f *FlexLog) AddMiddleware(mw Middleware) {
+func (f *Omni) AddMiddleware(mw Middleware) {
     f.mu.Lock()
     defer f.mu.Unlock()
     f.middleware = append(f.middleware, mw)
@@ -414,7 +414,7 @@ Implement OpenTelemetry logging protocol support.
 
 ## Contributing
 
-When contributing to FlexLog:
+When contributing to Omni:
 
 1. **Maintain Lock Hierarchy**: Always acquire locks in the documented order
 2. **Benchmark Changes**: Run benchmarks before and after

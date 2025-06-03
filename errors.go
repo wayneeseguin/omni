@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -44,7 +44,7 @@ func severityToString(severity ErrorLevel) string {
 //	if err != nil {
 //	    logger.ErrorWithError("Failed to connect to database", err)
 //	}
-func (f *FlexLog) ErrorWithError(message string, err error) {
+func (f *Omni) ErrorWithError(message string, err error) {
 	if f.level > LevelError {
 		return
 	}
@@ -74,9 +74,9 @@ func (f *FlexLog) ErrorWithError(message string, err error) {
 //
 //	err := validateInput(data)
 //	if err != nil {
-//	    logger.ErrorWithErrorAndSeverity("Invalid input data", err, flexlog.SeverityMedium)
+//	    logger.ErrorWithErrorAndSeverity("Invalid input data", err, omni.SeverityMedium)
 //	}
-func (f *FlexLog) ErrorWithErrorAndSeverity(message string, err error, severity ErrorLevel) {
+func (f *Omni) ErrorWithErrorAndSeverity(message string, err error, severity ErrorLevel) {
 	if f.level > LevelError {
 		return
 	}
@@ -111,7 +111,7 @@ func (f *FlexLog) ErrorWithErrorAndSeverity(message string, err error, severity 
 //	if err != nil {
 //	    return logger.WrapError(err, "failed to read configuration file")
 //	}
-func (f *FlexLog) WrapError(err error, message string) error {
+func (f *Omni) WrapError(err error, message string) error {
 	return errors.Wrap(err, message)
 }
 
@@ -130,9 +130,9 @@ func (f *FlexLog) WrapError(err error, message string) error {
 //
 //	err := criticalOperation()
 //	if err != nil {
-//	    return logger.WrapErrorWithSeverity(err, "critical operation failed", flexlog.SeverityCritical)
+//	    return logger.WrapErrorWithSeverity(err, "critical operation failed", omni.SeverityCritical)
 //	}
-func (f *FlexLog) WrapErrorWithSeverity(err error, message string, severity ErrorLevel) error {
+func (f *Omni) WrapErrorWithSeverity(err error, message string, severity ErrorLevel) error {
 	wrapped := errors.Wrap(err, message)
 	// Store severity in context or return a custom error type if needed
 	// For simplicity, we'll just log it immediately
@@ -155,7 +155,7 @@ func (f *FlexLog) WrapErrorWithSeverity(err error, message string, severity Erro
 //	if cause == sql.ErrNoRows {
 //	    // Handle not found case
 //	}
-func (f *FlexLog) CauseOf(err error) error {
+func (f *Omni) CauseOf(err error) error {
 	return errors.Cause(err)
 }
 
@@ -174,7 +174,7 @@ func (f *FlexLog) CauseOf(err error) error {
 //	if err != nil {
 //	    return logger.WithStack(err)
 //	}
-func (f *FlexLog) WithStack(err error) error {
+func (f *Omni) WithStack(err error) error {
 	return errors.WithStack(err)
 }
 
@@ -193,7 +193,7 @@ func (f *FlexLog) WithStack(err error) error {
 //	if logger.IsErrorType(err, context.Canceled) {
 //	    // Handle cancellation
 //	}
-func (f *FlexLog) IsErrorType(err, target error) bool {
+func (f *Omni) IsErrorType(err, target error) bool {
 	return errors.Is(err, target)
 }
 
@@ -210,7 +210,7 @@ func (f *FlexLog) IsErrorType(err, target error) bool {
 //
 //	details := logger.FormatErrorVerbose(err)
 //	fmt.Println("Full error details:", details)
-func (f *FlexLog) FormatErrorVerbose(err error) string {
+func (f *Omni) FormatErrorVerbose(err error) string {
 	if stackTracer, ok := err.(interface{ StackTrace() errors.StackTrace }); ok {
 		return fmt.Sprintf("%+v\n%+v", err, stackTracer.StackTrace())
 	}
@@ -231,7 +231,7 @@ func (f *FlexLog) FormatErrorVerbose(err error) string {
 //	        // Optionally re-panic or handle gracefully
 //	    }
 //	}()
-func (f *FlexLog) LogPanic(recovered interface{}) {
+func (f *Omni) LogPanic(recovered interface{}) {
 	// Capture the stack trace
 	buf := make([]byte, f.stackSize)
 	n := runtime.Stack(buf, false)
@@ -266,7 +266,7 @@ func (f *FlexLog) LogPanic(recovered interface{}) {
 //	    // This code runs in a goroutine with panic protection
 //	    riskyOperation()
 //	})
-func (f *FlexLog) SafeGo(fn func()) {
+func (f *Omni) SafeGo(fn func()) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

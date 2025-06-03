@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"encoding/json"

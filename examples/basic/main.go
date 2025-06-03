@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
 	// Create a new logger with file destination
-	logger, err := flexlog.New("app.log")
+	logger, err := omni.New("app.log")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logger.Close()
 
 	// Set level to TRACE to see all messages including TRACE level
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Basic logging at all levels
 	logger.Trace("This is a trace message - very detailed diagnostic info")

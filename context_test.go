@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -65,7 +65,7 @@ func TestLogWithContextTimeout(t *testing.T) {
 	logPath := tmpDir + "/test.log"
 
 	// Create logger with channel size 0 to ensure blocking
-	logger := &FlexLog{
+	logger := &Omni{
 		msgChan:       make(chan LogMessage, 0),
 		formatOptions: defaultFormatOptions(),
 		level:         LevelInfo,

@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
-	natsplugin "github.com/wayneeseguin/flexlog/examples/plugins/nats-backend"
+	"github.com/wayneeseguin/omni"
+	natsplugin "github.com/wayneeseguin/omni/examples/plugins/nats-backend"
 )
 
 func main() {
@@ -19,13 +19,13 @@ func main() {
 		log.Fatalf("Failed to initialize NATS plugin: %v", err)
 	}
 	
-	if err := flexlog.RegisterBackendPlugin(plugin); err != nil {
+	if err := omni.RegisterBackendPlugin(plugin); err != nil {
 		log.Fatalf("Failed to register NATS plugin: %v", err)
 	}
 	
-	// Create a new FlexLog instance with builder
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	// Create a new Omni instance with builder
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -77,7 +77,7 @@ func main() {
 	logger.Info("Shutting down application")
 }
 
-func simulateWork(logger *flexlog.FlexLog) {
+func simulateWork(logger *omni.Omni) {
 	requestCounter := 0
 	errorCounter := 0
 

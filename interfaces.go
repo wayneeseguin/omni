@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 //
 // Example usage:
 //
-//	var logger flexlog.Logger = flexlog.New("/var/log/app.log")
+//	var logger omni.Logger = omni.New("/var/log/app.log")
 //	logger.Info("Server started", "port", 8080)
 //	logger.WithField("user_id", 123).Debug("Processing request")
 type Logger interface {
@@ -45,7 +45,7 @@ type Logger interface {
 //
 // Example usage:
 //
-//	var manager flexlog.Manager = logger
+//	var manager omni.Manager = logger
 //	manager.SetMaxSize(50 * 1024 * 1024) // 50MB
 //	manager.AddDestination("/var/log/errors.log")
 //	manager.FlushAll() // Ensure all logs are written
@@ -178,23 +178,23 @@ func (f *defaultFactory) CreateWithConfig(config *Config) (Logger, error) {
 	return NewWithConfig(config)
 }
 
-// Ensure FlexLog implements the interfaces
+// Ensure Omni implements the interfaces
 var (
-	_ Logger           = (*FlexLog)(nil)
-	_ Manager          = (*FlexLog)(nil)
-	_ FilterableLogger = (*FlexLog)(nil)
-	_ SamplableLogger  = (*FlexLog)(nil)
-	_ MetricsProvider  = (*FlexLog)(nil)
-	_ ErrorReporter    = (*FlexLog)(nil)
+	_ Logger           = (*Omni)(nil)
+	_ Manager          = (*Omni)(nil)
+	_ FilterableLogger = (*Omni)(nil)
+	_ SamplableLogger  = (*Omni)(nil)
+	_ MetricsProvider  = (*Omni)(nil)
+	_ ErrorReporter    = (*Omni)(nil)
 )
 
-// LoggerAdapter allows using FlexLog where only the Logger interface is needed
+// LoggerAdapter allows using Omni where only the Logger interface is needed
 type LoggerAdapter struct {
-	*FlexLog
+	*Omni
 }
 
 // NewLoggerAdapter creates a new logger adapter
-func NewLoggerAdapter(logger *FlexLog) Logger {
+func NewLoggerAdapter(logger *Omni) Logger {
 	return &LoggerAdapter{logger}
 }
 
@@ -203,7 +203,7 @@ func (a *LoggerAdapter) WithFields(fields map[string]interface{}) Logger {
 	// Return a new adapter with the same underlying logger
 	// The fields will be included in the log message
 	return &fieldsLogger{
-		logger: a.FlexLog,
+		logger: a.Omni,
 		fields: fields,
 	}
 }
@@ -227,9 +227,9 @@ func (a *LoggerAdapter) WithContext(ctx context.Context) Logger {
 	return a
 }
 
-// fieldsLogger wraps FlexLog to include fields in every log message
+// fieldsLogger wraps Omni to include fields in every log message
 type fieldsLogger struct {
-	logger *FlexLog
+	logger *Omni
 	fields map[string]interface{}
 }
 

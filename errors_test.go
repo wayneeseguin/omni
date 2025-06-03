@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"errors"
@@ -10,13 +10,13 @@ import (
 	"time"
 
 	pkgErrors "github.com/pkg/errors"
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestSeverityToString(t *testing.T) {
 	// This tests the internal severityToString function indirectly through ErrorWithErrorAndSeverity
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -24,13 +24,13 @@ func TestSeverityToString(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		severity flexlog.ErrorLevel
+		severity omni.ErrorLevel
 		expected string
 	}{
-		{"low severity", flexlog.SeverityLow, "low"},
-		{"medium severity", flexlog.SeverityMedium, "medium"},
-		{"high severity", flexlog.SeverityHigh, "high"},
-		{"critical severity", flexlog.SeverityCritical, "critical"},
+		{"low severity", omni.SeverityLow, "low"},
+		{"medium severity", omni.SeverityMedium, "medium"},
+		{"high severity", omni.SeverityHigh, "high"},
+		{"critical severity", omni.SeverityCritical, "critical"},
 	}
 
 	for _, tt := range tests {
@@ -56,7 +56,7 @@ func TestSeverityToString(t *testing.T) {
 
 func TestErrorWithError(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestErrorWithError(t *testing.T) {
 	}
 
 	// Test that level filtering works
-	logger.SetLevel(flexlog.LevelError + 1) // Set level higher than error
+	logger.SetLevel(omni.LevelError + 1) // Set level higher than error
 	os.Truncate(tempFile, 0)
 
 	logger.ErrorWithError("should be filtered", testErr)
@@ -96,7 +96,7 @@ func TestErrorWithError(t *testing.T) {
 
 func TestErrorWithErrorWithStackTrace(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -127,14 +127,14 @@ func TestErrorWithErrorWithStackTrace(t *testing.T) {
 
 func TestErrorWithErrorAndSeverity(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	testErr := errors.New("critical error")
-	logger.ErrorWithErrorAndSeverity("system failure", testErr, flexlog.SeverityCritical)
+	logger.ErrorWithErrorAndSeverity("system failure", testErr, omni.SeverityCritical)
 	logger.Sync()
 
 	content, err := os.ReadFile(tempFile)
@@ -158,7 +158,7 @@ func TestErrorWithErrorAndSeverity(t *testing.T) {
 
 func TestWrapError(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -184,14 +184,14 @@ func TestWrapError(t *testing.T) {
 
 func TestWrapErrorWithSeverity(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	originalErr := errors.New("original error")
-	wrappedErr := logger.WrapErrorWithSeverity(originalErr, "wrapped with severity", flexlog.SeverityHigh)
+	wrappedErr := logger.WrapErrorWithSeverity(originalErr, "wrapped with severity", omni.SeverityHigh)
 	logger.Sync()
 
 	// Check that the error is wrapped
@@ -217,7 +217,7 @@ func TestWrapErrorWithSeverity(t *testing.T) {
 
 func TestCauseOf(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestCauseOf(t *testing.T) {
 
 func TestWithStack(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestWithStack(t *testing.T) {
 
 func TestIsErrorType(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestIsErrorType(t *testing.T) {
 
 func TestFormatErrorVerbose(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestFormatErrorVerbose(t *testing.T) {
 
 func TestLogPanic(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestLogPanic(t *testing.T) {
 
 func TestSafeGo(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -423,20 +423,20 @@ func TestSafeGo(t *testing.T) {
 
 func TestErrorLevelFiltering(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set log level higher than error to filter out error messages
-	logger.SetLevel(flexlog.LevelError + 1)
+	logger.SetLevel(omni.LevelError + 1)
 
 	testErr := errors.New("filtered error")
 
 	// These should all be filtered out
 	logger.ErrorWithError("should be filtered", testErr)
-	logger.ErrorWithErrorAndSeverity("should be filtered", testErr, flexlog.SeverityHigh)
+	logger.ErrorWithErrorAndSeverity("should be filtered", testErr, omni.SeverityHigh)
 	logger.Sync()
 
 	content, err := os.ReadFile(tempFile)
@@ -449,7 +449,7 @@ func TestErrorLevelFiltering(t *testing.T) {
 	}
 
 	// Reset level to allow errors
-	logger.SetLevel(flexlog.LevelError)
+	logger.SetLevel(omni.LevelError)
 	logger.ErrorWithError("should not be filtered", testErr)
 	logger.Sync()
 
@@ -461,7 +461,7 @@ func TestErrorLevelFiltering(t *testing.T) {
 
 func TestStackTraceIncludeToggle(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}

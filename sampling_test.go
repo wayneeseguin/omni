@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"fmt"
@@ -7,19 +7,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestSetSamplingNone(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set sampling to none (default)
-	logger.SetSampling(flexlog.SamplingNone, 0)
+	logger.SetSampling(omni.SamplingNone, 0)
 
 	// All messages should be logged
 	for i := 0; i < 10; i++ {
@@ -43,14 +43,14 @@ func TestSetSamplingNone(t *testing.T) {
 
 func TestSetSamplingRandom(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set random sampling at 50%
-	logger.SetSampling(flexlog.SamplingRandom, 0.5)
+	logger.SetSampling(omni.SamplingRandom, 0.5)
 
 	// Log many messages - reduced from 1000 to 200 for faster test
 	totalMessages := 200
@@ -100,13 +100,13 @@ func TestSetSamplingRandomBoundaries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				t.Fatalf("Failed to create logger: %v", err)
 			}
 			defer logger.CloseAll()
 
-			logger.SetSampling(flexlog.SamplingRandom, tt.rate)
+			logger.SetSampling(omni.SamplingRandom, tt.rate)
 
 			// Log multiple messages
 			for i := 0; i < 100; i++ {
@@ -134,14 +134,14 @@ func TestSetSamplingRandomBoundaries(t *testing.T) {
 
 func TestSetSamplingConsistent(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set consistent sampling at 50%
-	logger.SetSampling(flexlog.SamplingConsistent, 0.5)
+	logger.SetSampling(omni.SamplingConsistent, 0.5)
 
 	// Log the same messages multiple times
 	messages := []string{"message A", "message B", "message C", "message D", "message E"}
@@ -183,14 +183,14 @@ func TestSetSamplingConsistent(t *testing.T) {
 
 func TestSetSamplingInterval(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set interval sampling - log every 3rd message
-	logger.SetSampling(flexlog.SamplingInterval, 3)
+	logger.SetSampling(omni.SamplingInterval, 3)
 
 	// Log 20 messages
 	for i := 1; i <= 20; i++ {
@@ -224,14 +224,14 @@ func TestSetSamplingInterval(t *testing.T) {
 
 func TestSetSamplingIntervalBoundaries(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Test interval <= 1 (should log everything)
-	logger.SetSampling(flexlog.SamplingInterval, 0.5)
+	logger.SetSampling(omni.SamplingInterval, 0.5)
 
 	for i := 0; i < 5; i++ {
 		logger.Info(fmt.Sprintf("test %d", i))
@@ -253,7 +253,7 @@ func TestSetSamplingIntervalBoundaries(t *testing.T) {
 
 func TestSetSampleKeyFunc(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -270,12 +270,12 @@ func TestSetSampleKeyFunc(t *testing.T) {
 	})
 
 	// Set consistent sampling at 50%
-	logger.SetSampling(flexlog.SamplingConsistent, 0.5)
+	logger.SetSampling(omni.SamplingConsistent, 0.5)
 
 	// Log messages with same user_id - should have same sampling decision
 	user1Messages := []string{"login", "action1", "action2", "logout"}
 	for _, msg := range user1Messages {
-		logger.StructuredLog(flexlog.LevelInfo, msg, map[string]interface{}{
+		logger.StructuredLog(omni.LevelInfo, msg, map[string]interface{}{
 			"user_id": "user123",
 		})
 	}
@@ -304,7 +304,7 @@ func TestSetSampleKeyFunc(t *testing.T) {
 	os.Truncate(tempFile, 0)
 
 	// Log messages with different user_id - might have different sampling decision
-	logger.StructuredLog(flexlog.LevelInfo, "different user", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "different user", map[string]interface{}{
 		"user_id": "user456",
 	})
 	logger.Sync()
@@ -314,7 +314,7 @@ func TestSetSampleKeyFunc(t *testing.T) {
 
 func TestSamplingWithFilters(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -322,11 +322,11 @@ func TestSamplingWithFilters(t *testing.T) {
 
 	// Add a filter that only allows ERROR level
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-		return level >= flexlog.LevelError
+		return level >= omni.LevelError
 	})
 
 	// Set sampling to 50%
-	logger.SetSampling(flexlog.SamplingRandom, 0.5)
+	logger.SetSampling(omni.SamplingRandom, 0.5)
 
 	// Log many messages at different levels
 	for i := 0; i < 100; i++ {
@@ -363,17 +363,17 @@ func TestSamplingWithFilters(t *testing.T) {
 
 func TestSamplingLevelCheck(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set level to WARN
-	logger.SetLevel(flexlog.LevelWarn)
+	logger.SetLevel(omni.LevelWarn)
 
 	// Set sampling to log everything
-	logger.SetSampling(flexlog.SamplingNone, 1.0)
+	logger.SetSampling(omni.SamplingNone, 1.0)
 
 	// Log at different levels
 	logger.Debug("debug")
@@ -409,14 +409,14 @@ func TestSamplingLevelCheck(t *testing.T) {
 
 func TestSamplingCounterReset(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set interval sampling - every 3rd message
-	logger.SetSampling(flexlog.SamplingInterval, 3)
+	logger.SetSampling(omni.SamplingInterval, 3)
 
 	// Log some messages
 	logger.Info("msg 1") // Should log (1st)
@@ -425,7 +425,7 @@ func TestSamplingCounterReset(t *testing.T) {
 	logger.Info("msg 4") // Should log (4th)
 
 	// Change sampling - this should reset the counter
-	logger.SetSampling(flexlog.SamplingInterval, 2)
+	logger.SetSampling(omni.SamplingInterval, 2)
 
 	logger.Info("msg 5") // Should log (1st after reset)
 	logger.Info("msg 6") // Should not log
@@ -458,14 +458,14 @@ func TestSamplingCounterReset(t *testing.T) {
 
 func TestSamplingConcurrency(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set interval sampling
-	logger.SetSampling(flexlog.SamplingInterval, 5)
+	logger.SetSampling(omni.SamplingInterval, 5)
 
 	// Log from multiple goroutines
 	done := make(chan bool, 5)

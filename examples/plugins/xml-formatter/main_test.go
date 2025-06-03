@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestXMLFormatterPlugin_Name(t *testing.T) {
@@ -138,11 +138,11 @@ func TestLevelToString(t *testing.T) {
 		level    int
 		expected string
 	}{
-		{flexlog.LevelTrace, "TRACE"},
-		{flexlog.LevelDebug, "DEBUG"},
-		{flexlog.LevelInfo, "INFO"},
-		{flexlog.LevelWarn, "WARN"},
-		{flexlog.LevelError, "ERROR"},
+		{omni.LevelTrace, "TRACE"},
+		{omni.LevelDebug, "DEBUG"},
+		{omni.LevelInfo, "INFO"},
+		{omni.LevelWarn, "WARN"},
+		{omni.LevelError, "ERROR"},
 		{999, "UNKNOWN"},
 	}
 	
@@ -156,8 +156,8 @@ func TestLevelToString(t *testing.T) {
 
 func TestGetMessageText(t *testing.T) {
 	// Test with Entry message
-	msg1 := flexlog.LogMessage{
-		Entry: &flexlog.LogEntry{
+	msg1 := omni.LogMessage{
+		Entry: &omni.LogEntry{
 			Message: "Entry message",
 		},
 	}
@@ -166,7 +166,7 @@ func TestGetMessageText(t *testing.T) {
 	}
 	
 	// Test with format and args
-	msg2 := flexlog.LogMessage{
+	msg2 := omni.LogMessage{
 		Format: "User %s logged in",
 		Args:   []interface{}{"john"},
 	}
@@ -175,7 +175,7 @@ func TestGetMessageText(t *testing.T) {
 	}
 	
 	// Test with format only
-	msg3 := flexlog.LogMessage{
+	msg3 := omni.LogMessage{
 		Format: "Simple message",
 	}
 	if getMessageText(msg3) != "Simple message" {
@@ -183,7 +183,7 @@ func TestGetMessageText(t *testing.T) {
 	}
 	
 	// Test with args only
-	msg4 := flexlog.LogMessage{
+	msg4 := omni.LogMessage{
 		Args: []interface{}{"hello", "world"},
 	}
 	if getMessageText(msg4) != "hello world" {
@@ -191,7 +191,7 @@ func TestGetMessageText(t *testing.T) {
 	}
 	
 	// Test empty message
-	msg5 := flexlog.LogMessage{}
+	msg5 := omni.LogMessage{}
 	if getMessageText(msg5) != "" {
 		t.Errorf("Expected empty string, got '%s'", getMessageText(msg5))
 	}
@@ -203,8 +203,8 @@ func TestGetMessageFields(t *testing.T) {
 		"user_id": 123,
 		"action":  "login",
 	}
-	msg1 := flexlog.LogMessage{
-		Entry: &flexlog.LogEntry{
+	msg1 := omni.LogMessage{
+		Entry: &omni.LogEntry{
 			Fields: fields,
 		},
 	}
@@ -217,7 +217,7 @@ func TestGetMessageFields(t *testing.T) {
 	}
 	
 	// Test with no fields
-	msg2 := flexlog.LogMessage{}
+	msg2 := omni.LogMessage{}
 	result2 := getMessageFields(msg2)
 	if result2 != nil {
 		t.Errorf("Expected nil fields, got %v", result2)
@@ -233,10 +233,10 @@ func TestXMLFormatter_Format(t *testing.T) {
 	
 	testTime := time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC)
 	
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Test message",
 			Fields: map[string]interface{}{
 				"user_id": 123,
@@ -294,10 +294,10 @@ func TestXMLFormatter_FormatWithoutFields(t *testing.T) {
 	
 	testTime := time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC)
 	
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelError,
+	msg := omni.LogMessage{
+		Level:     omni.LevelError,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Error occurred",
 			Fields: map[string]interface{}{
 				"error_code": 500,
@@ -337,10 +337,10 @@ func TestXMLFormatter_FormatCustomTimeFormat(t *testing.T) {
 	
 	testTime := time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC)
 	
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelWarn,
+	msg := omni.LogMessage{
+		Level:     omni.LevelWarn,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Warning message",
 		},
 	}
@@ -370,8 +370,8 @@ func TestXMLFormatter_FormatMessageFromFormat(t *testing.T) {
 	
 	testTime := time.Date(2023, 12, 25, 10, 30, 45, 0, time.UTC)
 	
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelDebug,
+	msg := omni.LogMessage{
+		Level:     omni.LevelDebug,
 		Timestamp: testTime,
 		Format:    "Processing %s with ID %d",
 		Args:      []interface{}{"user", 42},
@@ -418,10 +418,10 @@ func TestXMLFormatterIntegration(t *testing.T) {
 	
 	// Create test message
 	testTime := time.Now()
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Integration test message",
 			Fields: map[string]interface{}{
 				"test_id":     "integration_001",
@@ -472,10 +472,10 @@ func TestXMLFieldFormattingTypes(t *testing.T) {
 	testTime := time.Now()
 	
 	// Test various field types
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Field types test",
 			Fields: map[string]interface{}{
 				"string_field":  "test_string",
@@ -535,10 +535,10 @@ func BenchmarkXMLFormatter_Format(b *testing.B) {
 	}
 	
 	testTime := time.Now()
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Benchmark test message",
 			Fields: map[string]interface{}{
 				"benchmark": true,
@@ -565,10 +565,10 @@ func BenchmarkXMLFormatter_FormatNoFields(b *testing.B) {
 	}
 	
 	testTime := time.Now()
-	msg := flexlog.LogMessage{
-		Level:     flexlog.LevelInfo,
+	msg := omni.LogMessage{
+		Level:     omni.LevelInfo,
 		Timestamp: testTime,
-		Entry: &flexlog.LogEntry{
+		Entry: &omni.LogEntry{
 			Message: "Benchmark test message without fields",
 		},
 	}

@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -69,7 +69,7 @@ func (lm *LazyMessage) ToLogMessage() LogMessage {
 //	logger.EnableLazyFormatting()
 //	// Debug messages won't be formatted if debug level is disabled
 //	logger.Debug("Expensive formatting: %v", expensiveOperation())
-func (f *FlexLog) EnableLazyFormatting() {
+func (f *Omni) EnableLazyFormatting() {
 	f.mu.Lock()
 	f.lazyFormatting = true
 	f.mu.Unlock()
@@ -77,7 +77,7 @@ func (f *FlexLog) EnableLazyFormatting() {
 
 // DisableLazyFormatting disables lazy formatting for the logger.
 // Messages will be formatted immediately when logged.
-func (f *FlexLog) DisableLazyFormatting() {
+func (f *Omni) DisableLazyFormatting() {
 	f.mu.Lock()
 	f.lazyFormatting = false
 	f.mu.Unlock()
@@ -88,7 +88,7 @@ func (f *FlexLog) DisableLazyFormatting() {
 //
 // Returns:
 //   - bool: true if lazy formatting is enabled
-func (f *FlexLog) IsLazyFormattingEnabled() bool {
+func (f *Omni) IsLazyFormattingEnabled() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.lazyFormatting

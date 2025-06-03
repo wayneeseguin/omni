@@ -1,6 +1,6 @@
-# FlexLog Examples
+# Omni Examples
 
-This directory contains examples demonstrating various features and use cases of FlexLog.
+This directory contains examples demonstrating various features and use cases of Omni.
 
 ## Examples
 
@@ -164,14 +164,14 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 ### CLI Verbosity
 ```go
 if *verbose {
-    logger.SetLevel(flexlog.LevelDebug)
+    logger.SetLevel(omni.LevelDebug)
 }
 // See cli-application/main.go
 ```
 
 ### Microservice Context
 ```go
-ctx = flexlog.WithTraceID(ctx, traceID)
+ctx = omni.WithTraceID(ctx, traceID)
 logger.StructuredLogWithContext(ctx, level, msg, fields)
 // See microservice/main.go
 ```

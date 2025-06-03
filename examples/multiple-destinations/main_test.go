@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -30,12 +30,12 @@ func TestMultipleDestinationsExample(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Create primary logger
-	logger, err := flexlog.New(filepath.Join(testLogDir, "all.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "all.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Add multiple destinations
 	destinations := []string{
@@ -80,12 +80,12 @@ func TestDestinationManagement(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "primary.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "primary.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Add destinations
 	dest1 := filepath.Join(testLogDir, "dest1.log")
@@ -140,12 +140,12 @@ func TestAddRemoveDestinations(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "main.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "main.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Test adding destinations
 	dest := filepath.Join(testLogDir, "temp.log")
@@ -183,13 +183,13 @@ func TestMultipleDestinationsWithDifferentLevels(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "all_levels.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "all_levels.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Set to trace level to capture all messages
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Add additional destinations
 	err = logger.AddDestination(filepath.Join(testLogDir, "copy1.log"))
@@ -243,16 +243,16 @@ func TestDestinationBackends(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "primary.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "primary.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	// Test adding destination with specific backend
 	flockDest := filepath.Join(testLogDir, "flock.log")
-	err = logger.AddDestinationWithBackend(flockDest, flexlog.BackendFlock)
+	err = logger.AddDestinationWithBackend(flockDest, omni.BackendFlock)
 	if err != nil {
 		t.Fatalf("Failed to add flock destination: %v", err)
 	}
@@ -289,7 +289,7 @@ func BenchmarkMultipleDestinations(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -301,7 +301,7 @@ func BenchmarkMultipleDestinations(b *testing.B) {
 		logger.AddDestination(dest)
 	}
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -314,7 +314,7 @@ func BenchmarkDestinationManagement(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}

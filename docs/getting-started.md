@@ -1,11 +1,11 @@
-# Getting Started with FlexLog
+# Getting Started with Omni
 
-FlexLog is a flexible, high-performance logging library for Go applications. This guide will help you get started quickly.
+Omni is a flexible, high-performance logging library for Go applications. This guide will help you get started quickly.
 
 ## Installation
 
 ```bash
-go get github.com/wayneeseguin/flexlog
+go get github.com/wayneeseguin/omni
 ```
 
 ## Quick Start
@@ -19,12 +19,12 @@ package main
 
 import (
     "log"
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
 )
 
 func main() {
     // Create a logger that writes to a file
-    logger, err := flexlog.New("/var/log/myapp.log")
+    logger, err := omni.New("/var/log/myapp.log")
     if err != nil {
         log.Fatal(err)
     }
@@ -43,9 +43,9 @@ func main() {
 For more control over configuration:
 
 ```go
-logger, err := flexlog.NewBuilder().
+logger, err := omni.NewBuilder().
     WithPath("/var/log/myapp.log").
-    WithLevel(flexlog.LevelInfo).
+    WithLevel(omni.LevelInfo).
     WithJSON().                           // Use JSON format
     WithRotation(100*1024*1024, 10).     // Rotate at 100MB, keep 10 files
     WithGzipCompression().               // Compress rotated files
@@ -57,18 +57,18 @@ logger, err := flexlog.NewBuilder().
 Alternative configuration approach:
 
 ```go
-logger, err := flexlog.NewWithOptions(
-    flexlog.WithPath("/var/log/myapp.log"),
-    flexlog.WithLevel(flexlog.LevelInfo),
-    flexlog.WithJSON(),
-    flexlog.WithRotation(100*1024*1024, 10),
-    flexlog.WithProductionDefaults(), // Use production-ready defaults
+logger, err := omni.NewWithOptions(
+    omni.WithPath("/var/log/myapp.log"),
+    omni.WithLevel(omni.LevelInfo),
+    omni.WithJSON(),
+    omni.WithRotation(100*1024*1024, 10),
+    omni.WithProductionDefaults(), // Use production-ready defaults
 )
 ```
 
 ## Log Levels
 
-FlexLog supports five log levels:
+Omni supports five log levels:
 
 - `LevelTrace` (0) - Very detailed diagnostic information
 - `LevelDebug` (1) - Diagnostic information  
@@ -79,7 +79,7 @@ FlexLog supports five log levels:
 Set the minimum log level:
 
 ```go
-logger.SetLevel(flexlog.LevelInfo) // Only log Info and above
+logger.SetLevel(omni.LevelInfo) // Only log Info and above
 ```
 
 ## Structured Logging
@@ -126,7 +126,7 @@ Human-readable format:
 Machine-readable format for log aggregation:
 
 ```go
-logger.SetFormat(flexlog.FormatJSON)
+logger.SetFormat(omni.FormatJSON)
 ```
 
 Output:
@@ -141,7 +141,7 @@ Log to multiple outputs simultaneously:
 
 ```go
 // Create primary logger
-logger, _ := flexlog.New("/var/log/app.log")
+logger, _ := omni.New("/var/log/app.log")
 
 // Add additional destinations
 logger.AddDestination("/var/log/errors.log")     // Another file
@@ -161,7 +161,7 @@ logger.SetMaxSize(50 * 1024 * 1024)  // Rotate at 50MB
 logger.SetMaxFiles(10)                // Keep 10 rotated files
 
 // Enable compression for rotated files
-logger.SetCompression(flexlog.CompressionGzip)
+logger.SetCompression(omni.CompressionGzip)
 ```
 
 ## Performance Tuning
@@ -172,12 +172,12 @@ Control the message queue size:
 
 ```go
 // Via environment variable
-export FLEXLOG_CHANNEL_SIZE=10000
+export OMNI_CHANNEL_SIZE=10000
 
 // Or in code
-logger, _ := flexlog.NewWithOptions(
-    flexlog.WithPath("/var/log/app.log"),
-    flexlog.WithChannelSize(10000),
+logger, _ := omni.NewWithOptions(
+    omni.WithPath("/var/log/app.log"),
+    omni.WithChannelSize(10000),
 )
 ```
 
@@ -187,10 +187,10 @@ Reduce log volume in high-throughput scenarios:
 
 ```go
 // Random sampling - log 10% of messages
-logger.SetSampling(flexlog.SamplingRandom, 0.1)
+logger.SetSampling(omni.SamplingRandom, 0.1)
 
 // Interval sampling - log every 100th message
-logger.SetSampling(flexlog.SamplingInterval, 100)
+logger.SetSampling(omni.SamplingInterval, 100)
 ```
 
 ## Error Handling
@@ -198,7 +198,7 @@ logger.SetSampling(flexlog.SamplingInterval, 100)
 Handle logging errors gracefully:
 
 ```go
-logger.SetErrorHandler(func(err flexlog.LogError) {
+logger.SetErrorHandler(func(err omni.LogError) {
     // Handle error (e.g., send alert, fallback logging)
     fmt.Fprintf(os.Stderr, "Logging error: %v\n", err)
 })
@@ -210,11 +210,11 @@ Use with Go's context for request tracing:
 
 ```go
 // Add values to context
-ctx := flexlog.WithRequestID(context.Background(), "req-123")
-ctx = flexlog.WithUserID(ctx, "user-456")
+ctx := omni.WithRequestID(context.Background(), "req-123")
+ctx = omni.WithUserID(ctx, "user-456")
 
 // Log with context
-logger.StructuredLogWithContext(ctx, flexlog.LevelInfo, 
+logger.StructuredLogWithContext(ctx, omni.LevelInfo, 
     "Processing request", map[string]interface{}{
         "endpoint": "/api/users",
     })
@@ -224,7 +224,7 @@ logger.StructuredLogWithContext(ctx, flexlog.LevelInfo,
 
 1. **Always defer Close()**: Ensure logs are flushed on shutdown
    ```go
-   logger, _ := flexlog.New("/var/log/app.log")
+   logger, _ := omni.New("/var/log/app.log")
    defer logger.Close()
    ```
 
@@ -248,6 +248,6 @@ logger.StructuredLogWithContext(ctx, flexlog.LevelInfo,
 ## Next Steps
 
 - See [examples](../examples/) for real-world usage patterns
-- Read the [API documentation](https://pkg.go.dev/github.com/wayneeseguin/flexlog)
+- Read the [API documentation](https://pkg.go.dev/github.com/wayneeseguin/omni)
 - Learn about [advanced features](./advanced-features.md)
 - Check out [troubleshooting guide](./troubleshooting.md)

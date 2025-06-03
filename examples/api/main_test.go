@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -28,14 +28,14 @@ func TestBasicExample(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "basic_api.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "basic_api.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Test basic configuration
-	logger.SetLevel(flexlog.LevelInfo)
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetLevel(omni.LevelInfo)
+	logger.SetFormat(omni.FormatJSON)
 
 	// Test all logging methods
 	logger.Trace("Trace message")
@@ -75,24 +75,24 @@ func TestOptionsExample(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Test production configuration
-	prodLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "prod.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithRotation(1024*1024, 3), // Small for testing
-		flexlog.WithGzipCompression(),
-		flexlog.WithJSON(),
-		flexlog.WithChannelSize(500),
+	prodLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "prod.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithRotation(1024*1024, 3), // Small for testing
+		omni.WithGzipCompression(),
+		omni.WithJSON(),
+		omni.WithChannelSize(500),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create production logger: %v", err)
 	}
 
 	// Test development configuration
-	devLogger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "dev.log")),
-		flexlog.WithLevel(flexlog.LevelTrace),
-		flexlog.WithText(),
-		flexlog.WithStackTrace(4096),
+	devLogger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "dev.log")),
+		omni.WithLevel(omni.LevelTrace),
+		omni.WithText(),
+		omni.WithStackTrace(4096),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create dev logger: %v", err)
@@ -104,7 +104,7 @@ func TestOptionsExample(t *testing.T) {
 
 	// Test filtering
 	prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-		return level >= flexlog.LevelInfo
+		return level >= omni.LevelInfo
 	})
 
 	prodLogger.Debug("Filtered debug message")
@@ -136,17 +136,17 @@ func TestAdvancedExample(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "advanced.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "advanced.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Test advanced configuration
-	logger.SetLevel(flexlog.LevelDebug)
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetLevel(omni.LevelDebug)
+	logger.SetFormat(omni.FormatJSON)
 	logger.SetMaxSize(5 * 1024 * 1024) // 5MB
 	logger.SetMaxFiles(2)
-	logger.SetCompression(flexlog.CompressionGzip)
+	logger.SetCompression(omni.CompressionGzip)
 	logger.EnableStackTraces(true)
 
 	// Test multiple destinations
@@ -199,12 +199,12 @@ func TestDoWork(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "dowork.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "dowork.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	logger.SetLevel(flexlog.LevelTrace)
+	logger.SetLevel(omni.LevelTrace)
 
 	// Test the doWork function
 	doWork(logger)
@@ -246,19 +246,19 @@ func TestErrorHandlingExample(t *testing.T) {
 	defer os.RemoveAll(testLogDir)
 
 	// Test error handling with invalid path
-	_, err := flexlog.New("/invalid/path/that/does/not/exist/test.log")
+	_, err := omni.New("/invalid/path/that/does/not/exist/test.log")
 	if err == nil {
 		t.Error("Expected error for invalid path, got nil")
 	}
 
 	// Test successful logger creation
-	logger, err := flexlog.New(filepath.Join(testLogDir, "error_handling.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "error_handling.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Test various operations
-	logger.SetLevel(flexlog.LevelError)
+	logger.SetLevel(omni.LevelError)
 	logger.Debug("Filtered debug message")
 	logger.Error("Error message")
 
@@ -294,7 +294,7 @@ func TestLoggerConfiguration(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "config_test.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "config_test.log"))
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -302,11 +302,11 @@ func TestLoggerConfiguration(t *testing.T) {
 
 	// Test level configuration
 	levels := []int{
-		flexlog.LevelTrace,
-		flexlog.LevelDebug,
-		flexlog.LevelInfo,
-		flexlog.LevelWarn,
-		flexlog.LevelError,
+		omni.LevelTrace,
+		omni.LevelDebug,
+		omni.LevelInfo,
+		omni.LevelWarn,
+		omni.LevelError,
 	}
 
 	for _, level := range levels {
@@ -321,10 +321,10 @@ func TestLoggerConfiguration(t *testing.T) {
 	}
 
 	// Test format configuration
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetFormat(omni.FormatJSON)
 	logger.Info("JSON format test")
 
-	logger.SetFormat(flexlog.FormatText)
+	logger.SetFormat(omni.FormatText)
 	logger.Info("Text format test")
 
 	// Test stack traces
@@ -353,10 +353,10 @@ func TestStructuredLogging(t *testing.T) {
 	}
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "structured.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "structured.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
@@ -395,13 +395,13 @@ func BenchmarkBasicLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_basic.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_basic.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -414,10 +414,10 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench_structured.log")),
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
@@ -441,13 +441,13 @@ func BenchmarkFormattedLogging(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_formatted.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_formatted.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo)
+	logger.SetLevel(omni.LevelInfo)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -460,13 +460,13 @@ func BenchmarkDoWork(b *testing.B) {
 	os.MkdirAll(testLogDir, 0755)
 	defer os.RemoveAll(testLogDir)
 
-	logger, err := flexlog.New(filepath.Join(testLogDir, "bench_dowork.log"))
+	logger, err := omni.New(filepath.Join(testLogDir, "bench_dowork.log"))
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	logger.SetLevel(flexlog.LevelInfo) // Higher level for performance
+	logger.SetLevel(omni.LevelInfo) // Higher level for performance
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // Service configuration
@@ -23,7 +23,7 @@ type Config struct {
 
 // Global logger and config
 var (
-	logger *flexlog.FlexLog
+	logger *omni.Omni
 	config Config
 )
 
@@ -40,32 +40,32 @@ func initService() error {
 	config = Config{
 		ServiceName: getEnv("SERVICE_NAME", "payment-service"),
 		ServiceID:   getEnv("SERVICE_ID", generateServiceID()),
-		LogLevel:    flexlog.LevelInfo,
+		LogLevel:    omni.LevelInfo,
 		Environment: getEnv("ENVIRONMENT", "development"),
 	}
 	
 	if config.Environment == "development" {
-		config.LogLevel = flexlog.LevelDebug
+		config.LogLevel = omni.LevelDebug
 	}
 	
 	// Create logger with service context
-	options := []flexlog.Option{
-		flexlog.WithPath(fmt.Sprintf("/tmp/%s.log", config.ServiceName)), // Use /tmp for demo
-		flexlog.WithLevel(config.LogLevel),
-		flexlog.WithJSON(), // Always use JSON for microservices
+	options := []omni.Option{
+		omni.WithPath(fmt.Sprintf("/tmp/%s.log", config.ServiceName)), // Use /tmp for demo
+		omni.WithLevel(config.LogLevel),
+		omni.WithJSON(), // Always use JSON for microservices
 	}
 	
 	// Production settings
 	if config.Environment == "production" {
 		options = append(options,
-			flexlog.WithRotation(200*1024*1024, 20),  // 200MB files, keep 20
-			flexlog.WithGzipCompression(),
-			flexlog.WithChannelSize(10000),
+			omni.WithRotation(200*1024*1024, 20),  // 200MB files, keep 20
+			omni.WithGzipCompression(),
+			omni.WithChannelSize(10000),
 		)
 	}
 	
 	var err error
-	logger, err = flexlog.NewWithOptions(options...)
+	logger, err = omni.NewWithOptions(options...)
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
@@ -84,7 +84,7 @@ func initService() error {
 		// Add sampling filter for non-critical messages
 		logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 			// Always allow warnings and errors
-			if level >= flexlog.LevelWarn {
+			if level >= omni.LevelWarn {
 				return true
 			}
 			// Sample other messages at 10%

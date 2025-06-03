@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"os"
@@ -8,38 +8,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestSetGetFormat(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Test initial format (should be text by default)
-	if format := logger.GetFormat(); format != flexlog.FormatText {
-		t.Errorf("Expected default format %d, got %d", flexlog.FormatText, format)
+	if format := logger.GetFormat(); format != omni.FormatText {
+		t.Errorf("Expected default format %d, got %d", omni.FormatText, format)
 	}
 
 	// Test setting JSON format
-	logger.SetFormat(flexlog.FormatJSON)
-	if format := logger.GetFormat(); format != flexlog.FormatJSON {
-		t.Errorf("Expected format %d, got %d", flexlog.FormatJSON, format)
+	logger.SetFormat(omni.FormatJSON)
+	if format := logger.GetFormat(); format != omni.FormatJSON {
+		t.Errorf("Expected format %d, got %d", omni.FormatJSON, format)
 	}
 
 	// Test setting back to text format
-	logger.SetFormat(flexlog.FormatText)
-	if format := logger.GetFormat(); format != flexlog.FormatText {
-		t.Errorf("Expected format %d, got %d", flexlog.FormatText, format)
+	logger.SetFormat(omni.FormatText)
+	if format := logger.GetFormat(); format != omni.FormatText {
+		t.Errorf("Expected format %d, got %d", omni.FormatText, format)
 	}
 }
 
 func TestSetFormatOption(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -47,105 +47,105 @@ func TestSetFormatOption(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		option      flexlog.FormatOption
+		option      omni.FormatOption
 		value       interface{}
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name:        "valid timestamp format",
-			option:      flexlog.FormatOptionTimestampFormat,
+			option:      omni.FormatOptionTimestampFormat,
 			value:       "2006-01-02",
 			expectError: false,
 		},
 		{
 			name:        "invalid timestamp format type",
-			option:      flexlog.FormatOptionTimestampFormat,
+			option:      omni.FormatOptionTimestampFormat,
 			value:       123,
 			expectError: true,
 			errorMsg:    "timestamp format must be a string",
 		},
 		{
 			name:        "valid include level",
-			option:      flexlog.FormatOptionIncludeLevel,
+			option:      omni.FormatOptionIncludeLevel,
 			value:       false,
 			expectError: false,
 		},
 		{
 			name:        "invalid include level type",
-			option:      flexlog.FormatOptionIncludeLevel,
+			option:      omni.FormatOptionIncludeLevel,
 			value:       "true",
 			expectError: true,
 			errorMsg:    "include level must be a boolean",
 		},
 		{
 			name:        "valid level format",
-			option:      flexlog.FormatOptionLevelFormat,
-			value:       flexlog.LevelFormatNameLower,
+			option:      omni.FormatOptionLevelFormat,
+			value:       omni.LevelFormatNameLower,
 			expectError: false,
 		},
 		{
 			name:        "invalid level format type",
-			option:      flexlog.FormatOptionLevelFormat,
+			option:      omni.FormatOptionLevelFormat,
 			value:       "lower",
 			expectError: true,
 			errorMsg:    "level format must be a LevelFormat",
 		},
 		{
 			name:        "valid indent JSON",
-			option:      flexlog.FormatOptionIndentJSON,
+			option:      omni.FormatOptionIndentJSON,
 			value:       true,
 			expectError: false,
 		},
 		{
 			name:        "invalid indent JSON type",
-			option:      flexlog.FormatOptionIndentJSON,
+			option:      omni.FormatOptionIndentJSON,
 			value:       1,
 			expectError: true,
 			errorMsg:    "indent JSON must be a boolean",
 		},
 		{
 			name:        "valid field separator",
-			option:      flexlog.FormatOptionFieldSeparator,
+			option:      omni.FormatOptionFieldSeparator,
 			value:       " | ",
 			expectError: false,
 		},
 		{
 			name:        "invalid field separator type",
-			option:      flexlog.FormatOptionFieldSeparator,
+			option:      omni.FormatOptionFieldSeparator,
 			value:       []byte(" | "),
 			expectError: true,
 			errorMsg:    "field separator must be a string",
 		},
 		{
 			name:        "valid time zone",
-			option:      flexlog.FormatOptionTimeZone,
+			option:      omni.FormatOptionTimeZone,
 			value:       time.UTC,
 			expectError: false,
 		},
 		{
 			name:        "invalid time zone type",
-			option:      flexlog.FormatOptionTimeZone,
+			option:      omni.FormatOptionTimeZone,
 			value:       "UTC",
 			expectError: true,
 			errorMsg:    "time zone must be a *time.Location",
 		},
 		{
 			name:        "valid include time",
-			option:      flexlog.FormatOptionIncludeTime,
+			option:      omni.FormatOptionIncludeTime,
 			value:       false,
 			expectError: false,
 		},
 		{
 			name:        "invalid include time type",
-			option:      flexlog.FormatOptionIncludeTime,
+			option:      omni.FormatOptionIncludeTime,
 			value:       0,
 			expectError: true,
 			errorMsg:    "include time must be a boolean",
 		},
 		{
 			name:        "unknown format option",
-			option:      flexlog.FormatOption(9999),
+			option:      omni.FormatOption(9999),
 			value:       "test",
 			expectError: true,
 			errorMsg:    "unknown format option",
@@ -173,7 +173,7 @@ func TestSetFormatOption(t *testing.T) {
 
 func TestGetFormatOption(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -181,45 +181,45 @@ func TestGetFormatOption(t *testing.T) {
 
 	// Set some options
 	customFormat := "15:04:05"
-	logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, customFormat)
-	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
-	logger.SetFormatOption(flexlog.FormatOptionLevelFormat, flexlog.LevelFormatSymbol)
-	logger.SetFormatOption(flexlog.FormatOptionIndentJSON, true)
-	logger.SetFormatOption(flexlog.FormatOptionFieldSeparator, " | ")
-	logger.SetFormatOption(flexlog.FormatOptionTimeZone, time.UTC)
-	logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
+	logger.SetFormatOption(omni.FormatOptionTimestampFormat, customFormat)
+	logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
+	logger.SetFormatOption(omni.FormatOptionLevelFormat, omni.LevelFormatSymbol)
+	logger.SetFormatOption(omni.FormatOptionIndentJSON, true)
+	logger.SetFormatOption(omni.FormatOptionFieldSeparator, " | ")
+	logger.SetFormatOption(omni.FormatOptionTimeZone, time.UTC)
+	logger.SetFormatOption(omni.FormatOptionIncludeTime, false)
 
 	// Test getting options
-	if val := logger.GetFormatOption(flexlog.FormatOptionTimestampFormat); val != customFormat {
+	if val := logger.GetFormatOption(omni.FormatOptionTimestampFormat); val != customFormat {
 		t.Errorf("Expected timestamp format %q, got %v", customFormat, val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionIncludeLevel); val != false {
+	if val := logger.GetFormatOption(omni.FormatOptionIncludeLevel); val != false {
 		t.Errorf("Expected include level false, got %v", val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionLevelFormat); val != flexlog.LevelFormatSymbol {
-		t.Errorf("Expected level format %v, got %v", flexlog.LevelFormatSymbol, val)
+	if val := logger.GetFormatOption(omni.FormatOptionLevelFormat); val != omni.LevelFormatSymbol {
+		t.Errorf("Expected level format %v, got %v", omni.LevelFormatSymbol, val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionIndentJSON); val != true {
+	if val := logger.GetFormatOption(omni.FormatOptionIndentJSON); val != true {
 		t.Errorf("Expected indent JSON true, got %v", val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionFieldSeparator); val != " | " {
+	if val := logger.GetFormatOption(omni.FormatOptionFieldSeparator); val != " | " {
 		t.Errorf("Expected field separator %q, got %v", " | ", val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionTimeZone); val != time.UTC {
+	if val := logger.GetFormatOption(omni.FormatOptionTimeZone); val != time.UTC {
 		t.Errorf("Expected time zone UTC, got %v", val)
 	}
 
-	if val := logger.GetFormatOption(flexlog.FormatOptionIncludeTime); val != false {
+	if val := logger.GetFormatOption(omni.FormatOptionIncludeTime); val != false {
 		t.Errorf("Expected include time false, got %v", val)
 	}
 
 	// Test unknown option
-	if val := logger.GetFormatOption(flexlog.FormatOption(9999)); val != nil {
+	if val := logger.GetFormatOption(omni.FormatOption(9999)); val != nil {
 		t.Errorf("Expected nil for unknown option, got %v", val)
 	}
 }
@@ -227,63 +227,63 @@ func TestGetFormatOption(t *testing.T) {
 func TestFormatOptionEffects(t *testing.T) {
 	tests := []struct {
 		name          string
-		setupFunc     func(*flexlog.FlexLog)
+		setupFunc     func(*omni.Omni)
 		logMessage    string
 		expectPattern string
 	}{
 		{
 			name: "no time, no level",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, false)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
 			},
 			logMessage:    "test message",
 			expectPattern: "^test message\n$",
 		},
 		{
 			name: "with time, no level",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, true)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, true)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
 			},
 			logMessage:    "test message",
 			expectPattern: `^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}\] test message\n$`,
 		},
 		{
 			name: "no time, with level",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, true)
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, false)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, true)
 			},
 			logMessage:    "test message",
 			expectPattern: `^\[INFO\] test message\n$`,
 		},
 		{
 			name: "level format lower",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, true)
-				logger.SetFormatOption(flexlog.FormatOptionLevelFormat, flexlog.LevelFormatNameLower)
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, false)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, true)
+				logger.SetFormatOption(omni.FormatOptionLevelFormat, omni.LevelFormatNameLower)
 			},
 			logMessage:    "test message",
 			expectPattern: `^\[info\] test message\n$`,
 		},
 		{
 			name: "level format symbol",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, false)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, true)
-				logger.SetFormatOption(flexlog.FormatOptionLevelFormat, flexlog.LevelFormatSymbol)
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, false)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, true)
+				logger.SetFormatOption(omni.FormatOptionLevelFormat, omni.LevelFormatSymbol)
 			},
 			logMessage:    "test message",
 			expectPattern: `^\[I\] test message\n$`,
 		},
 		{
 			name: "custom timestamp format",
-			setupFunc: func(logger *flexlog.FlexLog) {
-				logger.SetFormatOption(flexlog.FormatOptionIncludeTime, true)
-				logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
-				logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, "15:04:05")
+			setupFunc: func(logger *omni.Omni) {
+				logger.SetFormatOption(omni.FormatOptionIncludeTime, true)
+				logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
+				logger.SetFormatOption(omni.FormatOptionTimestampFormat, "15:04:05")
 			},
 			logMessage:    "test message",
 			expectPattern: `^\[\d{2}:\d{2}:\d{2}\] test message\n$`,
@@ -293,7 +293,7 @@ func TestFormatOptionEffects(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempFile := filepath.Join(t.TempDir(), "test.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				t.Fatalf("Failed to create logger: %v", err)
 			}
@@ -321,16 +321,16 @@ func TestFormatOptionEffects(t *testing.T) {
 
 func TestJSONFormat(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Set JSON format
-	logger.SetFormat(flexlog.FormatJSON)
+	logger.SetFormat(omni.FormatJSON)
 
 	// Log a structured entry
-	logger.StructuredLog(flexlog.LevelInfo, "test message", map[string]interface{}{
+	logger.StructuredLog(omni.LevelInfo, "test message", map[string]interface{}{
 		"user":   "admin",
 		"action": "login",
 		"status": 200,
@@ -358,7 +358,7 @@ func TestJSONFormat(t *testing.T) {
 
 func TestTimeZoneFormatting(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -370,15 +370,15 @@ func TestTimeZoneFormatting(t *testing.T) {
 	}
 
 	// Set UTC timezone first
-	logger.SetFormatOption(flexlog.FormatOptionTimeZone, time.UTC)
-	logger.SetFormatOption(flexlog.FormatOptionTimestampFormat, "15:04:05 MST")
-	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
+	logger.SetFormatOption(omni.FormatOptionTimeZone, time.UTC)
+	logger.SetFormatOption(omni.FormatOptionTimestampFormat, "15:04:05 MST")
+	logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
 
 	logger.Info("UTC message")
 	logger.Sync()
 
 	// Switch to NYC timezone
-	logger.SetFormatOption(flexlog.FormatOptionTimeZone, nyc)
+	logger.SetFormatOption(omni.FormatOptionTimeZone, nyc)
 	logger.Info("NYC message")
 	logger.Sync()
 	logger.CloseAll()
@@ -407,7 +407,7 @@ func TestTimeZoneFormatting(t *testing.T) {
 
 func TestGetFormatOptions(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -429,7 +429,7 @@ func TestGetFormatOptions(t *testing.T) {
 		t.Error("Default should include time")
 	}
 
-	if opts.LevelFormat != flexlog.LevelFormatNameUpper {
+	if opts.LevelFormat != omni.LevelFormatNameUpper {
 		t.Errorf("Default level format should be upper case, got %v", opts.LevelFormat)
 	}
 
@@ -446,8 +446,8 @@ func TestGetFormatOptions(t *testing.T) {
 	}
 
 	// Modify options
-	logger.SetFormatOption(flexlog.FormatOptionIncludeLevel, false)
-	logger.SetFormatOption(flexlog.FormatOptionIndentJSON, true)
+	logger.SetFormatOption(omni.FormatOptionIncludeLevel, false)
+	logger.SetFormatOption(omni.FormatOptionIndentJSON, true)
 
 	// Get options again
 	opts2 := logger.GetFormatOptions()
@@ -463,14 +463,14 @@ func TestGetFormatOptions(t *testing.T) {
 
 func TestStructuredLogFormatting(t *testing.T) {
 	tempFile := filepath.Join(t.TempDir(), "test.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
 	// Test text format with fields
-	logger.SetFormat(flexlog.FormatText)
-	logger.StructuredLog(flexlog.LevelInfo, "user action", map[string]interface{}{
+	logger.SetFormat(omni.FormatText)
+	logger.StructuredLog(omni.LevelInfo, "user action", map[string]interface{}{
 		"user":   "alice",
 		"action": "login",
 		"ip":     "192.168.1.1",

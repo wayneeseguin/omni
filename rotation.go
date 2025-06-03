@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ const RotationTimeFormat = "20060102-150405.000"
 //
 // Returns:
 //   - error: Any error encountered during rotation
-func (f *FlexLog) rotate() error {
+func (f *Omni) rotate() error {
 	// Lock already acquired in flocklogf
 
 	// Find the primary destination (if any)
@@ -64,13 +64,13 @@ func (f *FlexLog) rotate() error {
 	// Open new file
 	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return NewFlexLogError(ErrCodeFileOpen, "open", f.path, err)
+		return NewOmniError(ErrCodeFileOpen, "open", f.path, err)
 	}
 
 	// Create new writer - if this fails, we need to close the file
 	newWriter := bufio.NewWriterSize(file, defaultBufferSize)
 
-	// Update FlexLog state atomically
+	// Update Omni state atomically
 	f.file = file
 	f.writer = newWriter
 	f.currentSize = 0
@@ -109,7 +109,7 @@ func (f *FlexLog) rotate() error {
 //
 //	logger.SetMaxAge(7 * 24 * time.Hour)  // Keep logs for 7 days
 //	logger.SetMaxAge(0)                    // Disable age-based cleanup
-func (f *FlexLog) SetMaxAge(duration time.Duration) error {
+func (f *Omni) SetMaxAge(duration time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -133,7 +133,7 @@ func (f *FlexLog) SetMaxAge(duration time.Duration) error {
 // Example:
 //
 //	logger.SetCleanupInterval(30 * time.Minute)  // Check every 30 minutes
-func (f *FlexLog) SetCleanupInterval(interval time.Duration) {
+func (f *Omni) SetCleanupInterval(interval time.Duration) {
 	if interval < time.Minute {
 		interval = time.Minute // Enforce a reasonable minimum
 	}
@@ -154,7 +154,7 @@ func (f *FlexLog) SetCleanupInterval(interval time.Duration) {
 // startCleanupRoutine starts the background goroutine for age-based log file cleanup.
 // This method is called automatically when SetMaxAge is set to a non-zero value.
 // It will not start if already running or if maxAge is 0.
-func (f *FlexLog) startCleanupRoutine() {
+func (f *Omni) startCleanupRoutine() {
 	// Don't start if already running or max age is 0
 	if f.cleanupTicker != nil || f.maxAge == 0 {
 		return
@@ -187,7 +187,7 @@ func (f *FlexLog) startCleanupRoutine() {
 
 // stopCleanupRoutine stops the background cleanup goroutine.
 // It waits for the goroutine to finish before returning.
-func (f *FlexLog) stopCleanupRoutine() {
+func (f *Omni) stopCleanupRoutine() {
 	if f.cleanupTicker == nil {
 		return
 	}
@@ -210,7 +210,7 @@ func (f *FlexLog) stopCleanupRoutine() {
 //
 // Returns:
 //   - error: Any error encountered during cleanup
-func (f *FlexLog) cleanupOldLogs() error {
+func (f *Omni) cleanupOldLogs() error {
 	if f.maxAge == 0 {
 		return nil // Age-based cleanup disabled
 	}
@@ -307,7 +307,7 @@ func (f *FlexLog) cleanupOldLogs() error {
 //
 // Returns:
 //   - error: Any error encountered during cleanup
-func (f *FlexLog) cleanupOldFiles() error {
+func (f *Omni) cleanupOldFiles() error {
 	if f.maxFiles <= 0 {
 		return nil // No file count limit
 	}
@@ -375,7 +375,7 @@ func (f *FlexLog) cleanupOldFiles() error {
 //
 // Returns:
 //   - error: Any error encountered during cleanup
-func (f *FlexLog) RunCleanup() error {
+func (f *Omni) RunCleanup() error {
 	// Don't call cleanupOldLogs with lock held, as it tries to acquire lock itself
 	return f.cleanupOldLogs()
 }
@@ -389,7 +389,7 @@ func (f *FlexLog) RunCleanup() error {
 //
 // Returns:
 //   - error: Any error encountered during rotation
-func (f *FlexLog) rotateDestination(dest *Destination) error {
+func (f *Omni) rotateDestination(dest *Destination) error {
 	// Only rotate file-based destinations
 	if dest.Backend != BackendFlock {
 		return nil
@@ -413,7 +413,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 
 	// Rename the current file
 	if err := os.Rename(dest.URI, rotatedPath); err != nil {
-		return NewFlexLogError(ErrCodeFileRotate, "rename", dest.URI, err)
+		return NewOmniError(ErrCodeFileRotate, "rename", dest.URI, err)
 	}
 
 	// Open a new file
@@ -421,10 +421,10 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 	if err != nil {
 		// Try to restore the original file
 		if restoreErr := os.Rename(rotatedPath, dest.URI); restoreErr != nil {
-			return NewFlexLogError(ErrCodeFileOpen, "open", dest.URI,
+			return NewOmniError(ErrCodeFileOpen, "open", dest.URI,
 				fmt.Errorf("%w (failed to restore original: %v)", err, restoreErr))
 		}
-		return NewFlexLogError(ErrCodeFileOpen, "open", dest.URI, err)
+		return NewOmniError(ErrCodeFileOpen, "open", dest.URI, err)
 	}
 
 	// Create new writer - ensure we close file if this somehow fails
@@ -484,7 +484,7 @@ func (f *FlexLog) rotateDestination(dest *Destination) error {
 //
 // Returns:
 //   - error: Any error encountered during cleanup
-func (f *FlexLog) cleanupOldFilesForDestination(path string) error {
+func (f *Omni) cleanupOldFilesForDestination(path string) error {
 	if f.maxFiles <= 0 {
 		return nil // No file count limit
 	}

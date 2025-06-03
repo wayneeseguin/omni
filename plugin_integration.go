@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 )
 
 // AddDestinationWithPlugin adds a destination using a plugin backend
-func (f *FlexLog) AddDestinationWithPlugin(uri string) error {
+func (f *Omni) AddDestinationWithPlugin(uri string) error {
 	// Parse URI to determine backend plugin
 	scheme := ""
 	if idx := strings.Index(uri, "://"); idx > 0 {
@@ -50,7 +50,7 @@ func (f *FlexLog) AddDestinationWithPlugin(uri string) error {
 }
 
 // SetCustomFormatter sets a custom formatter for the logger
-func (f *FlexLog) SetCustomFormatter(formatName string, config map[string]interface{}) error {
+func (f *Omni) SetCustomFormatter(formatName string, config map[string]interface{}) error {
 	// Check for plugin formatter
 	if plugin, exists := defaultPluginManager.GetFormatterPlugin(formatName); exists {
 		formatter, err := plugin.CreateFormatter(config)
@@ -58,7 +58,7 @@ func (f *FlexLog) SetCustomFormatter(formatName string, config map[string]interf
 			return fmt.Errorf("create plugin formatter: %w", err)
 		}
 		
-		// Store the formatter (this would need to be implemented in FlexLog struct)
+		// Store the formatter (this would need to be implemented in Omni struct)
 		f.customFormatter = formatter
 		f.format = FormatCustom // New format type for custom formatters
 		

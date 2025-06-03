@@ -1,9 +1,9 @@
-# FlexLog - Flexible Logging for Go
+# Omni - Universal Logging for Go
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/wayneeseguin/flexlog.svg)](https://pkg.go.dev/github.com/wayneeseguin/flexlog)
+[![Go Reference](https://pkg.go.dev/badge/github.com/wayneeseguin/omni.svg)](https://pkg.go.dev/github.com/wayneeseguin/omni)
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-FlexLog is a high-performance, extensible logging library for Go applications with support for multiple destinations, structured logging, and distributed systems integration.
+Omni is a high-performance, extensible logging library for Go applications with support for multiple destinations, structured logging, and distributed systems integration.
 
 ## Key Features
 
@@ -31,7 +31,7 @@ FlexLog is a high-performance, extensible logging library for Go applications wi
 ## Installation
 
 ```bash
-go get github.com/wayneeseguin/flexlog
+go get github.com/wayneeseguin/omni
 ```
 
 ## Documentation
@@ -52,12 +52,12 @@ go get github.com/wayneeseguin/flexlog
 package main
 
 import (
-    "github.com/wayneeseguin/flexlog"
+    "github.com/wayneeseguin/omni"
 )
 
 func main() {
     // Create a simple file logger
-    logger, err := flexlog.New("app.log")
+    logger, err := omni.New("app.log")
     if err != nil {
         panic(err)
     }
@@ -83,8 +83,8 @@ logger.InfoWithFields("User action", map[string]interface{}{
 })
 
 // Use the Builder pattern for advanced configuration
-logger, err := flexlog.NewBuilder().
-    WithLevel(flexlog.LevelDebug).
+logger, err := omni.NewBuilder().
+    WithLevel(omni.LevelDebug).
     WithJSON().
     WithDestination("/var/log/app.log").
     WithRotation(10*1024*1024, 5). // 10MB files, keep 5
@@ -95,7 +95,7 @@ logger, err := flexlog.NewBuilder().
 
 ```go
 // Create logger with primary destination
-logger, err := flexlog.New("/var/log/app.log")
+logger, err := omni.New("/var/log/app.log")
 if err != nil {
     panic(err)
 }
@@ -107,18 +107,18 @@ logger.AddDestination("stdout")
 
 // Destination-specific configuration
 logger.SetDestinationEnabled(1, false)  // Disable second destination
-logger.SetDestinationFilter(2, flexlog.LevelError) // Only errors to third
+logger.SetDestinationFilter(2, omni.LevelError) // Only errors to third
 ```
 
 ### Distributed Logging with NATS
 
 ```go
 // Register NATS plugin
-import natsplugin "github.com/wayneeseguin/flexlog/examples/plugins/nats-backend"
+import natsplugin "github.com/wayneeseguin/omni/examples/plugins/nats-backend"
 
 plugin := &natsplugin.NATSBackendPlugin{}
 plugin.Initialize(nil)
-flexlog.RegisterBackendPlugin(plugin)
+omni.RegisterBackendPlugin(plugin)
 
 // Add NATS destinations
 logger.AddDestination("nats://localhost:4222/logs.app.info?queue=processors")
@@ -146,7 +146,7 @@ if err := riskyOperation(); err != nil {
     logger.ErrorWithError("Operation failed", err)
     
     // With severity levels
-    logger.ErrorWithErrorAndSeverity("Critical failure", err, flexlog.SeverityCritical)
+    logger.ErrorWithErrorAndSeverity("Critical failure", err, omni.SeverityCritical)
 }
 
 // Wrap errors with additional context
@@ -172,9 +172,9 @@ logger.AddFilter(func(level int, message string, fields map[string]interface{}) 
 })
 
 // Configure sampling to reduce volume
-logger.SetSampling(flexlog.SamplingInterval, 10)    // Every 10th message
-logger.SetSampling(flexlog.SamplingRandom, 0.1)     // 10% randomly
-logger.SetSampling(flexlog.SamplingConsistent, 0.2) // 20% consistently by key
+logger.SetSampling(omni.SamplingInterval, 10)    // Every 10th message
+logger.SetSampling(omni.SamplingRandom, 0.1)     // 10% randomly
+logger.SetSampling(omni.SamplingConsistent, 0.2) // 20% consistently by key
 ```
 
 ### Log Rotation & Compression
@@ -186,7 +186,7 @@ logger.SetMaxFiles(10)                      // Keep 10 files
 logger.SetMaxAge(7 * 24 * time.Hour)       // 7 days retention
 
 // Enable compression
-logger.SetCompression(flexlog.CompressionGzip)
+logger.SetCompression(omni.CompressionGzip)
 logger.SetCompressMinAge(2)                 // Compress after 2 rotations
 logger.SetCompressWorkers(3)                // 3 compression workers
 ```
@@ -195,11 +195,11 @@ logger.SetCompressWorkers(3)                // 3 compression workers
 
 ```go
 // Load plugins from directory
-flexlog.SetPluginSearchPaths([]string{
+omni.SetPluginSearchPaths([]string{
     "./plugins",
-    "/usr/local/lib/flexlog/plugins",
+    "/usr/local/lib/omni/plugins",
 })
-flexlog.DiscoverAndLoadPlugins()
+omni.DiscoverAndLoadPlugins()
 
 // Use custom formatter plugin
 logger.SetCustomFormatter("xml", map[string]interface{}{
@@ -217,7 +217,7 @@ logger.AddDestinationWithPlugin("elasticsearch://localhost:9200/logs")
 ### 1. Configure Channel Size for High Load
 ```go
 // Set before creating loggers
-os.Setenv("FLEXLOG_CHANNEL_SIZE", "10000")
+os.Setenv("OMNI_CHANNEL_SIZE", "10000")
 ```
 
 ### 2. Monitor Logger Health
@@ -246,7 +246,7 @@ logger.WithContext(ctx).Info("Processing request")
 
 ## Performance Benchmarks
 
-FlexLog is designed for high-performance logging with minimal overhead:
+Omni is designed for high-performance logging with minimal overhead:
 
 - **Throughput**: 1M+ messages/second (async mode)
 - **Latency**: <1μs per log call (with buffering)
@@ -273,10 +273,10 @@ Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) 
 
 ## License
 
-FlexLog is released under the [MIT License](LICENSE).
+Omni is released under the [MIT License](LICENSE).
 
 ## Support
 
-- 🐛 [Report Issues](https://github.com/wayneeseguin/flexlog/issues)
-- 💬 [Discussions](https://github.com/wayneeseguin/flexlog/discussions)
+- 🐛 [Report Issues](https://github.com/wayneeseguin/omni/issues)
+- 💬 [Discussions](https://github.com/wayneeseguin/omni/discussions)
 - 📧 Contact: wayne@wayneeseguin.com

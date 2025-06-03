@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"encoding/json"
@@ -17,7 +17,7 @@ import (
 //
 // Returns:
 //   - error: Any error encountered during writing
-func (f *FlexLog) writeToDestination(dest *Destination, data []byte) error {
+func (f *Omni) writeToDestination(dest *Destination, data []byte) error {
 	// This function is called with dest.mu already locked
 	if dest.batchEnabled && dest.batchWriter != nil {
 		// Use batch writer
@@ -46,7 +46,7 @@ func (f *FlexLog) writeToDestination(dest *Destination, data []byte) error {
 //
 // Returns:
 //   - error: Any error encountered during writing
-func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error {
+func (f *Omni) writeStringToDestination(dest *Destination, data string) error {
 	// This function is called with dest.mu already locked
 	if dest.batchEnabled && dest.batchWriter != nil {
 		// Use batch writer
@@ -80,7 +80,7 @@ func (f *FlexLog) writeStringToDestination(dest *Destination, data string) error
 // Parameters:
 //   - msg: The log message to process
 //   - dest: The destination to send the message to
-func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
+func (f *Omni) processMessage(msg LogMessage, dest *Destination) {
 	// Defensive check - should never happen in normal operation
 	if dest == nil {
 		f.logError("process", "", "Attempted to process message for nil destination", nil, ErrorLevelHigh)
@@ -121,7 +121,7 @@ func (f *FlexLog) processMessage(msg LogMessage, dest *Destination) {
 // Parameters:
 //   - msg: The log message to process
 //   - dest: The destination with custom backend
-func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
+func (f *Omni) processCustomMessage(msg LogMessage, dest *Destination) {
 	formatOpts := f.GetFormatOptions()
 	format := f.GetFormat()
 
@@ -138,8 +138,18 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 	} else if msg.Entry != nil {
 		// For structured entries
 		if format == FormatJSON {
+			// Apply redaction to fields (built-in redaction is always active)
+			entryToFormat := msg.Entry
+			if msg.Entry.Fields != nil {
+				// Create a copy to avoid modifying the original
+				entryCopy := *msg.Entry
+				// Apply recursive redaction to fields
+				f.recursiveRedact(entryCopy.Fields)
+				entryToFormat = &entryCopy
+			}
+			
 			// Use JSON format
-			data, _ := json.Marshal(msg.Entry)
+			data, _ := json.Marshal(entryToFormat)
 			entry = string(data) + "\n"
 		} else {
 			// Use text format for structured entries
@@ -245,7 +255,7 @@ func (f *FlexLog) processCustomMessage(msg LogMessage, dest *Destination) {
 //   - dest: The file destination
 //   - entryPtr: Pointer to store the formatted entry string
 //   - entrySizePtr: Pointer to store the entry size in bytes
-func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr *string, entrySizePtr *int64) {
+func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *string, entrySizePtr *int64) {
 	// Get all needed values before acquiring any locks to avoid deadlock
 	// Following lock ordering hierarchy: f.mu -> dest.mu -> dest.Lock
 	formatOpts := f.GetFormatOptions()
@@ -304,8 +314,18 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 		// Structured entry
 		var entryData string
 		if format == FormatJSON {
+			// Apply redaction to fields (built-in redaction is always active)
+			entryToFormat := msg.Entry
+			if msg.Entry.Fields != nil {
+				// Create a copy to avoid modifying the original
+				entryCopy := *msg.Entry
+				// Apply recursive redaction to fields
+				f.recursiveRedact(entryCopy.Fields)
+				entryToFormat = &entryCopy
+			}
+			
 			// Process the JSON entry
-			data, err := formatJSONEntry(msg.Entry)
+			data, err := formatJSONEntry(entryToFormat)
 			if err != nil {
 				f.logError("format", dest.Name, "Failed to format JSON entry", err, ErrorLevelMedium)
 				return
@@ -531,7 +551,7 @@ func (f *FlexLog) processFileMessage(msg LogMessage, dest *Destination, entryPtr
 // Parameters:
 //   - msg: The log message to process
 //   - dest: The syslog destination
-func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
+func (f *Omni) processSyslogMessage(msg LogMessage, dest *Destination) {
 	// Quick check without lock first
 	if dest.SyslogConn == nil {
 		f.logError("syslog", dest.Name, "Syslog connection not initialized", nil, ErrorLevelHigh)
@@ -565,8 +585,18 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 		// Raw bytes
 		content = string(msg.Raw)
 	} else if msg.Entry != nil {
+		// Apply redaction to fields (built-in redaction is always active)
+		entryToFormat := msg.Entry
+		if msg.Entry.Fields != nil {
+			// Create a copy to avoid modifying the original
+			entryCopy := *msg.Entry
+			// Apply recursive redaction to fields
+			f.recursiveRedact(entryCopy.Fields)
+			entryToFormat = &entryCopy
+		}
+		
 		// JSON entry
-		jsonData, err := formatJSONEntry(msg.Entry)
+		jsonData, err := formatJSONEntry(entryToFormat)
 		if err != nil {
 			f.logError("format", dest.Name, "Failed to format JSON entry for syslog", err, ErrorLevelMedium)
 			return
@@ -608,7 +638,7 @@ func (f *FlexLog) processSyslogMessage(msg LogMessage, dest *Destination) {
 // Parameters:
 //   - msg: The log message to process
 //   - dest: The destination with plugin backend
-func (f *FlexLog) processPluginMessage(msg LogMessage, dest *Destination) {
+func (f *Omni) processPluginMessage(msg LogMessage, dest *Destination) {
 	// Check if plugin backend is initialized
 	if dest.PluginBackend == nil {
 		f.logError("plugin", dest.Name, "Plugin backend not initialized", nil, ErrorLevelHigh)
@@ -631,8 +661,18 @@ func (f *FlexLog) processPluginMessage(msg LogMessage, dest *Destination) {
 	} else if msg.Entry != nil {
 		// For structured entries
 		if format == FormatJSON {
+			// Apply redaction to fields (built-in redaction is always active)
+			entryToFormat := msg.Entry
+			if msg.Entry.Fields != nil {
+				// Create a copy to avoid modifying the original
+				entryCopy := *msg.Entry
+				// Apply recursive redaction to fields
+				f.recursiveRedact(entryCopy.Fields)
+				entryToFormat = &entryCopy
+			}
+			
 			// Use JSON format
-			data, err := json.Marshal(msg.Entry)
+			data, err := json.Marshal(entryToFormat)
 			if err != nil {
 				f.logError("format", dest.Name, "Failed to format JSON entry", err, ErrorLevelMedium)
 				return

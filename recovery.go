@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -53,7 +53,7 @@ func DefaultRecoveryConfig() *RecoveryConfig {
 		RetryDelay:        100 * time.Millisecond,
 		BackoffMultiplier: 2.0,
 		MaxRetryDelay:     5 * time.Second,
-		FallbackPath:      "/tmp/flexlog-fallback.log",
+		FallbackPath:      "/tmp/omni-fallback.log",
 		BufferSize:        1000,
 		Strategy:          RecoveryRetry,
 	}
@@ -116,7 +116,7 @@ func NewRecoveryManager(config *RecoveryConfig) *RecoveryManager {
 //   - err: The error that occurred
 //   - msg: The log message that failed
 //   - dest: The destination that failed
-func (rm *RecoveryManager) HandleError(f *FlexLog, err error, msg LogMessage, dest *Destination) {
+func (rm *RecoveryManager) HandleError(f *Omni, err error, msg LogMessage, dest *Destination) {
 	// Determine recovery strategy based on error type
 	strategy := rm.determineStrategy(err)
 
@@ -141,8 +141,8 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 	}
 
 	// Check for specific error types first, before generic retryable check
-	if flexErr, ok := err.(*FlexLogError); ok {
-		switch flexErr.Code {
+	if omniErr, ok := err.(*OmniError); ok {
+		switch omniErr.Code {
 		case ErrCodeChannelFull:
 			return RecoveryBuffer
 		case ErrCodeFileWrite, ErrCodeFileFlush:
@@ -163,7 +163,7 @@ func (rm *RecoveryManager) determineStrategy(err error) RecoveryStrategy {
 
 // retryOperation retries an operation with exponential backoff.
 // It tracks retry counts per destination and schedules retries with increasing delays.
-func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage, dest *Destination) {
+func (rm *RecoveryManager) retryOperation(f *Omni, err error, msg LogMessage, dest *Destination) {
 	destName := dest.Name
 
 	// Get current retry count
@@ -211,7 +211,7 @@ func (rm *RecoveryManager) retryOperation(f *FlexLog, err error, msg LogMessage,
 // fallbackWrite writes to a fallback destination.
 // This ensures critical log messages are preserved even when the primary destination fails.
 // Messages are written with a [FALLBACK] prefix for easy identification.
-func (rm *RecoveryManager) fallbackWrite(f *FlexLog, msg LogMessage) {
+func (rm *RecoveryManager) fallbackWrite(f *Omni, msg LogMessage) {
 	// Ensure fallback file is open
 	if rm.fallback == nil {
 		// Create fallback directory if needed
@@ -274,7 +274,7 @@ func (rm *RecoveryManager) bufferMessage(msg LogMessage) {
 // FlushBuffer attempts to flush buffered messages.
 // This is typically called when the primary destination recovers.
 // Messages that still can't be sent are re-buffered.
-func (rm *RecoveryManager) FlushBuffer(f *FlexLog) {
+func (rm *RecoveryManager) FlushBuffer(f *Omni) {
 	rm.bufferMu.Lock()
 	messages := make([]LogMessage, len(rm.buffer))
 	copy(messages, rm.buffer)
@@ -310,7 +310,7 @@ func (rm *RecoveryManager) Close() error {
 //
 // Parameters:
 //   - config: The new recovery configuration
-func (f *FlexLog) SetRecoveryConfig(config *RecoveryConfig) {
+func (f *Omni) SetRecoveryConfig(config *RecoveryConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -329,7 +329,7 @@ func (f *FlexLog) SetRecoveryConfig(config *RecoveryConfig) {
 //   - err: The error that occurred
 //   - msg: The log message that failed
 //   - dest: The destination that failed
-func (f *FlexLog) RecoverFromError(err error, msg LogMessage, dest *Destination) {
+func (f *Omni) RecoverFromError(err error, msg LogMessage, dest *Destination) {
 	if f.recoveryManager == nil {
 		// No recovery configured, just drop the message
 		f.trackMessageDropped()

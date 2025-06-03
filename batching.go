@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ const (
 //
 //	// Flush every 50ms
 //	err := logger.SetFlushInterval(0, 50*time.Millisecond)
-func (f *FlexLog) SetFlushInterval(destIndex int, interval time.Duration) error {
+func (f *Omni) SetFlushInterval(destIndex int, interval time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -71,7 +71,7 @@ func (f *FlexLog) SetFlushInterval(destIndex int, interval time.Duration) error 
 //
 //	// Flush when buffer reaches 16KB
 //	err := logger.SetFlushSize(0, 16*1024)
-func (f *FlexLog) SetFlushSize(destIndex int, size int) error {
+func (f *Omni) SetFlushSize(destIndex int, size int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -97,7 +97,7 @@ func (f *FlexLog) SetFlushSize(destIndex int, size int) error {
 //
 // Returns:
 //   - error: If any configuration fails
-func (f *FlexLog) SetBatchingForAll(interval time.Duration, size int) error {
+func (f *Omni) SetBatchingForAll(interval time.Duration, size int) error {
 	f.mu.Lock()
 	numDests := len(f.Destinations)
 	f.mu.Unlock()
@@ -128,7 +128,7 @@ func (f *FlexLog) SetBatchingForAll(interval time.Duration, size int) error {
 // flushDestination flushes a specific destination.
 // This internal method handles the actual flush operation and
 // reschedules the flush timer if periodic flushing is enabled.
-func (f *FlexLog) flushDestination(dest *Destination) {
+func (f *Omni) flushDestination(dest *Destination) {
 	dest.mu.Lock()
 	defer dest.mu.Unlock()
 
@@ -147,7 +147,7 @@ func (f *FlexLog) flushDestination(dest *Destination) {
 // checkFlushSize checks if the buffer size warrants a flush.
 // This internal method monitors buffer utilization and triggers
 // a flush when the buffer is sufficiently full.
-func (f *FlexLog) checkFlushSize(dest *Destination) {
+func (f *Omni) checkFlushSize(dest *Destination) {
 	// This is called with dest.mu already locked
 	if dest.flushSize > 0 && dest.Writer != nil {
 		// bufio.Writer doesn't expose buffer size directly,
@@ -162,7 +162,7 @@ func (f *FlexLog) checkFlushSize(dest *Destination) {
 
 // stopFlushTimers stops all flush timers (called during shutdown).
 // This ensures clean shutdown by stopping all background flush operations.
-func (f *FlexLog) stopFlushTimers() {
+func (f *Omni) stopFlushTimers() {
 	f.mu.Lock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
@@ -208,7 +208,7 @@ func initializeDestinationBatching(dest *Destination) {
 //
 //	// Enable batching for the primary destination
 //	err := logger.EnableBatching(0, true)
-func (f *FlexLog) EnableBatching(destIndex int, enabled bool) error {
+func (f *Omni) EnableBatching(destIndex int, enabled bool) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -262,7 +262,7 @@ func (f *FlexLog) EnableBatching(destIndex int, enabled bool) error {
 //
 //	// Configure aggressive batching for high-throughput logging
 //	err := logger.SetBatchingConfig(0, 128*1024, 1000, 50*time.Millisecond)
-func (f *FlexLog) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushInterval time.Duration) error {
+func (f *Omni) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushInterval time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -295,7 +295,7 @@ func (f *FlexLog) SetBatchingConfig(destIndex int, maxSize, maxCount int, flushI
 // Returns:
 //   - bool: true if batching is enabled
 //   - error: If destination index is invalid
-func (f *FlexLog) IsBatchingEnabled(destIndex int) (bool, error) {
+func (f *Omni) IsBatchingEnabled(destIndex int) (bool, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 

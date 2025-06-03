@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -34,7 +34,7 @@ type Formatter interface {
 
 // Lock Ordering Hierarchy:
 // To prevent deadlocks, always acquire locks in this order:
-// 1. f.mu (FlexLog main mutex) - acquire first
+// 1. f.mu (Omni main mutex) - acquire first
 // 2. dest.mu (Destination mutex) - acquire second
 // 3. dest.Lock (File lock) - acquire last
 // Never acquire a higher-level lock while holding a lower-level lock.
@@ -158,7 +158,7 @@ type FormatOptions struct {
 	TimeZone        *time.Location
 }
 
-// FlexLog is the main logger struct that manages logging to multiple destinations.
+// Omni is the main logger struct that manages logging to multiple destinations.
 // It provides a non-blocking, thread-safe logging interface with support for:
 //   - Multiple concurrent output destinations
 //   - Structured logging with key-value pairs
@@ -167,9 +167,9 @@ type FormatOptions struct {
 //   - Process-safe file locking
 //   - Configurable formatting
 //
-// FlexLog uses a background worker pattern with channels to ensure logging
+// Omni uses a background worker pattern with channels to ensure logging
 // doesn't block the main application flow.
-type FlexLog struct {
+type Omni struct {
 	mu            sync.RWMutex
 	file          *os.File
 	writer        *bufio.Writer
@@ -264,7 +264,7 @@ type FlexLog struct {
 
 	// Structured logging enhancements
 	structuredOpts  StructuredLogOptions
-	parent          *FlexLog                 // Parent logger (for WithFields)
+	parent          *Omni                 // Parent logger (for WithFields)
 	parentFields    map[string]interface{}   // Fields from parent logger
 	includeHostname bool                     // Include hostname in logs
 	includeProcess  bool                     // Include process info in logs

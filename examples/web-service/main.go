@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // Global logger instance
-var logger *flexlog.FlexLog
+var logger *omni.Omni
 
 // Middleware for request logging
 func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -152,13 +152,13 @@ func errorHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	// Initialize logger with production settings
 	var err error
-	logger, err = flexlog.NewWithOptions(
-		flexlog.WithPath("/tmp/webservice.log"), // Use /tmp for demo
-		flexlog.WithLevel(flexlog.LevelInfo),
-		flexlog.WithJSON(),                    // JSON for log aggregation
-		flexlog.WithRotation(50*1024*1024, 5), // 50MB files, keep 5
-		flexlog.WithGzipCompression(),         // Compress rotated logs
-		flexlog.WithChannelSize(5000),         // Larger buffer for web service
+	logger, err = omni.NewWithOptions(
+		omni.WithPath("/tmp/webservice.log"), // Use /tmp for demo
+		omni.WithLevel(omni.LevelInfo),
+		omni.WithJSON(),                    // JSON for log aggregation
+		omni.WithRotation(50*1024*1024, 5), // 50MB files, keep 5
+		omni.WithGzipCompression(),         // Compress rotated logs
+		omni.WithChannelSize(5000),         // Larger buffer for web service
 	)
 	
 	if err != nil {

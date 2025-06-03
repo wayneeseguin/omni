@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"bufio"
@@ -12,7 +12,7 @@ import (
 )
 
 // defaultChannelSize is the default buffer size for the message channel
-// initialized from environment variable FLEXLOG_CHANNEL_SIZE or defaults to 100
+// initialized from environment variable OMNI_CHANNEL_SIZE or defaults to 100
 var defaultChannelSize = getDefaultChannelSize()
 
 // Filter is a function that determines if a message should be logged.
@@ -21,7 +21,7 @@ type Filter func(level int, message string, fields map[string]interface{}) bool
 
 // getDefaultChannelSize retrieves the default channel size from an environment variable or uses the default value
 func getDefaultChannelSize() int {
-	if value, exists := os.LookupEnv("FLEXLOG_CHANNEL_SIZE"); exists {
+	if value, exists := os.LookupEnv("OMNI_CHANNEL_SIZE"); exists {
 		if size, err := strconv.Atoi(value); err == nil && size > 0 {
 			return size
 		}
@@ -67,17 +67,17 @@ func getDefaultErrorHandler() ErrorHandler {
 //   - path: The file path where logs will be written
 //
 // Returns:
-//   - *FlexLog: The logger instance
+//   - *Omni: The logger instance
 //   - error: Any error encountered during creation
 //
 // Example:
 //
-//	logger, err := flexlog.New("/var/log/app.log")
+//	logger, err := omni.New("/var/log/app.log")
 //	if err != nil {
 //		log.Fatal(err)
 //	}
 //	defer logger.Close()
-func New(path string) (*FlexLog, error) {
+func New(path string) (*Omni, error) {
 	// For backward compatibility, we treat this as a file-based logger
 	// with flock backend by default
 	return NewWithBackend(path, BackendFlock)
@@ -90,15 +90,15 @@ func New(path string) (*FlexLog, error) {
 //   - backendType: The backend type (BackendFlock or BackendSyslog)
 //
 // Returns:
-//   - *FlexLog: The logger instance
+//   - *Omni: The logger instance
 //   - error: Any error encountered during creation
-func NewWithBackend(uri string, backendType int) (*FlexLog, error) {
+func NewWithBackend(uri string, backendType int) (*Omni, error) {
 	// Get the channel size from environment or use default
 	channelSize := getDefaultChannelSize()
 	formatOptions := defaultFormatOptions()
 
 	// Create a new instance with default settings
-	f := &FlexLog{
+	f := &Omni{
 		maxSize:          defaultMaxSize,
 		maxFiles:         defaultMaxFiles,
 		level:            LevelInfo,  // Default to Info level
@@ -167,7 +167,7 @@ func NewWithBackend(uri string, backendType int) (*FlexLog, error) {
 }
 
 // messageDispatcher is the single background goroutine that processes all messages
-func (f *FlexLog) messageDispatcher() {
+func (f *Omni) messageDispatcher() {
 	defer f.workerWg.Done()
 
 	for msg := range f.msgChan {
@@ -213,49 +213,49 @@ func (f *FlexLog) messageDispatcher() {
 }
 
 // IsClosed returns true if the logger has been closed
-func (f *FlexLog) IsClosed() bool {
+func (f *Omni) IsClosed() bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.closed
 }
 
 // SetMaxSize sets the maximum log file size
-func (f *FlexLog) SetMaxSize(size int64) {
+func (f *Omni) SetMaxSize(size int64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.maxSize = size
 }
 
 // GetMaxSize returns the maximum log file size (thread-safe)
-func (f *FlexLog) GetMaxSize() int64 {
+func (f *Omni) GetMaxSize() int64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.maxSize
 }
 
 // SetMaxFiles sets the maximum number of log files
-func (f *FlexLog) SetMaxFiles(count int) {
+func (f *Omni) SetMaxFiles(count int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.maxFiles = count
 }
 
 // GetMaxFiles returns the maximum number of log files
-func (f *FlexLog) GetMaxFiles() int {
+func (f *Omni) GetMaxFiles() int {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.maxFiles
 }
 
 // SetGlobalFields sets global fields that will be included in all log entries
-func (f *FlexLog) SetGlobalFields(fields map[string]interface{}) {
+func (f *Omni) SetGlobalFields(fields map[string]interface{}) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.globalFields = fields
 }
 
 // AddGlobalField adds a single global field
-func (f *FlexLog) AddGlobalField(key string, value interface{}) {
+func (f *Omni) AddGlobalField(key string, value interface{}) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.globalFields == nil {
@@ -265,7 +265,7 @@ func (f *FlexLog) AddGlobalField(key string, value interface{}) {
 }
 
 // RemoveGlobalField removes a global field
-func (f *FlexLog) RemoveGlobalField(key string) {
+func (f *Omni) RemoveGlobalField(key string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.globalFields != nil {
@@ -274,7 +274,7 @@ func (f *FlexLog) RemoveGlobalField(key string) {
 }
 
 // GetGlobalFields returns a copy of the current global fields
-func (f *FlexLog) GetGlobalFields() map[string]interface{} {
+func (f *Omni) GetGlobalFields() map[string]interface{} {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	if f.globalFields == nil {
@@ -289,19 +289,19 @@ func (f *FlexLog) GetGlobalFields() map[string]interface{} {
 }
 
 // IsLevelEnabled checks if a log level is enabled
-func (f *FlexLog) IsLevelEnabled(level int) bool {
+func (f *Omni) IsLevelEnabled(level int) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return level >= f.level
 }
 
 // WithContext returns a new Logger that includes context values in all log entries
-func (f *FlexLog) WithContext(ctx context.Context) Logger {
+func (f *Omni) WithContext(ctx context.Context) Logger {
 	return NewContextLogger(f, ctx)
 }
 
 // writeLogEntry writes a structured log entry
-func (f *FlexLog) writeLogEntry(entry LogEntry) {
+func (f *Omni) writeLogEntry(entry LogEntry) {
 	// Merge global fields with entry fields
 	if f.globalFields != nil && len(f.globalFields) > 0 {
 		if entry.Fields == nil {
@@ -334,7 +334,7 @@ func (f *FlexLog) writeLogEntry(entry LogEntry) {
 }
 
 // SetChannelSize sets the buffer size for the message channel
-func (f *FlexLog) SetChannelSize(size int) error {
+func (f *Omni) SetChannelSize(size int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 const (
 	// defaultMaxSize defines the default maximum size for a log file before rotation (100 MB).

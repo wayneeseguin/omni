@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
 	// Create logger with redaction enabled
-	logger, err := flexlog.New("redacted.log")
+	logger, err := omni.New("redacted.log")
 	if err != nil {
 		fmt.Printf("Failed to create logger: %v\n", err)
 		os.Exit(1)
@@ -54,7 +54,7 @@ func main() {
 	fmt.Println("\nCheck 'redacted.log' to see the redacted output")
 }
 
-func demonstrateBuiltInRedaction(logger *flexlog.FlexLog) {
+func demonstrateBuiltInRedaction(logger *omni.Omni) {
 	// These sensitive fields will be automatically redacted
 	logger.Info("User login attempt", map[string]interface{}{
 		"username": "john.doe",
@@ -80,7 +80,7 @@ func demonstrateBuiltInRedaction(logger *flexlog.FlexLog) {
 	})
 }
 
-func demonstrateCustomRedaction(logger *flexlog.FlexLog) {
+func demonstrateCustomRedaction(logger *omni.Omni) {
 	// Add custom redaction patterns
 	customPatterns := []string{
 		`\b\d{3}-\d{2}-\d{4}\b`,  // SSN pattern
@@ -103,7 +103,7 @@ func demonstrateCustomRedaction(logger *flexlog.FlexLog) {
 	})
 }
 
-func demonstrateHTTPRedaction(logger *flexlog.FlexLog) {
+func demonstrateHTTPRedaction(logger *omni.Omni) {
 	// Create a mock HTTP request
 	reqBody := `{
 		"username": "alice",
@@ -146,7 +146,7 @@ func demonstrateHTTPRedaction(logger *flexlog.FlexLog) {
 	logger.LogResponse(http.StatusOK, respHeaders, respBody)
 }
 
-func demonstrateStructuredRedaction(logger *flexlog.FlexLog) {
+func demonstrateStructuredRedaction(logger *omni.Omni) {
 	// Create a structured logger
 	structLogger := logger.WithFields(map[string]interface{}{
 		"service": "user-service",
@@ -184,7 +184,7 @@ func demonstrateStructuredRedaction(logger *flexlog.FlexLog) {
 	})
 }
 
-func demonstrateNestedRedaction(logger *flexlog.FlexLog) {
+func demonstrateNestedRedaction(logger *omni.Omni) {
 	// Complex nested structure with arrays
 	complexData := map[string]interface{}{
 		"users": []interface{}{
@@ -245,13 +245,13 @@ func demonstrateNestedRedaction(logger *flexlog.FlexLog) {
 	)
 }
 
-func demonstratePerformanceOptimizations(logger *flexlog.FlexLog) {
+func demonstratePerformanceOptimizations(logger *omni.Omni) {
 	// Configure redaction to skip DEBUG level for performance
-	logger.SetRedactionConfig(&flexlog.RedactionConfig{
+	logger.SetRedactionConfig(&omni.RedactionConfig{
 		EnableBuiltInPatterns: true,
 		EnableFieldRedaction:  true,
 		EnableDataPatterns:    true,
-		SkipLevels:           []int{flexlog.LevelDebug}, // Don't redact debug logs
+		SkipLevels:           []int{omni.LevelDebug}, // Don't redact debug logs
 		MaxCacheSize:         2000,
 	})
 
@@ -282,7 +282,7 @@ func demonstratePerformanceOptimizations(logger *flexlog.FlexLog) {
 	logger.ClearRedactionCache()
 }
 
-func demonstrateFieldPathRedaction(logger *flexlog.FlexLog) {
+func demonstrateFieldPathRedaction(logger *omni.Omni) {
 	// Configure specific field paths for targeted redaction
 	logger.AddFieldPathRule("user.credentials.password", "[USER-PASSWORD-REDACTED]")
 	logger.AddFieldPathRule("user.profile.ssn", "[SSN-REDACTED]")

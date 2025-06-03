@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // TestMultipleNATSSubjectsIntegration tests routing to multiple NATS subjects
@@ -30,13 +30,13 @@ func TestMultipleNATSSubjectsIntegration(t *testing.T) {
 		t.Fatalf("Failed to initialize plugin: %v", err)
 	}
 
-	if err := flexlog.RegisterBackendPlugin(plugin); err != nil {
+	if err := omni.RegisterBackendPlugin(plugin); err != nil {
 		t.Fatalf("Failed to register plugin: %v", err)
 	}
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -87,17 +87,17 @@ func TestMultipleNATSSubjectsIntegration(t *testing.T) {
 	}
 
 	// Create level-specific loggers that write to specific subjects
-	infoLogger, _ := flexlog.NewBuilder().WithJSON().Build()
+	infoLogger, _ := omni.NewBuilder().WithJSON().Build()
 	infoLogger.AddDestination("nats://localhost:4222/logs.info")
 	defer infoLogger.Close()
 
-	errorLogger, _ := flexlog.NewBuilder().WithJSON().Build()
+	errorLogger, _ := omni.NewBuilder().WithJSON().Build()
 	errorLogger.AddDestination("nats://localhost:4222/logs.error")
 	defer errorLogger.Close()
 
 	// Send test messages
 	testCases := []struct {
-		logger  *flexlog.FlexLog
+		logger  *omni.Omni
 		level   string
 		message string
 		fields  map[string]interface{}
@@ -196,11 +196,11 @@ func TestNATSWildcardSubscriptions(t *testing.T) {
 	// Create and register plugin
 	plugin := &NATSBackendPlugin{}
 	plugin.Initialize(nil)
-	flexlog.RegisterBackendPlugin(plugin)
+	omni.RegisterBackendPlugin(plugin)
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -295,11 +295,11 @@ func TestNATSQueueGroupLoadBalancing(t *testing.T) {
 	// Create and register plugin
 	plugin := &NATSBackendPlugin{}
 	plugin.Initialize(nil)
-	flexlog.RegisterBackendPlugin(plugin)
+	omni.RegisterBackendPlugin(plugin)
 
 	// Create logger
-	logger, err := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	logger, err := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	if err != nil {
@@ -442,7 +442,7 @@ func TestComplexRoutingScenario(t *testing.T) {
 	// Create and register plugin
 	plugin := &NATSBackendPlugin{}
 	plugin.Initialize(nil)
-	flexlog.RegisterBackendPlugin(plugin)
+	omni.RegisterBackendPlugin(plugin)
 
 	// Scenario: Multi-service architecture with different log routing needs
 	// - Frontend service: logs.frontend.{level}
@@ -455,8 +455,8 @@ func TestComplexRoutingScenario(t *testing.T) {
 	defer cancel()
 
 	// Frontend logger
-	frontendLogger, _ := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	frontendLogger, _ := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	frontendLogger.AddDestination("nats://localhost:4222/logs.frontend.info")
@@ -465,8 +465,8 @@ func TestComplexRoutingScenario(t *testing.T) {
 	defer frontendLogger.Close()
 
 	// API logger with versioning
-	apiV1Logger, _ := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelDebug).
+	apiV1Logger, _ := omni.NewBuilder().
+		WithLevel(omni.LevelDebug).
 		WithJSON().
 		Build()
 	apiV1Logger.AddDestination("nats://localhost:4222/logs.api.v1.debug?async=false")
@@ -474,8 +474,8 @@ func TestComplexRoutingScenario(t *testing.T) {
 	apiV1Logger.AddDestination("nats://localhost:4222/logs.api.v1.error")
 	defer apiV1Logger.Close()
 
-	apiV2Logger, _ := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	apiV2Logger, _ := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	apiV2Logger.AddDestination("nats://localhost:4222/logs.api.v2.info?batch=50")
@@ -483,8 +483,8 @@ func TestComplexRoutingScenario(t *testing.T) {
 	defer apiV2Logger.Close()
 
 	// Worker loggers
-	paymentWorkerLogger, _ := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	paymentWorkerLogger, _ := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	paymentWorkerLogger.AddDestination("nats://localhost:4222/logs.worker.payment.info")
@@ -493,8 +493,8 @@ func TestComplexRoutingScenario(t *testing.T) {
 	defer paymentWorkerLogger.Close()
 
 	// System logger
-	systemLogger, _ := flexlog.NewBuilder().
-		WithLevel(flexlog.LevelInfo).
+	systemLogger, _ := omni.NewBuilder().
+		WithLevel(omni.LevelInfo).
 		WithJSON().
 		Build()
 	systemLogger.AddDestination("nats://localhost:4222/logs.system.health")

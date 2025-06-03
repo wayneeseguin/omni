@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -57,7 +57,7 @@ func TestInitService(t *testing.T) {
 		t.Errorf("Expected environment 'development', got '%s'", config.Environment)
 	}
 
-	if config.LogLevel != flexlog.LevelDebug {
+	if config.LogLevel != omni.LevelDebug {
 		t.Errorf("Expected debug level in development, got %d", config.LogLevel)
 	}
 
@@ -95,7 +95,7 @@ func TestInitServiceProduction(t *testing.T) {
 		t.Errorf("Expected environment 'production', got '%s'", config.Environment)
 	}
 
-	if config.LogLevel != flexlog.LevelInfo {
+	if config.LogLevel != omni.LevelInfo {
 		t.Errorf("Expected info level in production, got %d", config.LogLevel)
 	}
 
@@ -582,16 +582,16 @@ func setupTestService(t *testing.T) {
 	config = Config{
 		ServiceName: "test-payment-service",
 		ServiceID:   "test-service-123",
-		LogLevel:    flexlog.LevelDebug,
+		LogLevel:    omni.LevelDebug,
 		Environment: "test",
 	}
 
 	// Create test logger
 	var err error
-	logger, err = flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "test_microservice.log")),
-		flexlog.WithLevel(config.LogLevel),
-		flexlog.WithJSON(),
+	logger, err = omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "test_microservice.log")),
+		omni.WithLevel(config.LogLevel),
+		omni.WithJSON(),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create test logger: %v", err)
@@ -621,15 +621,15 @@ func BenchmarkServiceMiddleware(b *testing.B) {
 	config = Config{
 		ServiceName: "bench-service",
 		ServiceID:   "bench-123",
-		LogLevel:    flexlog.LevelWarn, // Higher level for performance
+		LogLevel:    omni.LevelWarn, // Higher level for performance
 		Environment: "benchmark",
 	}
 
 	var err error
-	logger, err = flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench.log")),
-		flexlog.WithLevel(config.LogLevel),
-		flexlog.WithChannelSize(1000),
+	logger, err = omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench.log")),
+		omni.WithLevel(config.LogLevel),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create benchmark logger: %v", err)
@@ -657,15 +657,15 @@ func BenchmarkLogWithContext(b *testing.B) {
 	config = Config{
 		ServiceName: "bench-service",
 		ServiceID:   "bench-123",
-		LogLevel:    flexlog.LevelWarn, // Higher level for performance
+		LogLevel:    omni.LevelWarn, // Higher level for performance
 		Environment: "benchmark",
 	}
 
 	var err error
-	logger, err = flexlog.NewWithOptions(
-		flexlog.WithPath(filepath.Join(testLogDir, "bench.log")),
-		flexlog.WithLevel(config.LogLevel),
-		flexlog.WithChannelSize(1000),
+	logger, err = omni.NewWithOptions(
+		omni.WithPath(filepath.Join(testLogDir, "bench.log")),
+		omni.WithLevel(config.LogLevel),
+		omni.WithChannelSize(1000),
 	)
 	if err != nil {
 		b.Fatalf("Failed to create benchmark logger: %v", err)

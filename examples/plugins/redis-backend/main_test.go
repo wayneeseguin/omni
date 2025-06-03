@@ -407,7 +407,7 @@ func TestRedisURIParsing(t *testing.T) {
 	}{
 		{
 			uri:            "redis://localhost:6379",
-			expectedKey:    "flexlog:entries",
+			expectedKey:    "omni:entries",
 			expectedMax:    10000,
 			expectedExpire: 0,
 			description:    "default values",
@@ -421,14 +421,14 @@ func TestRedisURIParsing(t *testing.T) {
 		},
 		{
 			uri:            "redis://localhost:6379?max=500",
-			expectedKey:    "flexlog:entries",
+			expectedKey:    "omni:entries",
 			expectedMax:    500,
 			expectedExpire: 0,
 			description:    "custom max entries",
 		},
 		{
 			uri:            "redis://localhost:6379?expire=3600",
-			expectedKey:    "flexlog:entries",
+			expectedKey:    "omni:entries",
 			expectedMax:    10000,
 			expectedExpire: 3600 * time.Second,
 			description:    "custom expiration",

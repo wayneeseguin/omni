@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 func main() {
@@ -18,14 +18,14 @@ func main() {
 	}
 
 	// Create a logger with advanced options
-	logger, err := flexlog.NewWithOptions(
-		flexlog.WithPath("logs/app.log"),
-		flexlog.WithLevel(flexlog.LevelTrace),
-		flexlog.WithRotation(1024*1024, 3), // 1MB max size, keep 3 files
-		flexlog.WithGzipCompression(),
-		flexlog.WithStackTrace(8192), // Enable stack trace with 8KB buffer
-		flexlog.WithJSON(),           // Use JSON format for structured data
-		flexlog.WithChannelSize(1000), // Set channel buffer size
+	logger, err := omni.NewWithOptions(
+		omni.WithPath("logs/app.log"),
+		omni.WithLevel(omni.LevelTrace),
+		omni.WithRotation(1024*1024, 3), // 1MB max size, keep 3 files
+		omni.WithGzipCompression(),
+		omni.WithStackTrace(8192), // Enable stack trace with 8KB buffer
+		omni.WithJSON(),           // Use JSON format for structured data
+		omni.WithChannelSize(1000), // Set channel buffer size
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -47,19 +47,19 @@ func main() {
 	})
 
 	// Add an error log destination
-	logger.AddDestinationWithBackend("logs/errors.log", flexlog.BackendFlock)
+	logger.AddDestinationWithBackend("logs/errors.log", omni.BackendFlock)
 
 	// Add a custom filter to exclude noisy debug messages
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		// Filter out debug messages containing "bulk"
-		if level == flexlog.LevelDebug && len(message) > 0 {
+		if level == omni.LevelDebug && len(message) > 0 {
 			return true // Allow the message
 		}
 		return true
 	})
 
 	// Enable sampling for trace messages to reduce volume
-	logger.SetSampling(flexlog.SamplingRandom, 0.5) // Log 50% of trace messages
+	logger.SetSampling(omni.SamplingRandom, 0.5) // Log 50% of trace messages
 
 	// Demonstrate TRACE level logging for very detailed diagnostics
 	logger.Trace("Application initialization starting")
@@ -133,7 +133,7 @@ func main() {
 	log.Printf("Check logs/ directory for generated log files")
 }
 
-func processRequest(logger *flexlog.FlexLog, userID, action string) {
+func processRequest(logger *omni.Omni, userID, action string) {
 	// Use structured logging with base fields
 	baseFields := map[string]interface{}{
 		"user_id": userID,

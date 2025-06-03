@@ -1,4 +1,4 @@
-package flexlog
+package omni
 
 import (
 	"fmt"
@@ -18,9 +18,9 @@ import (
 // Example:
 //
 //	logger.AddFilter(func(level int, msg string, fields map[string]interface{}) bool {
-//	    return level >= flexlog.LevelWarn  // Only log warnings and above
+//	    return level >= omni.LevelWarn  // Only log warnings and above
 //	})
-func (f *FlexLog) AddFilter(filter FilterFunc) error {
+func (f *Omni) AddFilter(filter FilterFunc) error {
 	if filter == nil {
 		return fmt.Errorf("filter cannot be nil")
 	}
@@ -39,7 +39,7 @@ func (f *FlexLog) AddFilter(filter FilterFunc) error {
 //
 // Returns:
 //   - error: Always returns nil
-func (f *FlexLog) RemoveFilter(filter FilterFunc) error {
+func (f *Omni) RemoveFilter(filter FilterFunc) error {
 	// In Go, functions cannot be compared, so we can't remove a specific filter
 	// This is a limitation of the interface design
 	return nil
@@ -47,7 +47,7 @@ func (f *FlexLog) RemoveFilter(filter FilterFunc) error {
 
 // ClearFilters removes all filters from the logger.
 // After calling this, all messages will be logged (subject to level and sampling).
-func (f *FlexLog) ClearFilters() {
+func (f *Omni) ClearFilters() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.filters = nil
@@ -64,7 +64,7 @@ func (f *FlexLog) ClearFilters() {
 //
 //	logger.SetFieldFilter("environment", "production", "staging")  // Only log prod/staging
 //	logger.SetFieldFilter("user_id", 12345, 67890)                // Only log specific users
-func (f *FlexLog) SetFieldFilter(field string, values ...interface{}) {
+func (f *Omni) SetFieldFilter(field string, values ...interface{}) {
 	f.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		if fields == nil {
 			return false
@@ -94,8 +94,8 @@ func (f *FlexLog) SetFieldFilter(field string, values ...interface{}) {
 //
 // Example:
 //
-//	logger.SetLevelFieldFilter(flexlog.LevelError, "component", "database")  // Only DB errors
-func (f *FlexLog) SetLevelFieldFilter(logLevel int, field string, value interface{}) {
+//	logger.SetLevelFieldFilter(omni.LevelError, "component", "database")  // Only DB errors
+func (f *Omni) SetLevelFieldFilter(logLevel int, field string, value interface{}) {
 	f.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		if level != logLevel {
 			return false
@@ -120,7 +120,7 @@ func (f *FlexLog) SetLevelFieldFilter(logLevel int, field string, value interfac
 //
 //	pattern := regexp.MustCompile(`(?i)error|fail|critical`)
 //	logger.SetRegexFilter(pattern)  // Only log messages containing error-related words
-func (f *FlexLog) SetRegexFilter(pattern *regexp.Regexp) {
+func (f *Omni) SetRegexFilter(pattern *regexp.Regexp) {
 	f.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return pattern.MatchString(message)
 	})
@@ -136,7 +136,7 @@ func (f *FlexLog) SetRegexFilter(pattern *regexp.Regexp) {
 //
 //	pattern := regexp.MustCompile(`(?i)debug|trace|verbose`)
 //	logger.SetExcludeRegexFilter(pattern)  // Exclude verbose/debug messages
-func (f *FlexLog) SetExcludeRegexFilter(pattern *regexp.Regexp) {
+func (f *Omni) SetExcludeRegexFilter(pattern *regexp.Regexp) {
 	f.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		return !pattern.MatchString(message)
 	})

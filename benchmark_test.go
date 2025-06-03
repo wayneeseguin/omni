@@ -1,4 +1,4 @@
-package flexlog_test
+package omni_test
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/wayneeseguin/flexlog"
+	"github.com/wayneeseguin/omni"
 )
 
 // Global variables to prevent compiler optimizations
@@ -20,14 +20,14 @@ var (
 // Benchmark basic logging operations
 func BenchmarkLogLevels(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Set to debug level to ensure all messages are processed
-	logger.SetLevel(flexlog.LevelDebug)
+	logger.SetLevel(omni.LevelDebug)
 
 	benchmarks := []struct {
 		name string
@@ -53,7 +53,7 @@ func BenchmarkLogLevels(b *testing.B) {
 // Benchmark formatted logging
 func BenchmarkFormattedLogging(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -68,7 +68,7 @@ func BenchmarkFormattedLogging(b *testing.B) {
 	})
 
 	b.Run("Debugf", func(b *testing.B) {
-		logger.SetLevel(flexlog.LevelDebug)
+		logger.SetLevel(omni.LevelDebug)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			logger.Debugf("Debug info: counter=%d, status=%s", i, "active")
@@ -80,7 +80,7 @@ func BenchmarkFormattedLogging(b *testing.B) {
 // Benchmark structured logging
 func BenchmarkStructuredLogging(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -98,7 +98,7 @@ func BenchmarkStructuredLogging(b *testing.B) {
 	b.Run("StructuredLog", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			logger.StructuredLog(flexlog.LevelInfo, "transaction processed", fields)
+			logger.StructuredLog(omni.LevelInfo, "transaction processed", fields)
 		}
 		logger.Sync()
 	})
@@ -115,7 +115,7 @@ func BenchmarkStructuredLogging(b *testing.B) {
 // Benchmark concurrent logging
 func BenchmarkConcurrentLogging(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -151,16 +151,16 @@ func BenchmarkConcurrentLogging(b *testing.B) {
 func BenchmarkFormats(b *testing.B) {
 	benchmarks := []struct {
 		name   string
-		format flexlog.LogFormat
+		format omni.LogFormat
 	}{
-		{"Text", flexlog.FormatText},
-		{"JSON", flexlog.FormatJSON},
+		{"Text", omni.FormatText},
+		{"JSON", omni.FormatJSON},
 	}
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			tempFile := filepath.Join(b.TempDir(), "bench.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				b.Fatalf("Failed to create logger: %v", err)
 			}
@@ -180,7 +180,7 @@ func BenchmarkFormats(b *testing.B) {
 // Benchmark filtering performance
 func BenchmarkFiltering(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -188,7 +188,7 @@ func BenchmarkFiltering(b *testing.B) {
 
 	// Add a simple filter
 	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
-		return level >= flexlog.LevelInfo
+		return level >= omni.LevelInfo
 	})
 
 	b.Run("PassingFilter", func(b *testing.B) {
@@ -212,20 +212,20 @@ func BenchmarkFiltering(b *testing.B) {
 func BenchmarkSampling(b *testing.B) {
 	strategies := []struct {
 		name     string
-		strategy flexlog.SamplingStrategy
+		strategy omni.SamplingStrategy
 		rate     float64
 	}{
-		{"None", flexlog.SamplingNone, 1.0},
-		{"Random-50%", flexlog.SamplingRandom, 0.5},
-		{"Random-10%", flexlog.SamplingRandom, 0.1},
-		{"Consistent-50%", flexlog.SamplingConsistent, 0.5},
-		{"Interval-10", flexlog.SamplingInterval, 10},
+		{"None", omni.SamplingNone, 1.0},
+		{"Random-50%", omni.SamplingRandom, 0.5},
+		{"Random-10%", omni.SamplingRandom, 0.1},
+		{"Consistent-50%", omni.SamplingConsistent, 0.5},
+		{"Interval-10", omni.SamplingInterval, 10},
 	}
 
 	for _, s := range strategies {
 		b.Run(s.name, func(b *testing.B) {
 			tempFile := filepath.Join(b.TempDir(), "bench.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				b.Fatalf("Failed to create logger: %v", err)
 			}
@@ -245,7 +245,7 @@ func BenchmarkSampling(b *testing.B) {
 // Benchmark file rotation
 func BenchmarkRotation(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -270,14 +270,14 @@ func BenchmarkRotation(b *testing.B) {
 // Benchmark compression
 func BenchmarkCompression(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.CloseAll()
 
 	// Enable compression
-	logger.SetCompression(flexlog.CompressionGzip)
+	logger.SetCompression(omni.CompressionGzip)
 	logger.SetMaxSize(1024) // 1KB to trigger rotation
 
 	message := "Benchmark message for compression testing"
@@ -300,7 +300,7 @@ func BenchmarkMultipleDestinations(b *testing.B) {
 		b.Run(fmt.Sprintf("Destinations-%d", numDest), func(b *testing.B) {
 			// Create primary logger
 			tempFile := filepath.Join(b.TempDir(), "bench-0.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				b.Fatalf("Failed to create logger: %v", err)
 			}
@@ -326,7 +326,7 @@ func BenchmarkMultipleDestinations(b *testing.B) {
 // Benchmark memory allocations
 func BenchmarkAllocations(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
@@ -358,7 +358,7 @@ func BenchmarkAllocations(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			logger.StructuredLog(flexlog.LevelInfo, "structured", fields)
+			logger.StructuredLog(omni.LevelInfo, "structured", fields)
 		}
 		logger.Sync()
 	})
@@ -367,17 +367,17 @@ func BenchmarkAllocations(b *testing.B) {
 // Benchmark channel operations
 func BenchmarkChannelSize(b *testing.B) {
 	// Test different channel sizes via environment variable
-	originalSize := os.Getenv("FLEXLOG_CHANNEL_SIZE")
-	defer os.Setenv("FLEXLOG_CHANNEL_SIZE", originalSize)
+	originalSize := os.Getenv("OMNI_CHANNEL_SIZE")
+	defer os.Setenv("OMNI_CHANNEL_SIZE", originalSize)
 
 	sizes := []string{"10", "100", "1000", "10000"}
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("ChannelSize-%s", size), func(b *testing.B) {
-			os.Setenv("FLEXLOG_CHANNEL_SIZE", size)
+			os.Setenv("OMNI_CHANNEL_SIZE", size)
 
 			tempFile := filepath.Join(b.TempDir(), "bench.log")
-			logger, err := flexlog.New(tempFile)
+			logger, err := omni.New(tempFile)
 			if err != nil {
 				b.Fatalf("Failed to create logger: %v", err)
 			}
@@ -400,11 +400,11 @@ func BenchmarkChannelSize(b *testing.B) {
 // Benchmark discard logger (baseline)
 func BenchmarkDiscard(b *testing.B) {
 	// Create a logger that writes to discard
-	logger, err := flexlog.New("/dev/null")
+	logger, err := omni.New("/dev/null")
 	if err != nil {
 		// Fallback for non-Unix systems
 		tempFile := filepath.Join(b.TempDir(), "bench.log")
-		logger, err = flexlog.New(tempFile)
+		logger, err = omni.New(tempFile)
 		if err != nil {
 			b.Fatalf("Failed to create logger: %v", err)
 		}
@@ -436,7 +436,7 @@ func BenchmarkDiscard(b *testing.B) {
 // Benchmark error logging with stack traces
 func BenchmarkErrorLogging(b *testing.B) {
 	tempFile := filepath.Join(b.TempDir(), "bench.log")
-	logger, err := flexlog.New(tempFile)
+	logger, err := omni.New(tempFile)
 	if err != nil {
 		b.Fatalf("Failed to create logger: %v", err)
 	}
