@@ -33,8 +33,17 @@ func (f *Omni) rotate() error {
 		}
 	}
 
-	// Flush current file
-	if f.writer != nil {
+	// Flush current file (coordinate with destination to avoid race)
+	if primaryDest != nil {
+		primaryDest.mu.Lock()
+		if primaryDest.Writer != nil {
+			if err := primaryDest.Writer.Flush(); err != nil {
+				primaryDest.mu.Unlock()
+				return fmt.Errorf("flushing current log: %w", err)
+			}
+		}
+		primaryDest.mu.Unlock()
+	} else if f.writer != nil {
 		if err := f.writer.Flush(); err != nil {
 			return fmt.Errorf("flushing current log: %w", err)
 		}

@@ -113,8 +113,9 @@ func (f *Omni) SetBatchingForAll(interval time.Duration, size int) error {
 			return err
 		}
 		
-		// Also set flush parameters for backward compatibility
-		if err := f.SetFlushInterval(i, interval); err != nil {
+		// When batching is enabled, disable the separate flush timer to prevent race conditions
+		// The BatchWriter handles its own timing
+		if err := f.SetFlushInterval(i, 0); err != nil {
 			return err
 		}
 		if err := f.SetFlushSize(i, size); err != nil {
@@ -132,7 +133,10 @@ func (f *Omni) flushDestination(dest *Destination) {
 	dest.mu.Lock()
 	defer dest.mu.Unlock()
 
-	if dest.Writer != nil {
+	// If batching is enabled, use BatchWriter's flush to avoid race conditions
+	if dest.batchEnabled && dest.batchWriter != nil {
+		dest.batchWriter.Flush()
+	} else if dest.Writer != nil {
 		dest.Writer.Flush()
 	}
 

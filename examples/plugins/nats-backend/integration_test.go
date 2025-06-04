@@ -1,9 +1,8 @@
-// +build integration
+//go:build integration
 
 package natsplugin
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -276,7 +275,10 @@ func TestNATSBackend_WithOmni_Integration(t *testing.T) {
 	}
 
 	// Create a Omni instance with NATS backend
-	logger := omni.New()
+	logger, err := omni.New("/dev/null")
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
 	defer logger.CloseAll()
 
 	// Add NATS destination

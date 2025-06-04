@@ -418,12 +418,14 @@ func (f *Omni) AddDestinationWithBackend(uri string, backendType int) error {
 	// Add to destinations list
 	f.Destinations = append(f.Destinations, dest)
 
-	// Start flush timer if configured
+	// Start flush timer if configured (protect with mutex)
+	dest.mu.Lock()
 	if dest.flushInterval > 0 {
 		dest.flushTimer = time.AfterFunc(dest.flushInterval, func() {
 			f.flushDestination(dest)
 		})
 	}
+	dest.mu.Unlock()
 
 	// No need to start a new worker - the single dispatcher handles all destinations
 

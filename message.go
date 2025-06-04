@@ -285,8 +285,12 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 		// Raw bytes to write
 		entrySize = int64(len(msg.Raw))
 
-		// Check if rotation needed
-		if maxSize > 0 && dest.Size+entrySize > maxSize {
+		// Check if rotation needed (protect access to dest.Size)
+		dest.mu.RLock()
+		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
+		dest.mu.RUnlock()
+		
+		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
@@ -355,8 +359,12 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 		entry = entryData
 		entrySize = int64(len(entryData))
 
-		// Check if rotation needed
-		if maxSize > 0 && dest.Size+entrySize > maxSize {
+		// Check if rotation needed (protect access to dest.Size)
+		dest.mu.RLock()
+		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
+		dest.mu.RUnlock()
+		
+		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				return
@@ -499,8 +507,12 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 
 		entrySize = int64(len(entry))
 
-		// Check if rotation needed
-		if maxSize > 0 && dest.Size+entrySize > maxSize {
+		// Check if rotation needed (protect access to dest.Size)
+		dest.mu.RLock()
+		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
+		dest.mu.RUnlock()
+		
+		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.Name, "Failed to rotate log file", err, ErrorLevelMedium)
 				// Try to log to the file as well for visibility

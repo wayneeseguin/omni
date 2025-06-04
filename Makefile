@@ -1,7 +1,11 @@
-.PHONY: all build test bench lint clean coverage help
+.PHONY: all ci build test test-verbose test-race test-integration bench bench-full lint clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
 
-# Default target
-all: lint test build
+# Default target - show help
+all: help
+
+# Run full CI pipeline
+ci: lint test build
+	@echo "CI pipeline completed successfully!"
 
 # Build the library
 build:
@@ -11,16 +15,22 @@ build:
 # Run tests
 test:
 	@echo "Running tests..."
-	@go test -v -race -coverprofile=coverage.out ./...
+	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out ./...
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out -covermode=atomic ./...
+
+# Run tests with race detector (may show linker warnings on macOS)
+test-race:
+	@echo "Running tests with race detector..."
+	@go test -v -race -coverprofile=coverage.out ./...
 
 # Run integration tests
 test-integration:
 	@echo "Running integration tests..."
+	@go clean -testcache
 	@go test -v -tags=integration -timeout=10m ./...
 
 # Run benchmarks
@@ -107,10 +117,12 @@ install-tools:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all              - Run lint, test, and build (default)"
+	@echo "  help             - Show this help message (default)"
+	@echo "  ci               - Run full CI pipeline (lint, test, build)"
 	@echo "  build            - Build the library"
-	@echo "  test             - Run tests with race detector"
+	@echo "  test             - Run tests (CGO disabled, no linker warnings)"
 	@echo "  test-verbose     - Run tests with verbose output"
+	@echo "  test-race        - Run tests with race detector (may show warnings)"
 	@echo "  test-integration - Run integration tests"
 	@echo "  bench            - Run benchmarks"
 	@echo "  bench-full       - Run comprehensive benchmarks"

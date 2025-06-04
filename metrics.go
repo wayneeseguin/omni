@@ -295,7 +295,11 @@ func (dest *Destination) trackWrite(bytes int64, duration time.Duration) {
 	atomic.AddUint64(&dest.bytesWritten, uint64(bytes))
 	atomic.AddUint64(&dest.writeCount, 1)
 	atomic.AddInt64(&dest.totalLatency, int64(duration))
+	
+	// Protect lastWrite with mutex to avoid race condition with GetMetrics
+	dest.mu.Lock()
 	dest.lastWrite = time.Now()
+	dest.mu.Unlock()
 }
 
 // trackDestinationError increments the destination error counter.

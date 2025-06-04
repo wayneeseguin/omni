@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -293,10 +294,13 @@ func TestErrorHandlerInvocation(t *testing.T) {
 	}
 	defer logger.Close()
 
-	// Track errors from handler
+	// Track errors from handler with proper synchronization
 	var handlerErrors []LogError
+	var mu sync.Mutex
 	logger.SetErrorHandler(func(err LogError) {
+		mu.Lock()
 		handlerErrors = append(handlerErrors, err)
+		mu.Unlock()
 	})
 
 	// Cause an error by closing the file
@@ -309,11 +313,17 @@ func TestErrorHandlerInvocation(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Check that handler was called
-	if len(handlerErrors) == 0 {
+	mu.Lock()
+	errorCount := len(handlerErrors)
+	errorsCopy := make([]LogError, len(handlerErrors))
+	copy(errorsCopy, handlerErrors)
+	mu.Unlock()
+
+	if errorCount == 0 {
 		t.Error("Error handler was not called")
 	} else {
-		t.Logf("Handler received %d errors", len(handlerErrors))
-		for i, err := range handlerErrors {
+		t.Logf("Handler received %d errors", errorCount)
+		for i, err := range errorsCopy {
 			t.Logf("Error %d: %v", i, err)
 		}
 	}

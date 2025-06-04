@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 )
 
 // createTestRedactionLogger creates a test logger that doesn't need flock
@@ -206,7 +205,7 @@ func TestLogRequest(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Create a test logger that writes to our buffer
-			logger := createTestLogger(&buf)
+			logger, workerDone := createTestLogger(&buf)
 
 			// Call LogRequest
 			logger.LogRequest(tt.method, tt.path, tt.headers, tt.body)
@@ -219,8 +218,8 @@ func TestLogRequest(t *testing.T) {
 			// Close the logger to stop the worker goroutine
 			close(logger.msgChan)
 
-			// Add a small delay to ensure flush completes
-			time.Sleep(10 * time.Millisecond)
+			// Wait for worker goroutine to finish to avoid race condition
+			<-workerDone
 
 			output := buf.String()
 
@@ -349,7 +348,7 @@ func TestLogResponse(t *testing.T) {
 			var buf bytes.Buffer
 
 			// Create a test logger that writes to our buffer
-			logger := createTestLogger(&buf)
+			logger, workerDone := createTestLogger(&buf)
 
 			logger.LogResponse(tt.statusCode, tt.headers, tt.body)
 
@@ -361,8 +360,8 @@ func TestLogResponse(t *testing.T) {
 			// Close the logger to stop the worker goroutine
 			close(logger.msgChan)
 
-			// Add a small delay to ensure flush completes
-			time.Sleep(10 * time.Millisecond)
+			// Wait for worker goroutine to finish to avoid race condition
+			<-workerDone
 
 			output := buf.String()
 
@@ -486,7 +485,8 @@ func TestCustomPatternRedaction(t *testing.T) {
 }
 
 // createTestLogger creates a logger that writes to the provided writer for testing
-func createTestLogger(writer io.Writer) *Omni {
+// Returns the logger and a done channel that signals when the worker goroutine exits
+func createTestLogger(writer io.Writer) (*Omni, chan struct{}) {
 	// Create a buffered writer
 	bufWriter := bufio.NewWriter(writer)
 
@@ -511,8 +511,12 @@ func createTestLogger(writer io.Writer) *Omni {
 	logger.defaultDest = dest
 	logger.Destinations = append(logger.Destinations, dest)
 
+	// Create a done channel to signal when worker finishes
+	workerDone := make(chan struct{})
+
 	// Start a worker goroutine to handle messages
 	go func() {
+		defer close(workerDone)
 		for msg := range logger.msgChan {
 			// Directly write to our test buffer and flush immediately
 			if msg.Level >= logger.level {
@@ -527,7 +531,7 @@ func createTestLogger(writer io.Writer) *Omni {
 		}
 	}()
 
-	return logger
+	return logger, workerDone
 }
 
 // normalizeJSON normalizes JSON strings for comparison by parsing and re-encoding

@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/wayneeseguin/omni"
 )
@@ -77,8 +76,10 @@ func TestBasicExample(t *testing.T) {
 		"max_retries": 3,
 	})
 
-	// Flush to ensure all messages are written
-	logger.FlushAll()
+	// Sync to ensure all messages are processed and written
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync logger: %v", err)
+	}
 
 	// Verify log file was created and has content
 	if stat, err := os.Stat("test_app.log"); err != nil {
@@ -122,7 +123,9 @@ func TestLoggingLevels(t *testing.T) {
 		logger.Warn("warn message")
 		logger.Error("error message")
 		
-		logger.FlushAll()
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Failed to sync logger for level %s: %v", l.name, err)
+		}
 		logger.Close()
 		
 		// Verify file has content when level is appropriate
@@ -157,10 +160,10 @@ func TestStructuredLogging(t *testing.T) {
 	}
 
 	logger.InfoWithFields("Test structured logging with various field types", fields)
-	logger.FlushAll()
 	
-	// Give a small delay for async operations
-	time.Sleep(10 * time.Millisecond)
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync logger: %v", err)
+	}
 	logger.Close()
 
 	// Verify log file has content
@@ -191,10 +194,9 @@ func TestFormattedLogging(t *testing.T) {
 	logger.Warnf("Warn: %s %d %f %t", "string", 42, 3.14, true)
 	logger.Errorf("Error: %s %d %f %t", "string", 42, 3.14, true)
 
-	logger.FlushAll()
-	
-	// Give a small delay for async operations
-	time.Sleep(10 * time.Millisecond)
+	if err := logger.Sync(); err != nil {
+		t.Errorf("Failed to sync logger: %v", err)
+	}
 	logger.Close()
 
 	// Verify log file has content

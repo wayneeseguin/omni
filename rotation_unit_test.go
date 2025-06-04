@@ -54,6 +54,9 @@ func TestRotateOperation(t *testing.T) {
 		t.Fatalf("Log file doesn't exist: %v", err)
 	}
 
+	// Ensure all messages are processed before rotation
+	time.Sleep(50 * time.Millisecond)
+	
 	// Perform rotation
 	err = logger.rotate()
 	if err != nil {

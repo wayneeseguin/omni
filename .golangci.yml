@@ -7,16 +7,13 @@ run:
 linters:
   enable:
     - gofmt
-    - golint
+    - revive  # replacement for deprecated golint
     - govet
     - errcheck
     - staticcheck
     - unused
     - gosimple
-    - structcheck
-    - varcheck
     - ineffassign
-    - deadcode
     - typecheck
     - goconst
     - gocyclo
@@ -25,7 +22,6 @@ linters:
     - unparam
     - nakedret
     - prealloc
-    - scopelint
     - gocritic
     - gochecknoinits
     - gochecknoglobals
@@ -34,13 +30,13 @@ linters:
     - whitespace
     - wsl
     - goprintffuncname
-    - gomnd
+    - mnd  # replacement for deprecated gomnd
     - lll
-    - goerr113
+    - err113  # replacement for goerr113
     - godot
     - testpackage
     - nestif
-    - exportloopref
+    - copyloopvar  # replacement for deprecated exportloopref
     - exhaustive
     - sqlclosecheck
     - nolintlint
@@ -51,8 +47,6 @@ linters:
     - dogsled
     - gocognit
     - godox
-    - maligned
-    - interfacer
 
 linters-settings:
   gocyclo:
@@ -77,20 +71,18 @@ linters-settings:
       - performance
       - style
   
-  gomnd:
-    settings:
-      mnd:
-        checks:
-          - argument
-          - case
-          - condition
-          - return
-        ignored-numbers:
-          - '0'
-          - '1'
-          - '2'
-          - '10'
-          - '100'
+  mnd:
+    checks:
+      - argument
+      - case
+      - condition
+      - return
+    ignored-numbers:
+      - '0'
+      - '1'
+      - '2'
+      - '10'
+      - '100'
   
   lll:
     line-length: 120
@@ -125,14 +117,14 @@ issues:
     # Exclude generated files
     - path: \.pb\.go
       linters:
-        - golint
+        - revive
     
     # Exclude benchmarks from some checks
     - path: _test\.go
       text: "^Benchmark"
       linters:
         - funlen
-        - gomnd
+        - mnd
 
   # Maximum issues count per one linter
   max-issues-per-linter: 50
