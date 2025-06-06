@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func TestRedactionExample(t *testing.T) {
@@ -17,10 +17,11 @@ func TestRedactionExample(t *testing.T) {
 	defer os.Remove(logFile)
 
 	// Create logger with redaction
-	logger, err := omni.NewBuilder().
-		WithDestination(logFile).
-		WithJSON().
-		Build()
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(logFile),
+		omni.WithJSON(),
+		omni.WithRedaction([]string{}, "[REDACTED]"), // Enable built-in redaction
+	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -34,11 +35,13 @@ func TestRedactionExample(t *testing.T) {
 			"safe_field": "visible",
 		})
 
-		// Wait for message to be written
-		time.Sleep(50 * time.Millisecond)
+		// Wait for message to be written and flush
+		time.Sleep(100 * time.Millisecond)
+		logger.FlushAll()
 
 		// Read and verify log content
 		content := readLastLogEntry(t, logFile)
+		t.Logf("Log content: %s", content)
 		
 		// Check that sensitive fields are redacted
 		if strings.Contains(content, "secret123") {
@@ -57,20 +60,28 @@ func TestRedactionExample(t *testing.T) {
 
 	// Test custom patterns
 	t.Run("CustomPatterns", func(t *testing.T) {
-		// Add SSN pattern
-		err := logger.SetRedaction([]string{`\b\d{3}-\d{2}-\d{4}\b`}, "[SSN-REDACTED]")
+		// Create a new logger with custom SSN pattern
+		ssnLogger, err := omni.NewWithOptions(
+			omni.WithPath("ssn_test.log"),
+			omni.WithJSON(),
+			omni.WithRedaction([]string{`\b\d{3}-\d{2}-\d{4}\b`}, "[SSN-REDACTED]"),
+		)
 		if err != nil {
-			t.Fatalf("Failed to set redaction: %v", err)
+			t.Fatalf("Failed to create logger with SSN redaction: %v", err)
 		}
+		defer ssnLogger.Close()
+		defer os.Remove("ssn_test.log")
 
-		logger.InfoWithFields("Customer data", map[string]interface{}{
+		ssnLogger.InfoWithFields("Customer data", map[string]interface{}{
 			"name": "John Doe",
 			"ssn": "123-45-6789",
 		})
 
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
+		ssnLogger.FlushAll()
 
-		content := readLastLogEntry(t, logFile)
+		content := readLastLogEntry(t, "ssn_test.log")
+		t.Logf("SSN Log content: %s", content)
 		
 		if strings.Contains(content, "123-45-6789") {
 			t.Error("SSN was not redacted")
@@ -130,10 +141,10 @@ func TestRedactionExample(t *testing.T) {
 
 func TestRedactionPerformance(t *testing.T) {
 	// Create logger with redaction
-	logger, err := omni.NewBuilder().
-		WithDestination("perf_test.log").
-		WithJSON().
-		Build()
+	logger, err := omni.NewWithOptions(
+		omni.WithPath("perf_test.log"),
+		omni.WithJSON(),
+	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -206,10 +217,10 @@ func TestRedactionCompleteness(t *testing.T) {
 	logFile := "completeness_test.log"
 	defer os.Remove(logFile)
 
-	logger, err := omni.NewBuilder().
-		WithDestination(logFile).
-		WithJSON().
-		Build()
+	logger, err := omni.NewWithOptions(
+		omni.WithPath(logFile),
+		omni.WithJSON(),
+	)
 	if err != nil {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
@@ -230,10 +241,12 @@ func TestRedactionCompleteness(t *testing.T) {
 	}
 
 	logger.InfoWithFields("Sensitive fields test", testData)
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	logger.FlushAll()
 
 	// Read log and parse JSON
 	content := readLastLogEntry(t, logFile)
+	t.Logf("Completeness log content: %s", content)
 	
 	var logEntry map[string]interface{}
 	if err := json.Unmarshal([]byte(content), &logEntry); err != nil {

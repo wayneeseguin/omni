@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 // XMLFormatterPlugin implements the FormatterPlugin interface

@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/backends"
+	"github.com/wayneeseguin/omni/pkg/omni"
+	"github.com/wayneeseguin/omni/pkg/plugins"
 )
 
 // NATSBackendPlugin implements BackendPluginInterface
@@ -19,6 +21,9 @@ type NATSBackendPlugin struct {
 	initialized bool
 	config      map[string]interface{}
 }
+
+// Ensure NATSBackend implements the omni.Backend interface
+var _ omni.Backend = (*NATSBackend)(nil)
 
 // NATSBackend implements Backend interface
 type NATSBackend struct {
@@ -67,6 +72,22 @@ func (p *NATSBackendPlugin) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// Description implements Plugin interface
+func (p *NATSBackendPlugin) Description() string {
+	return "NATS backend plugin for distributed logging"
+}
+
+// Health implements Plugin interface
+func (p *NATSBackendPlugin) Health() plugins.HealthStatus {
+	return plugins.HealthStatus{
+		Healthy: p.initialized,
+		Message: "NATS backend plugin is ready",
+		Details: map[string]interface{}{
+			"initialized": p.initialized,
+		},
+	}
+}
+
 // CreateBackend implements BackendPluginInterface
 func (p *NATSBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
 	if !p.initialized {
@@ -85,6 +106,9 @@ func (p *NATSBackendPlugin) CreateBackend(uri string, config map[string]interfac
 func (p *NATSBackendPlugin) SupportedSchemes() []string {
 	return []string{"nats"}
 }
+
+// The plugin itself doesn't need Write/Close/etc methods
+// Those are implemented by the NATSBackend instances it creates
 
 // NewNATSBackend creates a new NATS backend from URI
 func NewNATSBackend(uri string) (*NATSBackend, error) {
@@ -308,6 +332,19 @@ func (n *NATSBackend) SupportsAtomic() bool {
 	return n.atomicSupport
 }
 
+// Sync implements Backend interface
+func (n *NATSBackend) Sync() error {
+	return n.Flush()
+}
+
+// GetStats implements Backend interface
+func (n *NATSBackend) GetStats() backends.BackendStats {
+	return backends.BackendStats{
+		Path: n.subject,
+		// TODO: Track actual statistics
+	}
+}
+
 // formatMessage formats a log entry based on configured format
 func (n *NATSBackend) formatMessage(entry interface{}) ([]byte, error) {
 	switch n.format {
@@ -328,4 +365,8 @@ func (n *NATSBackend) formatMessage(entry interface{}) ([]byte, error) {
 var BackendPlugin NATSBackendPlugin
 
 // OmniPlugin is the main plugin export (for .so files)
-var OmniPlugin omni.Plugin = &NATSBackendPlugin{}
+var OmniPlugin = &NATSBackendPlugin{}
+
+// init function removed - plugin will be loaded via plugin system
+// The NATSBackendPlugin doesn't implement the full BackendPlugin interface,
+// it implements a simpler interface for creating backends

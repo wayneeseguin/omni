@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 // RedisBackendPlugin implements the BackendPluginInterface interface

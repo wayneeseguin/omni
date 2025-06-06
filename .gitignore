@@ -2,3 +2,11 @@
 syslog:/
 coverage.out
 *.log
+advanced-features
+
+# Test artifacts
+test-logs/
+coverage*.out
+
+# Docker test volumes
+test-logs/

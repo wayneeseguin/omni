@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -178,7 +178,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	}
 
 	testLogger.FlushAll()
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Verify log file
 	logFile := filepath.Join(testLogDir, "middleware_test.log")

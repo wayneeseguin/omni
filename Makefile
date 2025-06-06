@@ -1,4 +1,4 @@
-.PHONY: all ci build test test-verbose test-race test-integration bench bench-full lint clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
+.PHONY: all ci build test test-verbose test-race test-integration integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full lint clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
 
 # Default target - show help
 all: help
@@ -32,6 +32,58 @@ test-integration:
 	@echo "Running integration tests..."
 	@go clean -testcache
 	@go test -v -tags=integration -timeout=10m ./...
+
+# Run integration tests with verbose output
+test-integration-verbose:
+	@echo "Running integration tests with verbose output..."
+	@go clean -testcache
+	@VERBOSE=1 go test -v -tags=integration -timeout=10m ./...
+
+# Run integration tests with Docker containers
+integration:
+	@echo "Running integration tests with Docker containers..."
+	@./scripts/integration
+
+# Run NATS integration tests only
+integration-nats:
+	@echo "Running NATS integration tests..."
+	@./scripts/integration --nats-only
+
+# Run Vault integration tests only
+integration-vault:
+	@echo "Running Vault integration tests..."
+	@./scripts/integration --vault-only
+
+# Run Syslog integration tests only
+integration-syslog:
+	@echo "Running Syslog integration tests..."
+	@./scripts/integration --syslog-only
+
+# Run integration tests and keep containers running
+integration-debug:
+	@echo "Running integration tests with containers kept alive..."
+	@./scripts/integration --keep-containers --verbose
+
+# Debug NATS integration tests
+debug-nats:
+	@echo "Starting NATS debug environment..."
+	@./scripts/debug-nats start
+	@./scripts/debug-nats status
+
+# Run NATS error recovery tests
+test-nats-recovery:
+	@echo "Running NATS error recovery tests..."
+	@./scripts/debug-nats test TestNATSErrorRecovery
+
+# Run NATS monitoring tests
+test-nats-monitor:
+	@echo "Running NATS monitoring tests..."
+	@./scripts/debug-nats test TestNATSMonitoring
+
+# Run NATS load tests
+test-nats-load:
+	@echo "Running NATS load tests..."
+	@go test -v -tags=integration -run TestNATSLoadTest -timeout=30s ./examples/plugins/nats-backend/...
 
 # Run benchmarks
 bench:
@@ -117,24 +169,34 @@ install-tools:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  help             - Show this help message (default)"
-	@echo "  ci               - Run full CI pipeline (lint, test, build)"
-	@echo "  build            - Build the library"
-	@echo "  test             - Run tests (CGO disabled, no linker warnings)"
-	@echo "  test-verbose     - Run tests with verbose output"
-	@echo "  test-race        - Run tests with race detector (may show warnings)"
-	@echo "  test-integration - Run integration tests"
-	@echo "  bench            - Run benchmarks"
-	@echo "  bench-full       - Run comprehensive benchmarks"
-	@echo "  lint             - Run golangci-lint"
-	@echo "  coverage         - Generate HTML coverage report"
-	@echo "  coverage-text    - Show coverage in terminal"
-	@echo "  clean            - Remove build artifacts"
-	@echo "  fmt              - Format code"
-	@echo "  deps             - Tidy and verify dependencies"
-	@echo "  security         - Run security scan"
-	@echo "  check            - Run all quality checks"
-	@echo "  build-examples   - Build all examples"
-	@echo "  run-examples     - Run all examples"
-	@echo "  install-tools    - Install development tools"
-	@echo "  help             - Show this help message"
+	@echo "  help                     - Show this help message (default)"
+	@echo "  ci                       - Run full CI pipeline (lint, test, build)"
+	@echo "  build                    - Build the library"
+	@echo "  test                     - Run tests (CGO disabled, no linker warnings)"
+	@echo "  test-verbose             - Run tests with verbose output"
+	@echo "  test-race                - Run tests with race detector (may show warnings)"
+	@echo "  test-integration         - Run integration tests"
+	@echo "  test-integration-verbose - Run integration tests with verbose output"
+	@echo "  integration              - Run all integration tests with Docker containers"
+	@echo "  integration-nats         - Run only NATS integration tests"
+	@echo "  integration-vault        - Run only Vault integration tests"
+	@echo "  integration-syslog       - Run only Syslog integration tests"
+	@echo "  integration-debug        - Run integration tests keeping containers alive"
+	@echo "  debug-nats               - Start NATS debug environment"
+	@echo "  test-nats-recovery       - Run NATS error recovery tests"
+	@echo "  test-nats-monitor        - Run NATS monitoring tests"
+	@echo "  test-nats-load           - Run NATS load/performance tests"
+	@echo "  bench                    - Run benchmarks"
+	@echo "  bench-full               - Run comprehensive benchmarks"
+	@echo "  lint                     - Run golangci-lint"
+	@echo "  coverage                 - Generate HTML coverage report"
+	@echo "  coverage-text            - Show coverage in terminal"
+	@echo "  clean                    - Remove build artifacts"
+	@echo "  fmt                      - Format code"
+	@echo "  deps                     - Tidy and verify dependencies"
+	@echo "  security                 - Run security scan"
+	@echo "  check                    - Run all quality checks"
+	@echo "  build-examples           - Build all examples"
+	@echo "  run-examples             - Run all examples"
+	@echo "  install-tools            - Install development tools"
+	@echo "  help                     - Show this help message"

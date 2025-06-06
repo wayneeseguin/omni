@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func TestMain(m *testing.M) {
@@ -379,11 +379,8 @@ func TestMetricsHandler(t *testing.T) {
 	metricsHandler := func(w http.ResponseWriter, r *http.Request) {
 		metrics := logger.GetMetrics()
 		
-		// Calculate total messages from all levels
-		totalMessages := uint64(0)
-		for _, count := range metrics.MessagesLogged {
-			totalMessages += count
-		}
+		// Get total messages directly from the metrics
+		totalMessages := metrics.MessagesLogged
 		
 		// Export Prometheus-style metrics
 		fmt.Fprintf(w, "# HELP service_log_messages_total Total log messages\n")

@@ -1,0 +1,621 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Pod::Usage;
+use Time::HiRes qw(time sleep);
+use POSIX qw(strftime);
+use Term::ANSIColor;
+
+# Script version
+our $VERSION = '1.0.0';
+
+# Global configuration
+my %config = (
+    verbose          => 0,
+    keep_containers  => 0,
+    nats_only       => 0,
+    vault_only      => 0,
+    syslog_only     => 0,
+    timeout         => 10,
+    parallel        => 0,
+    skip_pull       => 0,
+    help            => 0,
+);
+
+# Container configuration
+my %containers = (
+    nats => {
+        name  => 'omni-test-nats',
+        image => 'nats:latest',
+        port  => 4222,
+    },
+    vault => {
+        name  => 'omni-test-vault',
+        image => 'hashicorp/vault:latest',
+        port  => 8200,
+    },
+    syslog => {
+        name  => 'omni-test-syslog',
+        image => 'omni/syslog-test:latest',
+        port  => 5514,
+        build_context => '.',
+        dockerfile => 'docker/Dockerfile.syslog',
+    },
+);
+
+# Exit codes
+use constant {
+    EXIT_SUCCESS          => 0,
+    EXIT_DOCKER_UNAVAIL   => 1,
+    EXIT_CONTAINER_FAIL   => 2,
+    EXIT_TESTS_FAIL       => 3,
+    EXIT_CLEANUP_FAIL     => 4,
+    EXIT_TIMEOUT          => 5,
+};
+
+# Parse command line options
+GetOptions(
+    'verbose|v'        => \$config{verbose},
+    'keep-containers'  => \$config{keep_containers},
+    'nats-only'       => \$config{nats_only},
+    'vault-only'      => \$config{vault_only},
+    'syslog-only'     => \$config{syslog_only},
+    'timeout=i'       => \$config{timeout},
+    'parallel'        => \$config{parallel},
+    'skip-pull'       => \$config{skip_pull},
+    'help|h'          => \$config{help},
+) or pod2usage(2);
+
+pod2usage(1) if $config{help};
+
+# Main execution
+main();
+
+sub main {
+    setup_signal_handlers();
+    
+    log_info("Omni Integration Test Runner v$VERSION");
+    log_info("=" x 50);
+    
+    # Check Docker availability
+    check_docker() or exit(EXIT_DOCKER_UNAVAIL);
+    
+    # Pull images if needed
+    unless ($config{skip_pull}) {
+        pull_images() or exit(EXIT_CONTAINER_FAIL);
+    }
+    
+    # Determine which tests to run
+    my @test_suites;
+    
+    # Add test suites based on options
+    if ($config{syslog_only}) {
+        push @test_suites, 'syslog';
+    } elsif ($config{nats_only}) {
+        push @test_suites, 'nats';
+    } elsif ($config{vault_only}) {
+        if (-d "./examples/plugins/vault-backend") {
+            push @test_suites, 'vault';
+        } else {
+            log_error("Vault plugin not implemented");
+            exit(EXIT_TESTS_FAIL);
+        }
+    } else {
+        # Default: run all available tests
+        push @test_suites, 'nats' unless $config{vault_only} || $config{syslog_only};
+        push @test_suites, 'syslog' unless $config{nats_only} || $config{vault_only};
+        
+        # Only add vault if not disabled and plugin exists
+        if (!$config{nats_only} && !$config{syslog_only}) {
+            if (-d "./examples/plugins/vault-backend") {
+                push @test_suites, 'vault';
+            } else {
+                log_warn("Vault plugin not implemented, skipping Vault tests");
+                log_info("Use --nats-only or --syslog-only to suppress this warning");
+            }
+        }
+    }
+    
+    # Run tests
+    my $result = run_test_suites(@test_suites);
+    
+    # Cleanup
+    cleanup() unless $config{keep_containers};
+    
+    # Exit with appropriate code
+    exit($result ? EXIT_SUCCESS : EXIT_TESTS_FAIL);
+}
+
+# Docker availability check
+sub check_docker {
+    log_info("Checking Docker availability...");
+    
+    # Check if docker command exists
+    my $docker_path = `which docker 2>/dev/null`;
+    chomp $docker_path;
+    
+    unless ($docker_path) {
+        log_error("Docker command not found in PATH");
+        return 0;
+    }
+    
+    # Check if Docker daemon is running
+    my $docker_info = `docker info 2>&1`;
+    if ($? != 0) {
+        log_error("Docker daemon is not running or not accessible");
+        log_error("Error: $docker_info") if $config{verbose};
+        return 0;
+    }
+    
+    # Check Docker version
+    my $docker_version = `docker version --format '{{.Server.Version}}' 2>&1`;
+    chomp $docker_version;
+    
+    if ($docker_version =~ /^(\d+)\.(\d+)/) {
+        my ($major, $minor) = ($1, $2);
+        if ($major < 20) {
+            log_warn("Docker version $docker_version is older than recommended (20.x)");
+        }
+    }
+    
+    log_success("Docker is available (version: $docker_version)");
+    return 1;
+}
+
+# Pull required images
+sub pull_images {
+    log_info("Pulling required Docker images...");
+    
+    for my $service (sort keys %containers) {
+        next if ($service eq 'nats' && ($config{vault_only} || $config{syslog_only}));
+        next if ($service eq 'vault' && ($config{nats_only} || $config{syslog_only}));
+        next if ($service eq 'syslog' && ($config{nats_only} || $config{vault_only}));
+        
+        # Skip Vault if plugin doesn't exist
+        if ($service eq 'vault' && !-d "./examples/plugins/vault-backend") {
+            log_info("Skipping Vault image pull - plugin not implemented");
+            next;
+        }
+        
+        # Build syslog image locally
+        if ($service eq 'syslog') {
+            log_info("Building syslog test image...");
+            my $build_cmd = "docker build -t $containers{$service}{image} ";
+            $build_cmd .= "-f $containers{$service}{dockerfile} ";
+            $build_cmd .= "$containers{$service}{build_context} 2>&1";
+            
+            my $output = `$build_cmd`;
+            if ($? != 0) {
+                log_error("Failed to build syslog image");
+                log_error($output) if $config{verbose};
+                return 0;
+            }
+            log_success("Successfully built syslog test image");
+            next;
+        }
+        
+        my $image = $containers{$service}{image};
+        log_info("Pulling $image...");
+        
+        my $output = `docker pull $image 2>&1`;
+        if ($? != 0) {
+            log_error("Failed to pull $image");
+            log_error($output) if $config{verbose};
+            return 0;
+        }
+        
+        log_success("Successfully pulled $image");
+    }
+    
+    return 1;
+}
+
+# Run test suites
+sub run_test_suites {
+    my @suites = @_;
+    my $all_passed = 1;
+    
+    if ($config{parallel} && @suites > 1) {
+        log_info("Running test suites in parallel...");
+        $all_passed = run_parallel_tests(@suites);
+    } else {
+        log_info("Running test suites sequentially...");
+        for my $suite (@suites) {
+            my $passed = run_test_suite($suite);
+            $all_passed = 0 unless $passed;
+        }
+    }
+    
+    return $all_passed;
+}
+
+# Run a single test suite
+sub run_test_suite {
+    my ($suite) = @_;
+    
+    log_info("\nRunning $suite integration tests...");
+    log_info("-" x 40);
+    
+    # Start container
+    my $container_started = start_container($suite);
+    return 0 unless $container_started;
+    
+    # Wait for service to be ready
+    my $service_ready = wait_for_service($suite);
+    unless ($service_ready) {
+        stop_container($suite);
+        return 0;
+    }
+    
+    # Run tests
+    my $tests_passed = run_tests($suite);
+    
+    # Stop container (unless keeping)
+    stop_container($suite) unless $config{keep_containers};
+    
+    return $tests_passed;
+}
+
+# Start a container
+sub start_container {
+    my ($service) = @_;
+    my $container = $containers{$service};
+    
+    log_info("Starting $service container...");
+    
+    # Check if container already exists
+    my $existing = `docker ps -aq -f name=$container->{name} 2>&1`;
+    chomp $existing;
+    
+    if ($existing) {
+        log_debug("Removing existing container: $container->{name}");
+        system("docker rm -f $container->{name} >/dev/null 2>&1");
+    }
+    
+    # Build docker run command
+    my $docker_cmd = build_docker_command($service);
+    log_debug("Docker command: $docker_cmd");
+    
+    # Start container
+    my $output = `$docker_cmd 2>&1`;
+    if ($? != 0) {
+        log_error("Failed to start $service container");
+        log_error($output) if $config{verbose};
+        return 0;
+    }
+    
+    log_success("Started $service container");
+    return 1;
+}
+
+# Build docker run command for a service
+sub build_docker_command {
+    my ($service) = @_;
+    my $container = $containers{$service};
+    
+    my $cmd = "docker run -d";
+    $cmd .= " --name $container->{name}";
+    
+    if ($service eq 'syslog') {
+        # Syslog needs both TCP and UDP ports
+        $cmd .= " -p $container->{port}:514/tcp";
+        $cmd .= " -p $container->{port}:514/udp";
+        # Mount log directory for test verification
+        $cmd .= " -v \$(pwd)/test-logs:/var/log";
+        $cmd .= " -e RSYSLOG_DEBUG=on" if $config{verbose};
+    } else {
+        $cmd .= " -p $container->{port}:$container->{port}";
+    }
+    
+    if ($service eq 'vault') {
+        $cmd .= " -e VAULT_DEV_ROOT_TOKEN_ID=test-token";
+        $cmd .= " -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200";
+        $cmd .= " -e VAULT_LOG_LEVEL=debug" if $config{verbose};
+    }
+    
+    $cmd .= " $container->{image}";
+    
+    return $cmd;
+}
+
+# Wait for service to be ready
+sub wait_for_service {
+    my ($service) = @_;
+    my $container = $containers{$service};
+    my $timeout = 30; # seconds
+    my $start_time = time;
+    
+    log_info("Waiting for $service to be ready...");
+    
+    while (time - $start_time < $timeout) {
+        if ($service eq 'nats') {
+            # Check NATS connectivity
+            my $nc_check = `nc -zv localhost $container->{port} 2>&1`;
+            if ($? == 0) {
+                log_success("NATS is ready");
+                return 1;
+            }
+        } elsif ($service eq 'vault') {
+            # Check Vault API
+            my $vault_status = `curl -s http://localhost:$container->{port}/v1/sys/health`;
+            if ($? == 0 && $vault_status =~ /"initialized":true/) {
+                log_success("Vault is ready");
+                
+                # Additional Vault setup
+                setup_vault();
+                return 1;
+            }
+        } elsif ($service eq 'syslog') {
+            # Check syslog TCP connectivity
+            my $tcp_check = `nc -zv localhost $container->{port} 2>&1`;
+            if ($? == 0) {
+                # Also check if rsyslog is actually running in the container
+                my $rsyslog_check = `docker exec $container->{name} pgrep rsyslogd 2>&1`;
+                if ($? == 0) {
+                    log_success("Syslog is ready");
+                    # Create test log directory if it doesn't exist
+                    system("mkdir -p test-logs");
+                    return 1;
+                }
+            }
+        }
+        
+        sleep(0.5);
+    }
+    
+    log_error("Timeout waiting for $service to be ready");
+    return 0;
+}
+
+# Setup Vault for testing
+sub setup_vault {
+    log_debug("Setting up Vault for testing...");
+    
+    # Enable KV secrets engine
+    my $cmd = 'curl -s -X POST -H "X-Vault-Token: test-token" ';
+    $cmd .= 'http://localhost:8200/v1/sys/mounts/secret ';
+    $cmd .= '-d \'{"type":"kv-v2"}\'';
+    
+    system($cmd . ' >/dev/null 2>&1');
+    
+    # Create test secrets
+    $cmd = 'curl -s -X POST -H "X-Vault-Token: test-token" ';
+    $cmd .= 'http://localhost:8200/v1/secret/data/test ';
+    $cmd .= '-d \'{"data":{"foo":"bar","api_key":"test-key-12345"}}\'';
+    
+    system($cmd . ' >/dev/null 2>&1');
+    
+    log_debug("Vault setup completed");
+}
+
+# Run tests for a service
+sub run_tests {
+    my ($service) = @_;
+    
+    log_info("Executing $service tests...");
+    
+    my $test_cmd = "go test -v -tags=integration";
+    $test_cmd .= " -timeout=${config{timeout}}m";
+    
+    if ($service eq 'nats') {
+        $test_cmd .= " ./examples/plugins/nats-backend/...";
+        $test_cmd .= " ./examples/nats-logging/...";
+    } elsif ($service eq 'vault') {
+        # Check if Vault backend exists
+        if (-d "./examples/plugins/vault-backend") {
+            $test_cmd .= " ./examples/plugins/vault-backend/...";
+        } else {
+            log_warn("Vault backend plugin not found, skipping Vault tests");
+            log_info("Run with --nats-only to test only NATS functionality");
+            return 1;
+        }
+    } elsif ($service eq 'syslog') {
+        # Set environment variable for syslog tests to use Docker container
+        $ENV{OMNI_SYSLOG_TEST_ADDR} = "localhost:$containers{syslog}{port}";
+        $ENV{OMNI_SYSLOG_TEST_PROTO} = "tcp";
+        
+        # Run syslog-specific tests
+        $test_cmd .= " ./pkg/backends -run TestSyslog";
+        $test_cmd .= " ./pkg/omni -run TestSyslog";
+    }
+    
+    log_debug("Test command: $test_cmd");
+    
+    # Run tests and capture output
+    my $test_output = `$test_cmd 2>&1`;
+    my $test_result = $?;
+    
+    # Parse and display results
+    parse_test_output($test_output);
+    
+    if ($test_result == 0) {
+        log_success("All $service tests passed");
+        return 1;
+    } else {
+        log_error("Some $service tests failed");
+        return 0;
+    }
+}
+
+# Parse test output
+sub parse_test_output {
+    my ($output) = @_;
+    
+    my $tests_run = 0;
+    my $tests_passed = 0;
+    my $tests_failed = 0;
+    my $tests_skipped = 0;
+    
+    for my $line (split /\n/, $output) {
+        if ($line =~ /^=== RUN\s+(\S+)/) {
+            $tests_run++;
+            log_debug("Running: $1") if $config{verbose};
+        } elsif ($line =~ /^--- PASS:\s+(\S+)/) {
+            $tests_passed++;
+        } elsif ($line =~ /^--- FAIL:\s+(\S+)/) {
+            $tests_failed++;
+            log_error("Failed: $1");
+        } elsif ($line =~ /^--- SKIP:\s+(\S+)/) {
+            $tests_skipped++;
+            log_warn("Skipped: $1");
+        } elsif ($line =~ /^PASS$/) {
+            # Overall pass
+        } elsif ($line =~ /^FAIL$/) {
+            # Overall fail
+        } elsif ($config{verbose}) {
+            print "$line\n";
+        }
+    }
+    
+    # Summary
+    log_info("\nTest Summary:");
+    log_info("  Tests run:     $tests_run");
+    log_info("  Tests passed:  " . colored($tests_passed, 'green'));
+    log_info("  Tests failed:  " . colored($tests_failed, 'red')) if $tests_failed;
+    log_info("  Tests skipped: " . colored($tests_skipped, 'yellow')) if $tests_skipped;
+}
+
+# Stop a container
+sub stop_container {
+    my ($service) = @_;
+    my $container = $containers{$service};
+    
+    log_debug("Stopping $service container...");
+    
+    system("docker stop $container->{name} >/dev/null 2>&1");
+    system("docker rm $container->{name} >/dev/null 2>&1");
+}
+
+# Cleanup all containers
+sub cleanup {
+    log_info("\nCleaning up...");
+    
+    for my $service (sort keys %containers) {
+        my $container = $containers{$service};
+        my $exists = `docker ps -aq -f name=$container->{name} 2>&1`;
+        chomp $exists;
+        
+        if ($exists) {
+            stop_container($service);
+            log_debug("Removed container: $container->{name}");
+        }
+    }
+    
+    log_success("Cleanup completed");
+}
+
+# Signal handlers
+sub setup_signal_handlers {
+    $SIG{INT} = $SIG{TERM} = sub {
+        log_warn("\nReceived interrupt signal, cleaning up...");
+        cleanup();
+        exit(EXIT_SUCCESS);
+    };
+}
+
+# Logging functions
+sub log_info {
+    my ($msg) = @_;
+    print timestamp() . " [INFO] $msg\n";
+}
+
+sub log_debug {
+    my ($msg) = @_;
+    return unless $config{verbose};
+    print timestamp() . " [DEBUG] " . colored($msg, 'cyan') . "\n";
+}
+
+sub log_success {
+    my ($msg) = @_;
+    print timestamp() . " [OK] " . colored($msg, 'green') . "\n";
+}
+
+sub log_warn {
+    my ($msg) = @_;
+    print timestamp() . " [WARN] " . colored($msg, 'yellow') . "\n";
+}
+
+sub log_error {
+    my ($msg) = @_;
+    print STDERR timestamp() . " [ERROR] " . colored($msg, 'red') . "\n";
+}
+
+sub timestamp {
+    return strftime("[%Y-%m-%d %H:%M:%S]", localtime);
+}
+
+# Run parallel tests (stub for now)
+sub run_parallel_tests {
+    my @suites = @_;
+    log_warn("Parallel execution not yet implemented, falling back to sequential");
+    
+    my $all_passed = 1;
+    for my $suite (@suites) {
+        my $passed = run_test_suite($suite);
+        $all_passed = 0 unless $passed;
+    }
+    
+    return $all_passed;
+}
+
+__END__
+
+=head1 NAME
+
+integration - Omni integration test runner
+
+=head1 SYNOPSIS
+
+integration [options]
+
+ Options:
+   --help              Show this help message
+   --verbose           Enable verbose output
+   --keep-containers   Don't remove containers after tests
+   --nats-only        Run only NATS tests
+   --vault-only       Run only Vault tests
+   --syslog-only      Run only Syslog tests
+   --timeout=MINS     Test timeout in minutes (default: 10)
+   --parallel         Run test suites in parallel
+   --skip-pull        Skip pulling latest Docker images
+
+=head1 DESCRIPTION
+
+This script manages Docker containers for NATS, Vault, and Syslog to run integration
+tests for the Omni logging library. It ensures Docker is available, starts
+the required services, runs the tests, and cleans up afterwards.
+
+=head1 EXIT STATUS
+
+ 0 - Success
+ 1 - Docker not available
+ 2 - Container startup failed
+ 3 - Tests failed
+ 4 - Cleanup failed
+ 5 - Timeout exceeded
+
+=head1 EXAMPLES
+
+ # Run all integration tests
+ ./scripts/integration
+
+ # Run only NATS tests with verbose output
+ ./scripts/integration --nats-only --verbose
+
+ # Run only Syslog tests
+ ./scripts/integration --syslog-only
+
+ # Keep containers running after tests
+ ./scripts/integration --keep-containers
+
+=head1 AUTHOR
+
+Omni Development Team
+
+=head1 VERSION
+
+1.0.0
+
+=cut

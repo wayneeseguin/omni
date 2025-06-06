@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {
@@ -106,23 +106,18 @@ func advancedExample() {
 	fmt.Println("\n=== Advanced Configuration Example ===")
 
 	// Create a logger with advanced configuration
-	logger, err := omni.New("/tmp/api_advanced.log")
+	logger, err := omni.NewWithOptions(
+		omni.WithPath("/tmp/api_advanced.log"),
+		omni.WithLevel(omni.LevelDebug),
+		omni.WithJSON(),
+		omni.WithRotation(10*1024*1024, 3), // 10MB, keep 3 files
+		omni.WithGzipCompression(),
+		omni.WithStackTrace(4096), // Enable stack traces with 4KB buffer
+	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-
-	// Configure advanced settings
-	logger.SetLevel(omni.LevelDebug)
-	logger.SetFormat(omni.FormatJSON)
-
-	// Set up rotation and compression
-	logger.SetMaxSize(10 * 1024 * 1024) // 10MB
-	logger.SetMaxFiles(3)
-	logger.SetCompression(omni.CompressionGzip)
-
-	// Enable stack traces
-	logger.EnableStackTraces(true)
 
 	// Add multiple destinations
 	err = logger.AddDestination("/tmp/api_advanced_copy.log")

@@ -8,54 +8,31 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wayneeseguin/omni"
-	natsplugin "github.com/wayneeseguin/omni/examples/plugins/nats-backend"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {
-	// Register the NATS backend plugin
-	plugin := &natsplugin.NATSBackendPlugin{}
-	if err := plugin.Initialize(nil); err != nil {
-		log.Fatalf("Failed to initialize NATS plugin: %v", err)
-	}
-	
-	if err := omni.RegisterBackendPlugin(plugin); err != nil {
-		log.Fatalf("Failed to register NATS plugin: %v", err)
-	}
-	
-	// Create a new Omni instance with builder
-	logger, err := omni.NewBuilder().
-		WithLevel(omni.LevelDebug).
-		WithJSON().
-		Build()
+	// Create a logger with JSON format for structured logging
+	// Note: This example demonstrates distributed logging patterns
+	// In production, you would connect this to actual NATS backend
+	logger, err := omni.NewWithOptions(
+		omni.WithPath("logs/distributed.log"),
+		omni.WithLevel(omni.LevelDebug),
+		omni.WithJSON(),
+		omni.WithRotation(10*1024*1024, 5), // 10MB files, keep 5
+	)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
-	// Add a local file destination for backup
-	if err := logger.AddDestination("logs/app.log"); err != nil {
-		log.Fatalf("Failed to add file destination: %v", err)
+	// Add a backup destination
+	if err := logger.AddDestination("logs/app_backup.log"); err != nil {
+		log.Fatalf("Failed to add backup destination: %v", err)
 	}
 
-	// Add NATS destination for distributed logging
-	natsURI := os.Getenv("NATS_URI")
-	if natsURI == "" {
-		natsURI = "nats://localhost:4222/logs.myapp"
-	}
-
-	fmt.Printf("Connecting to NATS at %s\n", natsURI)
-	
-	// Example URIs:
-	// Basic: "nats://localhost:4222/logs.myapp"
-	// With queue group: "nats://localhost:4222/logs.myapp?queue=workers"
-	// With batching: "nats://localhost:4222/logs.myapp?batch=200&flush_interval=100"
-	// With auth: "nats://user:pass@nats-server:4222/logs.myapp"
-	// With TLS: "nats://secure-nats:4222/logs.myapp?tls=true"
-	
-	if err := logger.AddDestination(natsURI); err != nil {
-		log.Fatalf("Failed to add NATS destination: %v", err)
-	}
+	fmt.Println("Distributed logging example started (file-based simulation)")
+	fmt.Println("In production, this would connect to NATS for distributed logging")
 
 	// Log some messages with fields
 	logger.InfoWithFields("Application started", map[string]interface{}{

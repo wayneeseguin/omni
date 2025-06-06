@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 // RequestIDKey is the context key for request ID

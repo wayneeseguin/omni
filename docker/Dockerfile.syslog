@@ -1,0 +1,40 @@
+# Dockerfile for syslog integration testing
+FROM ubuntu:22.04
+
+# Install rsyslog and necessary tools
+RUN apt-get update && \
+    apt-get install -y \
+    rsyslog \
+    rsyslog-relp \
+    netcat-openbsd \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure rsyslog for testing
+# Enable TCP and UDP reception
+RUN echo "\
+# Omni test configuration\n\
+module(load=\"imudp\")\n\
+input(type=\"imudp\" port=\"514\")\n\
+\n\
+module(load=\"imtcp\")\n\
+input(type=\"imtcp\" port=\"514\")\n\
+\n\
+# Unix socket\n\
+module(load=\"imuxsock\")\n\
+\n\
+# Log all messages to a file for verification\n\
+*.* /var/log/omni-test.log\n\
+\n\
+# Also log to stdout for container logs\n\
+*.* /dev/stdout\n\
+" > /etc/rsyslog.d/50-omni-test.conf
+
+# Create log directory
+RUN mkdir -p /var/log && touch /var/log/omni-test.log
+
+# Expose syslog ports
+EXPOSE 514/tcp 514/udp
+
+# Start rsyslog in foreground mode
+CMD ["rsyslogd", "-n", "-f", "/etc/rsyslog.conf"]

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  syslog:
+    build:
+      context: .
+      dockerfile: Dockerfile.syslog
+    container_name: omni-test-syslog
+    ports:
+      - "5514:514/tcp"
+      - "5514:514/udp"
+    volumes:
+      # Mount log directory for test verification
+      - ./test-logs:/var/log
+      # Mount Unix socket for local syslog testing
+      - /dev/log:/dev/log
+    environment:
+      - RSYSLOG_DEBUG=on
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "514"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - omni-test
+
+networks:
+  omni-test:
+    driver: bridge

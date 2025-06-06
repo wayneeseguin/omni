@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 // Global logger instance

@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 // Service configuration
@@ -446,10 +446,7 @@ func main() {
 		metrics := logger.GetMetrics()
 		
 		// Calculate total messages from all levels
-		totalMessages := uint64(0)
-		for _, count := range metrics.MessagesLogged {
-			totalMessages += count
-		}
+		totalMessages := metrics.MessagesLogged
 		
 		// Export Prometheus-style metrics
 		fmt.Fprintf(w, "# HELP service_log_messages_total Total log messages\n")

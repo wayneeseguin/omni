@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/wayneeseguin/omni"
+	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {
