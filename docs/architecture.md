@@ -12,6 +12,25 @@ Omni is designed as a high-performance, flexible logging library with these core
 4. **Zero dependencies**: Only standard library dependencies for core functionality
 5. **Performance-focused**: Minimal allocations and efficient I/O
 
+## Package Structure
+
+Omni is organized into modular packages for better maintainability:
+
+```
+pkg/
+├── omni/          # Core logger implementation
+├── backends/      # Backend implementations (file, syslog, plugin)
+├── features/      # Feature modules (compression, filtering, rotation)
+├── formatters/    # Output formatters (JSON, text)
+├── plugins/       # Plugin system and management
+└── types/         # Common types and interfaces
+
+internal/
+├── buffer/        # Buffer pool and batch writer
+├── metrics/       # Metrics collection
+└── utils/         # Internal utilities (atomic, context, etc.)
+```
+
 ## High-Level Architecture
 
 ```
@@ -39,35 +58,35 @@ Omni is designed as a high-performance, flexible logging library with these core
 
 ## Core Components
 
-### 1. Omni Structure
+### 1. Omni Structure (pkg/omni/logger.go)
 
 ```go
 type Omni struct {
     // Message handling
-    messages     chan LogMessage      // Buffered channel for async processing
-    done         chan struct{}        // Shutdown signal
-    wg           sync.WaitGroup       // Tracks background goroutines
+    messages     chan *types.LogMessage  // Buffered channel for async processing
+    done         chan struct{}           // Shutdown signal
+    wg           sync.WaitGroup          // Tracks background goroutines
     
     // State management
-    mu           sync.RWMutex         // Protects mutable state
-    level        atomic.Int32         // Current log level (atomic for performance)
-    format       int                  // Output format (text/json)
+    mu           sync.RWMutex            // Protects mutable state
+    level        atomic.Int32            // Current log level (atomic for performance)
+    format       int                     // Output format (text/json)
     
     // Primary destination (legacy support)
-    path         string               // Primary log file path
-    file         *os.File            // Primary file handle
-    writer       *bufio.Writer       // Buffered writer
+    path         string                  // Primary log file path
+    file         *os.File               // Primary file handle
+    writer       *bufio.Writer          // Buffered writer
     
     // Multi-destination support
-    destinations sync.Map            // Thread-safe map of destinations
+    destinations sync.Map               // Thread-safe map of destinations
     
     // Features
-    filters      []FilterFunc        // Message filters
-    sampler      Sampler            // Sampling strategy
-    errorHandler ErrorHandler       // Error callback
+    filters      []features.FilterFunc  // Message filters
+    sampler      features.Sampler      // Sampling strategy
+    errorHandler ErrorHandler          // Error callback
     
     // Metrics
-    metrics      *LoggerMetrics     // Performance metrics
+    metrics      *metrics.Collector    // Performance metrics
 }
 ```
 
@@ -149,24 +168,18 @@ Each destination maintains its own state:
 
 ```go
 type Destination struct {
-    Name     string              // Unique identifier
-    URI      string              // Connection string
-    Backend  int                 // Backend type
-    Enabled  atomic.Bool         // Runtime enable/disable
-    
-    // Backend-specific fields
-    File     *os.File           // For file backend
-    Writer   *bufio.Writer      // Buffered writer
-    Syslog   *syslog.Writer     // For syslog backend
+    Name     string                   // Unique identifier
+    URI      string                   // Connection string
+    Backend  backends.Backend         // Backend implementation
+    Enabled  atomic.Bool              // Runtime enable/disable
     
     // State tracking
-    mu       sync.RWMutex       // Protects mutable fields
-    Size     int64              // Current file size
-    Filter   FilterFunc         // Destination-specific filter
+    mu       sync.RWMutex            // Protects mutable fields
+    Filter   features.FilterFunc     // Destination-specific filter
     
     // Metrics
-    BytesWritten atomic.Uint64   // Total bytes written
-    Errors       atomic.Uint64   // Error count
+    BytesWritten atomic.Uint64       // Total bytes written
+    Errors       atomic.Uint64       // Error count
 }
 ```
 
@@ -275,9 +288,11 @@ f.metrics.TotalMessages.Add(1)
 
 ### 1. Custom Backends
 
-Implement the Backend interface:
+Implement the Backend interface in pkg/backends/interfaces.go:
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/backends"
+
 type CustomBackend struct {
     // Your fields
 }
@@ -299,23 +314,24 @@ func (b *CustomBackend) SupportsAtomic() bool {
 }
 
 // Register backend
-omni.RegisterBackend("custom", func(uri string) (Backend, error) {
+backends.RegisterBackend("custom", func(uri string) (backends.Backend, error) {
     return &CustomBackend{}, nil
 })
 ```
 
 ### 2. Custom Formatters
 
-Implement the Formatter interface:
+Implement the Formatter interface in pkg/formatters/interfaces.go:
 
 ```go
-type Formatter interface {
-    Format(msg LogMessage) ([]byte, error)
-}
+import (
+    "github.com/wayneeseguin/omni/pkg/formatters"
+    "github.com/wayneeseguin/omni/pkg/types"
+)
 
 type CustomFormatter struct{}
 
-func (f *CustomFormatter) Format(msg LogMessage) ([]byte, error) {
+func (f *CustomFormatter) Format(msg *types.LogMessage) ([]byte, error) {
     // Your formatting logic
     return []byte(formatted), nil
 }
@@ -326,18 +342,19 @@ logger.SetFormatter(&CustomFormatter{})
 
 ### 3. Custom Samplers
 
-Implement the Sampler interface:
+Implement the Sampler interface in pkg/features/interfaces.go:
 
 ```go
-type Sampler interface {
-    ShouldSample(msg LogMessage) bool
-}
+import (
+    "github.com/wayneeseguin/omni/pkg/features"
+    "github.com/wayneeseguin/omni/pkg/types"
+)
 
 type CustomSampler struct {
     // Your fields
 }
 
-func (s *CustomSampler) ShouldSample(msg LogMessage) bool {
+func (s *CustomSampler) ShouldSample(msg *types.LogMessage) bool {
     // Your sampling logic
     return true
 }

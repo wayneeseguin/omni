@@ -8,6 +8,11 @@ Omni is a flexible, high-performance logging library for Go applications. This g
 go get github.com/wayneeseguin/omni
 ```
 
+Import the package in your code:
+```go
+import "github.com/wayneeseguin/omni/pkg/omni"
+```
+
 ## Quick Start
 
 ### Basic Logger
@@ -19,7 +24,7 @@ package main
 
 import (
     "log"
-    "github.com/wayneeseguin/omni"
+    "github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {
@@ -248,6 +253,6 @@ logger.StructuredLogWithContext(ctx, omni.LevelInfo,
 ## Next Steps
 
 - See [examples](../examples/) for real-world usage patterns
-- Read the [API documentation](https://pkg.go.dev/github.com/wayneeseguin/omni)
+- Read the [API documentation](https://pkg.go.dev/github.com/wayneeseguin/omni/pkg/omni)
 - Learn about [advanced features](./advanced-features.md)
 - Check out [troubleshooting guide](./troubleshooting.md)

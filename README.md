@@ -34,6 +34,11 @@ Omni is a high-performance, extensible logging library for Go applications with 
 go get github.com/wayneeseguin/omni
 ```
 
+Import the package in your code:
+```go
+import "github.com/wayneeseguin/omni/pkg/omni"
+```
+
 ## Documentation
 
 - 📖 **[Getting Started Guide](docs/getting-started.md)** - Quick introduction and basic usage
@@ -52,7 +57,7 @@ go get github.com/wayneeseguin/omni
 package main
 
 import (
-    "github.com/wayneeseguin/omni"
+    "github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {

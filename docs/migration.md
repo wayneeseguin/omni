@@ -21,12 +21,10 @@ logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 **Omni:**
 ```go
-logger, _ := omni.NewOmni()
-logger.AddDestination("stdout", omni.DestinationConfig{
-    Backend: omni.BackendFile,
-    FilePath: "/dev/stdout",
-    Format: omni.FormatJSON,
-})
+import "github.com/wayneeseguin/omni/pkg/omni"
+
+logger, _ := omni.New("stdout")
+logger.SetFormat(omni.FormatJSON)
 ```
 
 ### Structured Logging
@@ -71,14 +69,11 @@ log.SetLevel(logrus.InfoLevel)
 
 **Omni:**
 ```go
-logger, _ := omni.NewOmni()
-logger.SetLogLevel(omni.INFO)
-logger.AddDestination("file", omni.DestinationConfig{
-    Backend: omni.BackendFile,
-    FilePath: "app.log",
-    Format: omni.FormatJSON,
-    MinLevel: omni.INFO,
-})
+import "github.com/wayneeseguin/omni/pkg/omni"
+
+logger, _ := omni.New("app.log")
+logger.SetLevel(omni.LevelInfo)
+logger.SetFormat(omni.FormatJSON)
 ```
 
 ### Fields
@@ -107,11 +102,12 @@ log.AddHook(customHook)
 
 **Omni:**
 ```go
-// Implement as a custom destination
-logger.AddDestination("custom", omni.DestinationConfig{
-    Backend: omni.BackendCustom,
-    CustomWriter: customWriter,
-})
+// Implement as a plugin backend
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
+plugin := &CustomPlugin{Writer: customWriter}
+plugins.RegisterPlugin("custom", plugin)
+logger.AddDestination("plugin://custom")
 ```
 
 ## From zap
@@ -127,11 +123,12 @@ sugar := logger.Sugar()
 
 **Omni:**
 ```go
-config := omni.Config{
-    DefaultLevel: omni.INFO,
-    DefaultFormat: omni.FormatJSON,
-}
-logger, _ := omni.NewOmniWithConfig(config)
+import "github.com/wayneeseguin/omni/pkg/omni"
+
+logger, _ := omni.NewBuilder().
+    WithLevel(omni.LevelInfo).
+    WithJSON().
+    Build()
 defer logger.Close()
 ```
 
@@ -165,12 +162,10 @@ logger.With(
 
 **Omni:**
 ```go
-// Use lazy evaluation for expensive operations
-logger.Info("logged in",
-    "user", username,
-    "expensive_data", omni.Lazy(func() interface{} {
-        return computeExpensiveData()
-    }))
+// Omni uses efficient structured logging
+logger.InfoWithFields("logged in", map[string]interface{}{
+    "user": username,
+})
 ```
 
 ## From zerolog
@@ -185,12 +180,10 @@ logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 **Omni:**
 ```go
-logger, _ := omni.NewOmni()
-logger.AddDestination("stdout", omni.DestinationConfig{
-    Backend: omni.BackendFile,
-    FilePath: "/dev/stdout",
-    Format: omni.FormatJSON,
-})
+import "github.com/wayneeseguin/omni/pkg/omni"
+
+logger, _ := omni.New("stdout")
+logger.SetFormat(omni.FormatJSON)
 ```
 
 ### Structured Logging
@@ -219,12 +212,9 @@ sampled := logger.Sample(&zerolog.BasicSampler{N: 10})
 
 **Omni:**
 ```go
-config := omni.Config{
-    Sampling: omni.SamplingConfig{
-        Enabled: true,
-        Rate: 0.1, // 10%
-    },
-}
+logger.SetSampling(omni.SamplingInterval, 10) // Every 10th message
+// or
+logger.SetSampling(omni.SamplingRandom, 0.1) // 10% randomly
 ```
 
 ## Common Patterns
@@ -240,11 +230,13 @@ var logger, _ = zap.NewProduction()
 
 **Omni pattern:**
 ```go
+import "github.com/wayneeseguin/omni/pkg/omni"
+
 var logger *omni.Omni
 
 func init() {
     var err error
-    logger, err = omni.NewOmni()
+    logger, err = omni.New("/var/log/app.log")
     if err != nil {
         panic(err)
     }
@@ -266,13 +258,9 @@ logger.SetOutput(&lumberjack.Logger{
 
 **Omni built-in:**
 ```go
-logger.AddDestination("rotating", omni.DestinationConfig{
-    Backend:    omni.BackendFile,
-    FilePath:   "/var/log/myapp.log",
-    MaxSize:    100 * 1024 * 1024, // bytes
-    MaxBackups: 3,
-    Compress:   true,
-})
+logger.SetMaxSize(100 * 1024 * 1024) // 100MB
+logger.SetMaxFiles(3)
+logger.SetCompression(omni.CompressionGzip)
 ```
 
 ### Multiple Outputs
@@ -286,14 +274,8 @@ logger.SetOutput(multi)
 
 **Omni native:**
 ```go
-logger.AddDestination("file", omni.DestinationConfig{
-    Backend: omni.BackendFile,
-    FilePath: "app.log",
-})
-logger.AddDestination("stdout", omni.DestinationConfig{
-    Backend: omni.BackendFile,
-    FilePath: "/dev/stdout",
-})
+logger, _ := omni.New("app.log")
+logger.AddDestination("stdout")
 ```
 
 ### Error Handling
@@ -308,9 +290,11 @@ if err != nil {
 **Omni:**
 ```go
 if err != nil {
-    logger.Error("Operation failed", "error", err)
-    // Or with stack trace
-    logger.ErrorWithStack("Operation failed", err)
+    logger.ErrorWithFields("Operation failed", map[string]interface{}{
+        "error": err,
+    })
+    // Or with enhanced error
+    logger.ErrorWithError("Operation failed", err)
 }
 ```
 
@@ -325,10 +309,12 @@ type MockLogger struct {
 }
 
 // Omni
-testLogger, _ := omni.NewOmni()
-testLogger.AddDestination("memory", omni.DestinationConfig{
-    Backend: omni.BackendMemory, // For testing
-})
+import "github.com/wayneeseguin/omni/pkg/omni"
+
+// Use a temporary file for testing
+testLogger, _ := omni.New("/tmp/test.log")
+// Or use stdout
+testLogger, _ := omni.New("stdout")
 ```
 
 ## Feature Comparison
@@ -348,7 +334,7 @@ testLogger.AddDestination("memory", omni.DestinationConfig{
 
 ## Migration Checklist
 
-1. **Dependencies**: Replace old logger imports with `github.com/wayneeseguin/omni`
+1. **Dependencies**: Replace old logger imports with `github.com/wayneeseguin/omni/pkg/omni`
 2. **Initialization**: Update logger creation to use Omni constructors
 3. **Configuration**: Convert logger configuration to Omni Config struct
 4. **Log Calls**: Update log method calls (usually minor syntax changes)

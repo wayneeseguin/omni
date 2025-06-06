@@ -18,13 +18,18 @@ Omni is a flexible, high-performance logging library for Go with support for mul
 go get github.com/wayneeseguin/omni
 ```
 
+Import the package in your code:
+```go
+import "github.com/wayneeseguin/omni/pkg/omni"
+```
+
 ## Quick Start
 
 ```go
 package main
 
 import (
-    "github.com/wayneeseguin/omni"
+    "github.com/wayneeseguin/omni/pkg/omni"
 )
 
 func main() {
@@ -51,6 +56,16 @@ Omni supports four log levels:
 - `INFO` - Informational messages
 - `WARN` - Warning messages
 - `ERROR` - Error messages
+
+### Package Structure
+
+Omni is organized into the following packages:
+- `pkg/omni` - Core logger functionality
+- `pkg/backends` - Backend implementations (file, syslog, plugin)
+- `pkg/features` - Feature modules (compression, filtering, rotation, etc.)
+- `pkg/formatters` - Output formatters (JSON, text, custom)
+- `pkg/plugins` - Plugin system for extensibility
+- `pkg/types` - Common types and interfaces
 
 ### Destinations
 
@@ -162,8 +177,8 @@ type Config struct {
 #### DestinationConfig
 ```go
 type DestinationConfig struct {
-    // Backend type (File, Syslog, Custom)
-    Backend BackendType
+    // Backend type (File, Syslog, Plugin)
+    Backend string
     
     // File-specific settings
     FilePath    string
@@ -190,7 +205,7 @@ Automatic log rotation based on file size:
 
 ```go
 config := DestinationConfig{
-    Backend:    BackendFile,
+    Backend:    "file",
     FilePath:   "/var/log/app.log",
     MaxSize:    100 * 1024 * 1024, // 100MB
     MaxBackups: 5,

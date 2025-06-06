@@ -103,8 +103,10 @@ package main
 import (
     "context"
     "encoding/xml"
+    "fmt"
     "time"
-    "github.com/wayneeseguin/omni"
+    "github.com/wayneeseguin/omni/pkg/formatters"
+    "github.com/wayneeseguin/omni/pkg/types"
 )
 
 type XMLFormatterPlugin struct {
@@ -149,7 +151,7 @@ func (p *XMLFormatterPlugin) Shutdown(ctx context.Context) error {
     return nil
 }
 
-func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (omni.Formatter, error) {
+func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (formatters.Formatter, error) {
     formatter := &XMLFormatter{
         includeFields: true,
         timeFormat:    time.RFC3339,
@@ -170,15 +172,15 @@ func (p *XMLFormatterPlugin) FormatName() string {
     return "xml"
 }
 
-func (f *XMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
+func (f *XMLFormatter) Format(msg *types.LogMessage) ([]byte, error) {
     entry := XMLLogEntry{
         Timestamp: msg.Timestamp.Format(f.timeFormat),
-        Level:     omni.LevelName(msg.Level),
-        Message:   msg.Entry.Message,
+        Level:     types.LevelName(msg.Level),
+        Message:   msg.Message,
     }
     
-    if f.includeFields && msg.Entry.Fields != nil {
-        for key, value := range msg.Entry.Fields {
+    if f.includeFields && msg.Fields != nil {
+        for key, value := range msg.Fields {
             entry.Fields = append(entry.Fields, XMLField{
                 Key:   key,
                 Value: fmt.Sprintf("%v", value),
@@ -205,8 +207,10 @@ package main
 import (
     "context"
     "database/sql"
+    "encoding/json"
+    "fmt"
     "net/url"
-    "github.com/wayneeseguin/omni"
+    "github.com/wayneeseguin/omni/pkg/backends"
     _ "github.com/lib/pq" // PostgreSQL driver
 )
 
@@ -242,7 +246,7 @@ func (p *DatabaseBackendPlugin) SupportedSchemes() []string {
     return []string{"postgres", "mysql", "sqlite"}
 }
 
-func (p *DatabaseBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (omni.Backend, error) {
+func (p *DatabaseBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (backends.Backend, error) {
     parsedURL, err := url.Parse(uri)
     if err != nil {
         return nil, err
@@ -381,8 +385,13 @@ Create a `plugin.json` file alongside your plugin:
 ### Manual Loading
 
 ```go
+import (
+    "github.com/wayneeseguin/omni/pkg/omni"
+    "github.com/wayneeseguin/omni/pkg/plugins"
+)
+
 // Load a specific plugin
-err := omni.LoadPlugin("./plugins/xml-formatter.so")
+err := plugins.LoadPlugin("./plugins/xml-formatter.so")
 if err != nil {
     log.Fatalf("Failed to load plugin: %v", err)
 }
@@ -400,15 +409,17 @@ logger, _ := omni.NewBuilder().
 ### Automatic Discovery
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
 // Set plugin search paths
-omni.SetPluginSearchPaths([]string{
+plugins.SetPluginSearchPaths([]string{
     "./plugins",
     "/usr/local/lib/omni/plugins",
     os.Getenv("HOME") + "/.omni/plugins",
 })
 
 // Discover and load all plugins
-err := omni.DiscoverAndLoadPlugins()
+err := plugins.DiscoverAndLoadPlugins()
 if err != nil {
     log.Printf("Plugin loading errors: %v", err)
 }
@@ -417,8 +428,10 @@ if err != nil {
 ### Configuration-Based Loading
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
 // Load plugins from configuration
-specs := []omni.PluginSpec{
+specs := []plugins.PluginSpec{
     {
         Name: "xml-formatter",
         Path: "./plugins/xml-formatter.so",
@@ -432,7 +445,7 @@ specs := []omni.PluginSpec{
     },
 }
 
-discovery := omni.NewPluginDiscovery(omni.GetPluginManager())
+discovery := plugins.NewPluginDiscovery(plugins.GetManager())
 err := discovery.LoadPluginSpecs(specs)
 ```
 
@@ -469,8 +482,10 @@ logger.SetCustomFormatter("protobuf", map[string]interface{}{
 ### Filter Plugins
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
 // Add rate limiting filter
-rateLimiter, _ := omni.GetPluginManager().GetFilterPlugin("rate-limiter")
+rateLimiter, _ := plugins.GetManager().GetFilterPlugin("rate-limiter")
 filter, _ := rateLimiter.CreateFilter(map[string]interface{}{
     "rate": 100.0,  // 100 messages per second
     "burst": 200,   // burst of 200
@@ -478,7 +493,7 @@ filter, _ := rateLimiter.CreateFilter(map[string]interface{}{
 logger.AddFilter(filter)
 
 // Add content-based filter
-contentFilter, _ := omni.GetPluginManager().GetFilterPlugin("content-filter")
+contentFilter, _ := plugins.GetManager().GetFilterPlugin("content-filter")
 filter2, _ := contentFilter.CreateFilter(map[string]interface{}{
     "blacklist": []string{"password", "secret", "token"},
     "whitelist_levels": []string{"ERROR", "WARN"},
@@ -491,10 +506,12 @@ logger.AddFilter(filter2)
 ### List Loaded Plugins
 
 ```go
-manager := omni.GetPluginManager()
-plugins := manager.GetPluginInfo()
+import "github.com/wayneeseguin/omni/pkg/plugins"
 
-for _, plugin := range plugins {
+manager := plugins.GetManager()
+pluginList := manager.GetPluginInfo()
+
+for _, plugin := range pluginList {
     fmt.Printf("Plugin: %s v%s (%s)\n", 
         plugin.Name, plugin.Version, plugin.Type)
 }
@@ -503,8 +520,10 @@ for _, plugin := range plugins {
 ### Unload Plugins
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
 // Unload specific plugin
-err := omni.UnloadPlugin("xml-formatter")
+err := plugins.UnloadPlugin("xml-formatter")
 if err != nil {
     log.Printf("Failed to unload plugin: %v", err)
 }
@@ -513,14 +532,16 @@ if err != nil {
 ### Plugin Health Monitoring
 
 ```go
+import "github.com/wayneeseguin/omni/pkg/plugins"
+
 // Monitor plugin health
 go func() {
     ticker := time.NewTicker(time.Minute)
     defer ticker.Stop()
     
     for range ticker.C {
-        plugins := omni.GetPluginManager().ListPlugins()
-        for _, plugin := range plugins {
+        pluginList := plugins.GetManager().ListPlugins()
+        for _, plugin := range pluginList {
             // Check plugin health
             if err := plugin.Initialize(nil); err != nil {
                 log.Printf("Plugin %s unhealthy: %v", plugin.Name(), err)
