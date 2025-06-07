@@ -70,3 +70,69 @@ jobs:
 
       - name: Run tests
         run: make test
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:latest
+        ports:
+          - 4222:4222
+        options: --health-cmd "nc -z localhost 4222" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build syslog test image
+        run: |
+          docker build -t omni/syslog-test:latest -f docker/Dockerfile.syslog .
+
+      - name: Start syslog container
+        run: |
+          docker run -d --name omni-test-syslog \
+            -p 5514:514/tcp \
+            -p 5514:514/udp \
+            -v ${{ github.workspace }}/test-logs:/var/log \
+            -e RSYSLOG_DEBUG=on \
+            omni/syslog-test:latest
+          
+          # Wait for syslog to be ready
+          for i in {1..30}; do
+            if nc -z localhost 5514; then
+              echo "Syslog is ready"
+              break
+            fi
+            echo "Waiting for syslog... ($i/30)"
+            sleep 1
+          done
+
+      - name: Create test directories
+        run: mkdir -p test-logs
+
+      - name: Run NATS integration tests
+        run: |
+          go test -v -tags=integration -timeout=10m ./examples/plugins/nats-backend/... || true
+          go test -v -tags=integration -timeout=10m ./examples/nats-logging/... || true
+
+      - name: Run syslog integration tests
+        env:
+          OMNI_SYSLOG_TEST_ADDR: localhost:5514
+          OMNI_SYSLOG_TEST_PROTO: tcp
+        run: |
+          go test -v -tags=integration -timeout=10m ./pkg/backends -run TestSyslog
+          go test -v -tags=integration -timeout=10m ./pkg/omni -run TestSyslog
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop omni-test-syslog || true
+          docker rm omni-test-syslog || true
