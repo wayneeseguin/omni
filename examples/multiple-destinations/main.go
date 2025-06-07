@@ -10,6 +10,7 @@ import (
 
 func main() {
 	// Create logs directory
+	// #nosec G301 - Example code, 0755 permissions are acceptable
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		log.Fatal(err)
 	}
@@ -112,10 +113,10 @@ func main() {
 	}
 
 	// Demonstrate destination management
-	logger.DisableDestination("logs/structured.log")
+	_ = logger.DisableDestination("logs/structured.log") //nolint:gosec
 	logger.Info("This message will NOT go to structured.log (disabled)")
 	
-	logger.EnableDestination("logs/structured.log")
+	_ = logger.EnableDestination("logs/structured.log") //nolint:gosec
 	logger.Info("This message WILL go to structured.log (re-enabled)")
 
 	// Demonstrate trace level for function flow
@@ -127,7 +128,7 @@ func main() {
 	})
 
 	// Flush all destinations before shutdown
-	logger.FlushAll()
+	_ = logger.FlushAll() //nolint:gosec
 
 	log.Printf("Logging complete! Check the following files:")
 	log.Printf("  logs/all.log - Primary destination with all log levels")

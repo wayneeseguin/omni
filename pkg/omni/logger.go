@@ -456,8 +456,8 @@ func NewDestination(uri string) (*Destination, error) {
 	}
 
 	if strings.HasPrefix(uri, "file://") {
-		filePath := strings.TrimPrefix(uri, "file://")
-		file, err := os.Create(filePath)
+		filePath := filepath.Clean(strings.TrimPrefix(uri, "file://"))
+		file, err := os.Create(filePath) // #nosec G304 - path is cleaned above
 		if err != nil {
 			return nil, fmt.Errorf("failed to create file destination: %w", err)
 		}

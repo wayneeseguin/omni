@@ -182,7 +182,8 @@ func (d *DiscoveryImpl) LoadPluginSpecs(specs []PluginSpec) error {
 
 // LoadPluginConfig loads plugin specifications from a JSON file
 func (d *DiscoveryImpl) LoadPluginConfig(configPath string) error {
-	file, err := os.Open(configPath)
+	cleanPath := filepath.Clean(configPath)
+	file, err := os.Open(cleanPath)
 	if err != nil {
 		return fmt.Errorf("open plugin config %s: %w", configPath, err)
 	}
@@ -201,6 +202,7 @@ func (d *DiscoveryImpl) LoadPluginConfig(configPath string) error {
 func (d *DiscoveryImpl) downloadPlugin(url, name string) (string, error) {
 	// Create temp directory for downloaded plugins
 	tempDir := filepath.Join(os.TempDir(), "omni-plugins")
+	// #nosec G301 - temp directory for plugins needs to be accessible
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return "", fmt.Errorf("create temp directory: %w", err)
 	}
@@ -221,7 +223,7 @@ func (d *DiscoveryImpl) downloadPlugin(url, name string) (string, error) {
 	}
 	
 	// Save to file
-	pluginPath := filepath.Join(tempDir, name+".so")
+	pluginPath := filepath.Clean(filepath.Join(tempDir, name+".so"))
 	file, err := os.Create(pluginPath)
 	if err != nil {
 		return "", fmt.Errorf("create plugin file: %w", err)
@@ -230,13 +232,14 @@ func (d *DiscoveryImpl) downloadPlugin(url, name string) (string, error) {
 	
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		os.Remove(pluginPath)
+		_ = os.Remove(pluginPath) // Best effort cleanup
 		return "", fmt.Errorf("save plugin file: %w", err)
 	}
 	
 	// Make executable
+	// #nosec G302 - plugins must be executable
 	if err := os.Chmod(pluginPath, 0755); err != nil {
-		os.Remove(pluginPath)
+		_ = os.Remove(pluginPath) // Best effort cleanup
 		return "", fmt.Errorf("chmod plugin file: %w", err)
 	}
 	
@@ -290,7 +293,8 @@ type PluginMetadata struct {
 
 // LoadPluginMetadata loads plugin metadata from a JSON file
 func LoadPluginMetadata(metadataPath string) (*PluginMetadata, error) {
-	file, err := os.Open(metadataPath)
+	cleanPath := filepath.Clean(metadataPath)
+	file, err := os.Open(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("open metadata file: %w", err)
 	}

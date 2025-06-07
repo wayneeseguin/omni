@@ -98,14 +98,26 @@ func (fb *FileBackend) Close() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
 	
+	var errs []error
+	
 	if fb.writer != nil {
-		fb.writer.Flush()
+		if err := fb.writer.Flush(); err != nil {
+			errs = append(errs, fmt.Errorf("flush writer: %w", err))
+		}
 	}
 	if fb.file != nil {
-		fb.file.Close()
+		if err := fb.file.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close file: %w", err))
+		}
 	}
 	if fb.Lock != nil {
-		fb.Lock.Unlock()
+		if err := fb.Lock.Unlock(); err != nil {
+			errs = append(errs, fmt.Errorf("unlock file: %w", err))
+		}
+	}
+	
+	if len(errs) > 0 {
+		return fmt.Errorf("close errors: %v", errs)
 	}
 	return nil
 }
@@ -239,7 +251,10 @@ func (d *Destination) Write(data []byte) (int, error) {
 		return n, err
 	}
 	
-	d.bytesWritten += uint64(n)
+	// Only add positive byte counts to prevent underflow
+	if n > 0 {
+		d.bytesWritten += uint64(n)
+	}
 	d.lastWrite = time.Now()
 	d.isHealthy = true
 	return n, nil

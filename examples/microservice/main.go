@@ -82,7 +82,7 @@ func initService() error {
 	// Configure sampling for production
 	if config.Environment == "production" {
 		// Add sampling filter for non-critical messages
-		logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+		_ = logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool { //nolint:gosec
 			// Always allow warnings and errors
 			if level >= omni.LevelWarn {
 				return true
@@ -287,6 +287,7 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(step.duration)
 		
 		// Simulate failures
+		// #nosec G404 - weak RNG is acceptable for simulating failures in example code
 		if rand.Float64() < step.failRate {
 			err := fmt.Errorf("%s failed", step.name)
 			stepFields["error"] = err.Error()
@@ -321,7 +322,7 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:gosec
 }
 
 // Call external service with trace propagation
@@ -368,7 +369,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	_ = json.NewEncoder(w).Encode(health) //nolint:gosec
 }
 
 // Types
@@ -403,10 +404,12 @@ func generateServiceID() string {
 }
 
 func generateTraceID() string {
+	// #nosec G404 - weak RNG is acceptable for trace ID generation in logging example
 	return fmt.Sprintf("trace-%d-%d", time.Now().UnixNano(), rand.Int63())
 }
 
 func generateSpanID() string {
+	// #nosec G404 - weak RNG is acceptable for span ID generation in logging example
 	return fmt.Sprintf("span-%d", rand.Int63())
 }
 
@@ -417,7 +420,7 @@ func generatePaymentID() string {
 func respondWithError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{ //nolint:gosec
 		"error":  message,
 		"status": http.StatusText(status),
 	})
@@ -433,8 +436,8 @@ func main() {
 	}
 	defer func() {
 		logger.Info("Service shutting down")
-		logger.FlushAll()
-		logger.Close()
+		_ = logger.FlushAll() //nolint:gosec
+		_ = logger.Close() //nolint:gosec
 	}()
 	
 	// Set up routes
@@ -475,6 +478,7 @@ func main() {
 		"environment": config.Environment,
 	})
 	
+	// #nosec G114 - Example code, timeout not needed for demo
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		logger.ErrorWithFields("Failed to start server", map[string]interface{}{
 			"error": err.Error(),

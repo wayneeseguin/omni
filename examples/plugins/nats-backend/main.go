@@ -303,7 +303,7 @@ func (n *NATSBackend) flushBufferLocked() error {
 // startFlushTimer starts the periodic flush timer
 func (n *NATSBackend) startFlushTimer() {
 	n.flushTimer = time.AfterFunc(n.flushInterval, func() {
-		n.Flush()
+		_ = n.Flush() //nolint:gosec
 		n.startFlushTimer() // Restart timer
 	})
 }

@@ -15,17 +15,17 @@ build:
 # Run tests
 test:
 	@echo "Running tests..."
-	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out ./...
+	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out -covermode=atomic $(shell go list ./... | grep -v /examples/)
 
 # Run tests with race detector (may show linker warnings on macOS)
 test-race:
 	@echo "Running tests with race detector..."
-	@go test -v -race -coverprofile=coverage.out ./...
+	@go test -v -race -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
 
 # Run integration tests
 test-integration:
@@ -98,19 +98,19 @@ bench-full:
 # Run linter
 lint:
 	@echo "Running linter..."
-	@golangci-lint run ./...
+	@golangci-lint run $(shell go list ./... | grep -v /examples/)
 
 # Generate test coverage report
 coverage:
 	@echo "Generating coverage report..."
-	@go test -coverprofile=coverage.out ./...
+	@go test -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 
 # Show coverage in terminal
 coverage-text:
 	@echo "Test coverage summary:"
-	@go test -coverprofile=coverage.out ./...
+	@go test -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
 	@go tool cover -func=coverage.out
 
 # Clean build artifacts

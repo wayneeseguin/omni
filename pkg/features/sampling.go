@@ -358,6 +358,7 @@ func (s *SamplingManager) checkPatternRules(message string, fields map[string]in
 			if re.MatchString(message) {
 				s.trackPatternHit(rule.Pattern)
 				// Apply sampling rate for this pattern
+				// #nosec G404 - weak RNG is acceptable for log sampling decisions
 				return rand.Float64() < rule.Rate, true
 			}
 			
@@ -366,6 +367,7 @@ func (s *SamplingManager) checkPatternRules(message string, fields map[string]in
 				for _, v := range fields {
 					if str, ok := v.(string); ok && re.MatchString(str) {
 						s.trackPatternHit(rule.Pattern)
+						// #nosec G404 - weak RNG is acceptable for log sampling decisions
 						return rand.Float64() < rule.Rate, true
 					}
 				}
@@ -385,6 +387,7 @@ func (s *SamplingManager) applySampling(rate float64, level int, message string,
 		return true
 
 	case SamplingRandom:
+		// #nosec G404 - weak RNG is acceptable for random log sampling
 		return rand.Float64() < rate
 
 	case SamplingConsistent:
@@ -395,7 +398,7 @@ func (s *SamplingManager) applySampling(rate float64, level int, message string,
 		// Use hash-based sampling for consistency
 		key := s.keyFunc(level, message, fields)
 		h := fnv.New32a()
-		h.Write([]byte(key))
+		_, _ = h.Write([]byte(key)) // Hash write never fails
 		hash := h.Sum32()
 		return float64(hash%1000)/1000.0 < rate
 
@@ -562,6 +565,7 @@ func (a *AdaptiveSampler) ShouldLog(level int, message string, fields map[string
 	}
 	
 	// Apply current rate
+	// #nosec G404 - weak RNG is acceptable for adaptive log sampling
 	return rand.Float64() < a.currentRate
 }
 

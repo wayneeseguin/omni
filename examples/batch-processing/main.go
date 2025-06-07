@@ -49,8 +49,8 @@ func main() {
 	optimizedDuration := time.Since(start)
 	
 	// Flush to ensure all messages are written
-	logger.FlushAll()
-	logger.Close()
+	_ = logger.FlushAll() //nolint:gosec
+	_ = logger.Close() //nolint:gosec
 
 	fmt.Printf("✓ Logged 1000 messages with optimization in %v\n", optimizedDuration)
 
@@ -107,8 +107,8 @@ func main() {
 		})
 	}
 	
-	logger2.FlushAll()
-	logger2.Close()
+	_ = logger2.FlushAll() //nolint:gosec
+	_ = logger2.Close() //nolint:gosec
 
 	fmt.Printf("✓ Processed %d records in %d batches\n", totalRecords, (totalRecords+batchSize-1)/batchSize)
 
@@ -168,7 +168,7 @@ func main() {
 	wg.Wait()
 	concurrentDuration := time.Since(start)
 	
-	logger3.FlushAll()
+	_ = logger3.FlushAll() //nolint:gosec
 
 	fmt.Printf("✓ Processed %d items concurrently by %d workers in %v\n", 
 		numWorkers*itemsPerWorker, numWorkers, concurrentDuration)

@@ -32,6 +32,7 @@ func setupLogger() error {
 		}
 		
 		logDir := filepath.Join(homeDir, ".myapp", "logs")
+		// #nosec G301 - Example code, 0755 permissions are acceptable
 		if err := os.MkdirAll(logDir, 0755); err != nil {
 			return fmt.Errorf("create log directory: %w", err)
 		}
@@ -212,6 +213,7 @@ func generateReport() error {
 	reportPath := filepath.Join(os.TempDir(), "report.txt")
 	
 	// Create report file
+	// #nosec G304 - Example code, path is controlled
 	file, err := os.Create(reportPath)
 	if err != nil {
 		logger.ErrorWithFields("Failed to create report file", map[string]interface{}{

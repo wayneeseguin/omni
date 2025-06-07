@@ -42,11 +42,11 @@ jobs:
         run: make test
 
       - name: Run race condition tests
-        run: go test -race ./...
+        run: go test -race $(go list ./... | grep -v /examples/)
 
       - name: Run test coverage
         run: |
-          go test -coverprofile=coverage.out ./...
+          go test -coverprofile=coverage.out $(go list ./... | grep -v /examples/)
           go tool cover -func=coverage.out
 
   test-cross-platform:

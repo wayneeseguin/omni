@@ -163,7 +163,7 @@ func main() {
 			})
 		}
 		nonBatchTime := time.Since(start)
-		nonBatchLogger.Close()
+		_ = nonBatchLogger.Close() //nolint:gosec
 		
 		// Test with batching (use existing logger)
 		start = time.Now()

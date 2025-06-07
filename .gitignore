@@ -10,3 +10,4 @@ coverage*.out
 
 # Docker test volumes
 test-logs/
+gosec-report.json

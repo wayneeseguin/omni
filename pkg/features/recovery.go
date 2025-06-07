@@ -201,6 +201,7 @@ func (rm *RecoveryManager) fallbackWrite(message interface{}) {
 	// Initialize fallback file if needed
 	if rm.fallback == nil && rm.config.FallbackPath != "" {
 		dir := filepath.Dir(rm.config.FallbackPath)
+		// #nosec G301 - fallback log directory needs standard permissions
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			if rm.errorHandler != nil {
 				rm.errorHandler("recovery", "fallback", "Failed to create fallback directory", err)
@@ -208,7 +209,7 @@ func (rm *RecoveryManager) fallbackWrite(message interface{}) {
 			return
 		}
 
-		file, err := os.OpenFile(rm.config.FallbackPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(rm.config.FallbackPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644) // #nosec G302 - fallback log file
 		if err != nil {
 			if rm.errorHandler != nil {
 				rm.errorHandler("recovery", "fallback", "Failed to open fallback file", err)

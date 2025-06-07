@@ -166,7 +166,7 @@ func cleanupFiles() {
 
 	for _, file := range files {
 		if _, err := os.Stat(file); err == nil {
-			os.Remove(file)
+			_ = os.Remove(file) //nolint:gosec
 		}
 	}
 }

@@ -120,7 +120,15 @@ func (c *Collector) GetMetrics(queueDepth, queueCapacity int, destinations []Des
 	// Get performance metrics
 	writeCount := atomic.LoadUint64(&c.writeCount)
 	if writeCount > 0 {
-		metrics.AverageWriteTime = time.Duration(atomic.LoadInt64(&c.totalWriteTime)) / time.Duration(writeCount)
+		totalTime := atomic.LoadInt64(&c.totalWriteTime)
+		// Ensure writeCount fits in int64 for division
+		const maxInt64 = 1<<63 - 1
+		if writeCount <= maxInt64 {
+			metrics.AverageWriteTime = time.Duration(totalTime) / time.Duration(int64(writeCount))
+		} else {
+			// If writeCount is too large, use float64 arithmetic
+			metrics.AverageWriteTime = time.Duration(float64(totalTime) / float64(writeCount))
+		}
 	}
 	metrics.MaxWriteTime = time.Duration(atomic.LoadInt64(&c.maxWriteTime))
 
@@ -178,7 +186,10 @@ func (c *Collector) TrackCompression() {
 
 // TrackWrite records write metrics.
 func (c *Collector) TrackWrite(bytes int64, duration time.Duration) {
-	atomic.AddUint64(&c.bytesWritten, uint64(bytes))
+	// Only add positive byte counts to prevent underflow
+	if bytes > 0 {
+		atomic.AddUint64(&c.bytesWritten, uint64(bytes))
+	}
 	atomic.AddUint64(&c.writeCount, 1)
 	atomic.AddInt64(&c.totalWriteTime, int64(duration))
 

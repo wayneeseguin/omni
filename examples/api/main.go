@@ -34,7 +34,9 @@ func basicExample() {
 
 	// Configure basic settings
 	logger.SetLevel(omni.LevelInfo)
-	logger.SetFormat(omni.FormatJSON)
+	if err := logger.SetFormat(omni.FormatJSON); err != nil {
+		log.Printf("Warning: Failed to set format: %v", err)
+	}
 
 	// Basic logging methods
 	logger.Trace("This is a trace message")
@@ -91,7 +93,7 @@ func optionsExample() {
 	devLogger.Debug("Development logger initialized with detailed output")
 	
 	// Add filters to production logger
-	prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+	_ = prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool { //nolint:gosec
 		// Only allow INFO and above in production
 		return level >= omni.LevelInfo
 	})
@@ -130,10 +132,10 @@ func advancedExample() {
 	fmt.Printf("Active destinations: %v\n", destinations)
 
 	// Disable and re-enable a destination
-	logger.DisableDestination("/tmp/api_advanced_copy.log")
+	_ = logger.DisableDestination("/tmp/api_advanced_copy.log")
 	logger.Info("This message won't go to the disabled destination")
 	
-	logger.EnableDestination("/tmp/api_advanced_copy.log")
+	_ = logger.EnableDestination("/tmp/api_advanced_copy.log")
 	logger.Info("This message will go to the re-enabled destination")
 
 	// Use the logger with various methods
@@ -218,8 +220,8 @@ func errorHandlingExample() {
 	logger.Info("Logger continues to work after errors")
 
 	// Test flush and sync operations
-	logger.FlushAll()
-	logger.Sync()
+	_ = logger.FlushAll()
+	_ = logger.Sync()
 
 	fmt.Println("✓ Error handling example completed")
 }

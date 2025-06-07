@@ -31,7 +31,10 @@ func (w *pluginBackendWrapper) Write(entry []byte) (int, error) {
 	if err == nil {
 		w.mu.Lock()
 		w.writeCount++
-		w.bytesWritten += uint64(n)
+		// Only add positive byte counts to prevent underflow
+		if n > 0 {
+			w.bytesWritten += uint64(n)
+		}
 		w.mu.Unlock()
 	}
 	return n, err
@@ -423,7 +426,7 @@ func (f *Omni) RemoveDestination(name string) error {
 		if dest.URI == name {
 			// Close the destination
 			if dest.backend != nil {
-				dest.backend.Close()
+				_ = dest.backend.Close() // Best effort close
 			}
 			
 			// Remove from rotation manager
@@ -582,7 +585,7 @@ func (f *Omni) Close() error {
 	
 	// Close recovery manager
 	if f.recoveryManager != nil {
-		f.recoveryManager.Close()
+		_ = f.recoveryManager.Close() // Best effort close
 	}
 	
 	// Close all destinations
@@ -904,7 +907,7 @@ func (f *Omni) checkFlushSize(dest *Destination) {
 	// Check if destination needs flushing based on size
 	if dest.Size > 0 && dest.Size >= f.maxSize/2 {
 		if dest.backend != nil {
-			dest.backend.Flush()
+			_ = dest.backend.Flush() // Best effort flush
 		}
 	}
 }
@@ -1001,7 +1004,10 @@ func (d *Destination) trackError() {
 func (d *Destination) trackWrite(size int64, duration time.Duration) {
 	d.mu.Lock()
 	d.writeCount++
-	d.bytesWritten += uint64(size)
+	// Only add positive byte counts to prevent underflow
+	if size > 0 {
+		d.bytesWritten += uint64(size)
+	}
 	d.totalWriteTime += duration
 	if duration > d.maxWriteTime {
 		d.maxWriteTime = duration

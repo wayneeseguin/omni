@@ -23,11 +23,11 @@ func NewFactory() *Factory {
 	}
 	
 	// Register default formatters
-	f.Register("text", func() (types.Formatter, error) {
+	_ = f.Register("text", func() (types.Formatter, error) {
 		return NewTextFormatter(), nil
 	})
 	
-	f.Register("json", func() (types.Formatter, error) {
+	_ = f.Register("json", func() (types.Formatter, error) {
 		return NewJSONFormatter(), nil
 	})
 	

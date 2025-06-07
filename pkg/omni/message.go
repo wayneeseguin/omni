@@ -578,7 +578,7 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 				if dest.Writer != nil {
 					fmt.Fprintf(dest.Writer, "[%s] ERROR: Failed to rotate log file: %v\n",
 						msg.Timestamp.Format(formatOpts.TimestampFormat), err)
-					dest.Writer.Flush()
+					_ = dest.Writer.Flush() // Best effort flush on error
 				}
 				dest.mu.Unlock()
 				return

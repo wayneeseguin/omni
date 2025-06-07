@@ -260,7 +260,7 @@ func main() {
 		}
 		
 		// Clean up
-		backend.Close()
+		_ = backend.Close() //nolint:gosec
 	}
 	
 	// Shutdown the plugin

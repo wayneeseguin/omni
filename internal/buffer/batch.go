@@ -123,7 +123,7 @@ func (bw *BatchWriter) timedFlush() {
 
 	// Flush if there's data
 	if len(bw.buffer) > 0 {
-		bw.flushLocked()
+		_ = bw.flushLocked() // Best effort flush on timer
 	}
 
 	// Reset timer for next interval
@@ -204,6 +204,6 @@ func (bw *BatchWriter) SetBatchSize(maxSize, maxCount int) {
 
 	// Check if current buffer exceeds new limits
 	if bw.totalSize >= bw.maxSize || len(bw.buffer) >= bw.maxCount {
-		bw.flushLocked()
+		_ = bw.flushLocked() // Best effort flush when limits change
 	}
 }

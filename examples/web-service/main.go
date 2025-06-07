@@ -93,7 +93,7 @@ func getRequestID(r *http.Request) string {
 // API handlers
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{ //nolint:gosec
 		"status": "healthy",
 		"time":   time.Now().Format(time.RFC3339),
 	})
@@ -125,7 +125,7 @@ func userHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{ //nolint:gosec
 		"id":    userID,
 		"name":  "John Doe",
 		"email": "john@example.com",
@@ -170,7 +170,7 @@ func main() {
 	// Ensure logger cleanup
 	defer func() {
 		logger.Info("Shutting down web service")
-		logger.Close()
+		_ = logger.Close() //nolint:gosec
 	}()
 	
 	// Add additional log destination for errors
@@ -180,7 +180,7 @@ func main() {
 	}
 	
 	// Add a filter for sampling health checks
-	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+	_ = logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool { //nolint:gosec
 		// Sample health check requests (allow only 10%)
 		if path, ok := fields["path"].(string); ok && path == "/health" {
 			return time.Now().UnixNano()%10 == 0

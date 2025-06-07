@@ -53,7 +53,10 @@ func (pb *PluginBackendImpl) Write(data []byte) (int, error) {
 	n, err := pb.backend.Write(data)
 	if err == nil {
 		pb.writeCount++
-		pb.bytesWritten += uint64(n)
+		// Only add positive byte counts to prevent underflow
+		if n > 0 {
+			pb.bytesWritten += uint64(n)
+		}
 	}
 	return n, err
 }

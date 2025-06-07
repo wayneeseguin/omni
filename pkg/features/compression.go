@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -202,16 +203,19 @@ func (c *CompressionManager) compressFile(path string) error {
 
 // compressFileGzip compresses a file using gzip compression
 func (c *CompressionManager) compressFileGzip(path string) error {
+	// Clean the path to prevent directory traversal
+	cleanPath := filepath.Clean(path)
+	
 	// Check if file exists
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(cleanPath); os.IsNotExist(err) {
 		return nil // file doesn't exist, nothing to compress
 	}
 
 	// Compressed file path
-	compressedPath := path + ".gz"
+	compressedPath := filepath.Clean(cleanPath + ".gz")
 
 	// Open source file
-	src, err := os.Open(path)
+	src, err := os.Open(cleanPath)
 	if err != nil {
 		return fmt.Errorf("opening source file for compression: %w", err)
 	}
@@ -222,7 +226,7 @@ func (c *CompressionManager) compressFileGzip(path string) error {
 	}()
 
 	// Create destination file
-	dst, err := os.OpenFile(compressedPath, os.O_CREATE|os.O_WRONLY, 0644)
+	dst, err := os.OpenFile(compressedPath, os.O_CREATE|os.O_WRONLY, 0644) // #nosec G302 - compressed log files
 	if err != nil {
 		return fmt.Errorf("creating compressed file: %w", err)
 	}
@@ -236,7 +240,7 @@ func (c *CompressionManager) compressFileGzip(path string) error {
 			}
 			// Remove partially written file on error
 			if err != nil {
-				os.Remove(compressedPath)
+				_ = os.Remove(compressedPath) // Best effort cleanup
 			}
 		}
 	}()
@@ -262,9 +266,9 @@ func (c *CompressionManager) compressFileGzip(path string) error {
 	cleanupDst = false // Prevent deferred cleanup since we closed successfully
 
 	// Remove the original file
-	if err := os.Remove(path); err != nil {
+	if err := os.Remove(cleanPath); err != nil {
 		// Try to restore by removing the compressed file
-		os.Remove(compressedPath)
+		_ = os.Remove(compressedPath) // Best effort cleanup
 		return fmt.Errorf("removing original file after compression: %w", err)
 	}
 

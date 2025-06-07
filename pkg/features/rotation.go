@@ -219,12 +219,15 @@ func (r *RotationManager) RotateFile(path string, writer *bufio.Writer) (string,
 		}
 	}
 
+	// Clean the path to prevent directory traversal
+	cleanPath := filepath.Clean(path)
+	
 	// Generate timestamp for rotation (always use UTC for consistency)
 	timestamp := time.Now().UTC().Format(RotationTimeFormat)
-	rotatedPath := fmt.Sprintf("%s.%s", path, timestamp)
+	rotatedPath := fmt.Sprintf("%s.%s", cleanPath, timestamp)
 
 	// Rename the current file
-	if err := os.Rename(path, rotatedPath); err != nil {
+	if err := os.Rename(cleanPath, rotatedPath); err != nil {
 		return "", fmt.Errorf("rotating log: %w", err)
 	}
 
@@ -296,7 +299,9 @@ func (r *RotationManager) CleanupOldLogs(logPath string) error {
 		// Parse timestamp from filename
 		fileTime, err := time.Parse(RotationTimeFormat, matches[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing timestamp from %s: %v\n", file.Name(), err)
+			if r.errorHandler != nil {
+				r.errorHandler("cleanup", file.Name(), "Error parsing timestamp", err)
+			}
 			continue
 		}
 
@@ -307,6 +312,11 @@ func (r *RotationManager) CleanupOldLogs(logPath string) error {
 			if err := os.Remove(filePath); err != nil {
 				if r.errorHandler != nil {
 					r.errorHandler("cleanup", filePath, "Failed to remove old log file", err)
+				}
+			} else {
+				// Track cleanup metric
+				if r.metricsHandler != nil {
+					r.metricsHandler("cleanup_completed")
 				}
 			}
 		}
@@ -375,6 +385,11 @@ func (r *RotationManager) CleanupOldFiles(logPath string) error {
 			if err := os.Remove(logFiles[i].path); err != nil {
 				if r.errorHandler != nil {
 					r.errorHandler("cleanup", logFiles[i].path, "Failed to remove old log file (exceeded maxFiles)", err)
+				}
+			} else {
+				// Track cleanup metric
+				if r.metricsHandler != nil {
+					r.metricsHandler("cleanup_completed")
 				}
 			}
 		}

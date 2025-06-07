@@ -276,10 +276,10 @@ func NewWithConfig(config *Config) (*Omni, error) {
 
 	// Apply redaction patterns if provided or enable default built-in redaction
 	if config.RedactionPatterns != nil {
-		f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
+		_ = f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
 	} else {
 		// Enable built-in redaction by default with empty patterns
-		f.SetRedaction([]string{}, config.RedactionReplace)
+		_ = f.SetRedaction([]string{}, config.RedactionReplace)
 	}
 
 	// Apply performance settings
@@ -468,7 +468,7 @@ func (f *Omni) UpdateConfig(config *Config) error {
 
 	// Update redaction patterns
 	if len(config.RedactionPatterns) > 0 {
-		f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
+		_ = f.SetRedaction(config.RedactionPatterns, config.RedactionReplace)
 	} else if f.redactor != nil {
 		// Clear redaction
 		f.redactor = nil

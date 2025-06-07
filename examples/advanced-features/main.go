@@ -13,6 +13,7 @@ import (
 
 func main() {
 	// Create logs directory
+	// #nosec G301 - Example code, 0755 permissions are acceptable
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		log.Fatal(err)
 	}
@@ -47,19 +48,25 @@ func main() {
 	})
 
 	// Add an error log destination
-	logger.AddDestinationWithBackend("logs/errors.log", omni.BackendFlock)
+	if err := logger.AddDestinationWithBackend("logs/errors.log", omni.BackendFlock); err != nil {
+		log.Printf("Warning: Failed to add error destination: %v", err)
+	}
 
 	// Add a custom filter to exclude noisy debug messages
-	logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+	if err := logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
 		// Filter out debug messages containing "bulk"
 		if level == omni.LevelDebug && len(message) > 0 {
 			return true // Allow the message
 		}
 		return true
-	})
+	}); err != nil {
+		log.Printf("Warning: Failed to add filter: %v", err)
+	}
 
 	// Enable sampling for trace messages to reduce volume
-	logger.SetSampling(omni.SamplingRandom, 0.5) // Log 50% of trace messages
+	if err := logger.SetSampling(omni.SamplingRandom, 0.5); err != nil { // Log 50% of trace messages
+		log.Printf("Warning: Failed to set sampling: %v", err)
+	}
 
 	// Demonstrate TRACE level logging for very detailed diagnostics
 	logger.Trace("Application initialization starting")
@@ -107,6 +114,7 @@ func main() {
 				"batch_id":  i / 50,
 				"processed": i,
 				"remaining": 1000 - i,
+				// #nosec G404 - weak RNG is acceptable for simulated memory metrics in logging example
 				"memory_mb": rand.Intn(100) + 50,
 			})
 		}
@@ -127,7 +135,9 @@ func main() {
 	log.Printf("Active destinations: %v", destinations)
 
 	// Flush all logs before shutdown
-	logger.FlushAll()
+	if err := logger.FlushAll(); err != nil {
+		log.Printf("Warning: Failed to flush all logs: %v", err)
+	}
 
 	logger.Trace("Application shutdown initiated")
 	log.Printf("Check logs/ directory for generated log files")
@@ -205,6 +215,7 @@ func generateRandomString(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, length)
 	for i := range b {
+		// #nosec G404 - weak RNG is acceptable for generating test data in logging example
 		b[i] = charset[rand.Intn(len(charset))]
 	}
 	return string(b)

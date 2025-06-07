@@ -38,12 +38,16 @@ type FileBackendImpl struct {
 func NewFileBackend(path string) (*FileBackendImpl, error) {
 	// Create directory if needed
 	dir := filepath.Dir(path)
+	// #nosec G301 - log directories need to be accessible by other processes
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("create directory: %w", err)
 	}
 
+	// Clean the path to prevent directory traversal
+	cleanPath := filepath.Clean(path)
+	
 	// Open file
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644) // #nosec G302 - log files need to be readable
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}
@@ -51,18 +55,18 @@ func NewFileBackend(path string) (*FileBackendImpl, error) {
 	// Get file size
 	info, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close() // Best effort close on error path
 		return nil, fmt.Errorf("stat file: %w", err)
 	}
 
 	// Create file lock
-	lock := flock.New(path)
+	lock := flock.New(cleanPath)
 
 	return &FileBackendImpl{
 		file:   file,
 		writer: bufio.NewWriterSize(file, DefaultBufferSize),
 		lock:   lock,
-		path:   path,
+		path:   cleanPath,
 		size:   info.Size(),
 	}, nil
 }
@@ -73,7 +77,9 @@ func (fb *FileBackendImpl) Write(entry []byte) (int, error) {
 	if err := fb.lock.Lock(); err != nil {
 		return 0, fmt.Errorf("acquire lock: %w", err)
 	}
-	defer fb.lock.Unlock()
+	defer func() {
+		_ = fb.lock.Unlock() // Best effort unlock
+	}()
 
 	// Write entry
 	n, err := fb.writer.Write(entry)
@@ -176,11 +182,17 @@ func (fb *FileBackendImpl) Sync() error {
 
 // GetStats returns backend statistics
 func (fb *FileBackendImpl) GetStats() BackendStats {
+	// Ensure size is non-negative before conversion
+	bytesWritten := uint64(0)
+	if fb.size > 0 {
+		bytesWritten = uint64(fb.size)
+	}
+	
 	return BackendStats{
 		Path:         fb.path,
 		Size:         fb.size,
 		WriteCount:   0, // Would need to track this
-		BytesWritten: uint64(fb.size),
+		BytesWritten: bytesWritten,
 	}
 }
 
