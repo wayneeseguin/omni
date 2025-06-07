@@ -1,0 +1,179 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use File::Path qw(make_path);
+use File::Copy;
+use File::Find;
+use Cwd;
+use Getopt::Long;
+
+my $os = '';
+my $arch = '';
+my $version = '';
+my $help = 0;
+
+GetOptions(
+    'os=s'      => \$os,
+    'arch=s'    => \$arch,
+    'version=s' => \$version,
+    'help'      => \$help,
+) or die("Error in command line arguments\n");
+
+if ($help || !$os || !$arch || !$version) {
+    print_usage();
+    exit($help ? 0 : 1);
+}
+
+my $project_root = Cwd::abs_path('.');
+my $releases_dir = "$project_root/releases";
+my $build_dir = "$releases_dir/build";
+my $output_name = "omni-$version-$os-$arch";
+my $archive_name = "$output_name.tar.gz";
+
+print "Building Omni $version for $os/$arch\n";
+
+make_path($build_dir) unless -d $build_dir;
+
+my @build_targets = (
+    {
+        name => 'omni',
+        paths => ['./cmd/omni', '.'],
+        output => 'omni'
+    }
+);
+
+my $examples_dir = './examples';
+if (-d $examples_dir) {
+    opendir(my $dh, $examples_dir) or die "Cannot open $examples_dir: $!";
+    my @example_dirs = grep { -d "$examples_dir/$_" && !/^\./ } readdir($dh);
+    closedir($dh);
+    
+    foreach my $example (@example_dirs) {
+        my $example_path = "$examples_dir/$example";
+        if (-f "$example_path/main.go") {
+            push @build_targets, {
+                name => "example-$example",
+                paths => [$example_path],
+                output => "examples/$example"
+            };
+        }
+    }
+}
+
+my $plugins_dir = './examples/plugins';
+if (-d $plugins_dir) {
+    opendir(my $dh, $plugins_dir) or die "Cannot open $plugins_dir: $!";
+    my @plugin_dirs = grep { -d "$plugins_dir/$_" && !/^\./ } readdir($dh);
+    closedir($dh);
+    
+    foreach my $plugin (@plugin_dirs) {
+        my $plugin_path = "$plugins_dir/$plugin";
+        if (-f "$plugin_path/main.go") {
+            push @build_targets, {
+                name => "plugin-$plugin",
+                paths => [$plugin_path],
+                output => "plugins/$plugin" . ($os eq 'darwin' ? '.dylib' : '.so'),
+                is_plugin => 1
+            };
+        }
+    }
+}
+
+foreach my $target (@build_targets) {
+    print "Building $target->{name}...\n";
+    
+    my $build_succeeded = 0;
+    foreach my $path (@{$target->{paths}}) {
+        my $output_file = "$build_dir/$target->{output}";
+        my $output_dir = $output_file;
+        $output_dir =~ s|/[^/]+$||;
+        make_path($output_dir) unless -d $output_dir;
+        
+        my @cmd = ('go', 'build');
+        push @cmd, '-buildmode=plugin' if $target->{is_plugin};
+        push @cmd, '-o', $output_file, $path;
+        
+        $ENV{GOOS} = $os;
+        $ENV{GOARCH} = $arch;
+        $ENV{CGO_ENABLED} = $target->{is_plugin} ? '1' : '0';
+        
+        print "  Trying: " . join(' ', @cmd) . "\n";
+        my $result = system(@cmd);
+        
+        if ($result == 0) {
+            print "  Success!\n";
+            $build_succeeded = 1;
+            last;
+        } else {
+            print "  Failed with exit code: " . ($result >> 8) . "\n";
+        }
+    }
+    
+    unless ($build_succeeded) {
+        die "Failed to build $target->{name}\n";
+    }
+}
+
+print "\nCreating package structure...\n";
+my $package_dir = "$releases_dir/$output_name";
+make_path($package_dir);
+
+print "Copying binaries...\n";
+system("cp -r $build_dir/* $package_dir/");
+
+print "Copying documentation...\n";
+foreach my $doc ('README.md', 'LICENSE', 'docs') {
+    if (-e $doc) {
+        system("cp -r $doc $package_dir/");
+    }
+}
+
+my $config_dir = "$package_dir/configs";
+make_path($config_dir);
+if (-d 'configs') {
+    system("cp -r configs/* $config_dir/");
+}
+
+print "\nCreating archive: $archive_name\n";
+chdir($releases_dir) or die "Cannot change to releases directory: $!";
+my $tar_result = system("tar -czf $archive_name $output_name");
+die "Failed to create archive\n" if $tar_result != 0;
+
+print "Cleaning up...\n";
+system("rm -rf $output_name");
+system("rm -rf build");
+
+print "\nRelease package created: $releases_dir/$archive_name\n";
+
+my $size = -s $archive_name;
+my $size_mb = sprintf("%.2f", $size / 1024 / 1024);
+print "Archive size: $size_mb MB\n";
+
+print "\nContents of archive:\n";
+system("tar -tzf $archive_name | head -20");
+
+exit(0);
+
+sub print_usage {
+    print <<'USAGE';
+Usage: release --os=<OS> --arch=<ARCH> --version=<VERSION>
+
+Build and package Omni for release.
+
+Options:
+  --os=<OS>          Target operating system (linux, darwin)
+  --arch=<ARCH>      Target architecture (amd64, arm64)
+  --version=<VERSION> Version string (e.g., v1.0.0)
+  --help             Show this help message
+
+Examples:
+  release --os=linux --arch=amd64 --version=v1.0.0
+  release --os=darwin --arch=arm64 --version=v1.2.3
+
+This script will:
+1. Build the main omni binary and all examples
+2. Build any plugins (if supported by the target OS)
+3. Create a package with binaries, documentation, and configs
+4. Generate a compressed tar.gz archive in ./releases/
+USAGE
+}
