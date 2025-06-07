@@ -12,41 +12,34 @@ jobs:
   build:
     name: Build Release
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, darwin]
-        goarch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-
       - name: Set up Perl
         run: |
           sudo apt-get update
-          sudo apt-get install -y perl
+          sudo apt-get install -y perl zip
 
       - name: Get version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Build binary
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+      - name: Create release archives
         run: |
-          perl scripts/release --os=${{ matrix.goos }} --arch=${{ matrix.goarch }} --version=${{ steps.version.outputs.VERSION }}
+          perl scripts/release --version=${{ steps.version.outputs.VERSION }}
 
-      - name: Upload artifacts
+      - name: Upload tar.gz artifact
         uses: actions/upload-artifact@v4
         with:
-          name: omni-${{ steps.version.outputs.VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: releases/omni-${{ steps.version.outputs.VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          name: omni-${{ steps.version.outputs.VERSION }}-tar
+          path: releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-${{ steps.version.outputs.VERSION }}-zip
+          path: releases/omni-${{ steps.version.outputs.VERSION }}.zip
 
   release:
     name: Create Release
@@ -64,12 +57,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: releases
-          pattern: omni-*
 
       - name: Move artifacts to correct location
         run: |
           mkdir -p final-releases
-          find releases -name "*.tar.gz" -exec mv {} final-releases/ \;
+          find releases -name "*.tar.gz" -o -name "*.zip" | xargs -I {} mv {} final-releases/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -78,30 +70,37 @@ jobs:
           name: Omni ${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: false
-          files: final-releases/*.tar.gz
+          files: |
+            final-releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
+            final-releases/omni-${{ steps.version.outputs.VERSION }}.zip
           body: |
             # Omni ${{ steps.version.outputs.VERSION }}
 
+            A flexible Go logging library with multiple destination backends.
+
             ## Downloads
 
-            | Platform | Architecture | Download |
-            |----------|--------------|----------|
-            | Linux    | x86_64       | [omni-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz) |
-            | Linux    | ARM64        | [omni-${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}-linux-arm64.tar.gz) |
-            | macOS    | x86_64       | [omni-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz) |
-            | macOS    | ARM64        | [omni-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz) |
+            - [omni-${{ steps.version.outputs.VERSION }}.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz)
+            - [omni-${{ steps.version.outputs.VERSION }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip)
 
             ## Installation
 
+            Add to your Go module:
+
             ```bash
-            # Download the appropriate version for your platform
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}-<OS>-<ARCH>.tar.gz -o omni.tar.gz
-            
-            # Extract
+            go get github.com/wayneeseguin/omni@${{ steps.version.outputs.VERSION }}
+            ```
+
+            Or download and extract the source:
+
+            ```bash
+            # Using tar.gz
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz -o omni.tar.gz
             tar -xzf omni.tar.gz
-            
-            # Move to your PATH (optional)
-            sudo mv omni /usr/local/bin/
+
+            # Using zip
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip -o omni.zip
+            unzip omni.zip
             ```
 
             ## What's Changed
