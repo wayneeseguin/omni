@@ -17,7 +17,7 @@ func TestVaultBackendURIParsing(t *testing.T) {
 		{
 			name:          "Basic URI",
 			uri:           "vault://test-token@localhost:8200/logs",
-			config:        map[string]interface{}{},
+			config:        map[string]interface{}{"skip_health_check": true},
 			expectError:   false,
 			expectedHost:  "localhost:8200",
 			expectedToken: "test-token",
@@ -26,7 +26,7 @@ func TestVaultBackendURIParsing(t *testing.T) {
 		{
 			name:          "URI without token",
 			uri:           "vault://localhost:8200/logs",
-			config:        map[string]interface{}{"token": "config-token"},
+			config:        map[string]interface{}{"token": "config-token", "skip_health_check": true},
 			expectError:   false,
 			expectedHost:  "localhost:8200",
 			expectedToken: "config-token",
@@ -35,7 +35,7 @@ func TestVaultBackendURIParsing(t *testing.T) {
 		{
 			name:          "Default values",
 			uri:           "vault://",
-			config:        map[string]interface{}{"token": "test-token"},
+			config:        map[string]interface{}{"token": "test-token", "skip_health_check": true},
 			expectError:   false,
 			expectedHost:  "",
 			expectedToken: "test-token",

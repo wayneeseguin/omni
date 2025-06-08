@@ -144,10 +144,12 @@ func (p *VaultBackendPlugin) CreateBackend(uri string, config map[string]interfa
 		mountPath: mountPath,
 	}
 
-	// Test connection
-	_, err = client.Sys().Health()
-	if err != nil {
-		return nil, fmt.Errorf("vault health check failed: %w", err)
+	// Test connection - skip in test environments
+	if skipHealthCheck, _ := config["skip_health_check"].(bool); !skipHealthCheck {
+		_, err = client.Sys().Health()
+		if err != nil {
+			return nil, fmt.Errorf("vault health check failed: %w", err)
+		}
 	}
 
 	return backend, nil
