@@ -153,22 +153,32 @@ func TestShutdownTimeout(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	// Fill the message channel
-	for i := 0; i < 1000; i++ {
-		logger.Info("Message %d", i)
-	}
-
-	// Get initial goroutine count
+	// Get initial goroutine count before filling channel
 	initialGoroutines := runtime.NumGoroutine()
+
+	// Fill the message channel to ensure shutdown takes time
+	channelSize := 1000
+	for i := 0; i < channelSize*2; i++ {
+		select {
+		case logger.msgChan <- LogMessage{
+			Level:     LevelInfo,
+			Timestamp: time.Now(),
+			Format:    "Message %d",
+			Args:      []interface{}{i},
+		}:
+		default:
+			// Channel is full, which is what we want
+		}
+	}
 
 	// Shutdown with very short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	err = logger.Shutdown(ctx)
 	cancel()
 
-	// Should get timeout error
-	if err == nil {
-		t.Error("Expected timeout error, got nil")
+	// Should get timeout error since channel is full and processing takes time
+	if err == nil || err != context.DeadlineExceeded {
+		t.Errorf("Expected context deadline exceeded error, got %v", err)
 	}
 
 	// Wait for background cleanup

@@ -69,6 +69,7 @@ func TestPerformanceOptimizedExample(t *testing.T) {
 	}
 
 	logger.FlushAll()
+	time.Sleep(50 * time.Millisecond) // Allow time for file to be created
 
 	// Verify log file was created
 	if stat, err := os.Stat("test_performance.log"); err != nil {

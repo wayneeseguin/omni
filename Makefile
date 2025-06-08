@@ -20,6 +20,11 @@ test-unit:
 # Run tests (alias for test-unit)
 test: test-unit
 
+# Run tests without linker warnings (CGO disabled)
+test-clean:
+	@echo "Running tests without linker warnings (CGO disabled)..."
+	@CGO_ENABLED=0 go test ./...
+
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
@@ -28,6 +33,7 @@ test-verbose:
 # Run tests with race detector (may show linker warnings on macOS)
 test-race:
 	@echo "Running tests with race detector..."
+	@echo "Note: LC_DYSYMTAB warnings on macOS are a known Go issue and can be safely ignored"
 	@go test -v -race -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
 
 # Run integration tests
@@ -190,6 +196,7 @@ help:
 	@echo "  build                    - Build the library"
 	@echo "  test                     - Run unit tests (alias for test-unit)"
 	@echo "  test-unit                - Run unit tests (CGO disabled, no linker warnings)"
+	@echo "  test-clean               - Run tests without linker warnings (CGO disabled)"
 	@echo "  test-verbose             - Run tests with verbose output"
 	@echo "  test-race                - Run tests with race detector (may show warnings)"
 	@echo "  test-integration         - Run integration tests"
