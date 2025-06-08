@@ -1,4 +1,4 @@
-.PHONY: all ci build test test-verbose test-race test-integration integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full lint clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
+.PHONY: all ci build test test-verbose test-race test-integration integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full lint vet clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
 
 # Default target - show help
 all: help
@@ -100,6 +100,11 @@ lint:
 	@echo "Running linter..."
 	@golangci-lint run $(shell go list ./... | grep -v /examples/)
 
+# Run go vet
+vet:
+	@echo "Running go vet..."
+	@go vet ./...
+
 # Generate test coverage report
 coverage:
 	@echo "Generating coverage report..."
@@ -189,6 +194,7 @@ help:
 	@echo "  bench                    - Run benchmarks"
 	@echo "  bench-full               - Run comprehensive benchmarks"
 	@echo "  lint                     - Run golangci-lint"
+	@echo "  vet                      - Run go vet on the codebase"
 	@echo "  coverage                 - Generate HTML coverage report"
 	@echo "  coverage-text            - Show coverage in terminal"
 	@echo "  clean                    - Remove build artifacts"
