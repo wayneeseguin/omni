@@ -130,6 +130,9 @@ func TestMaxFilesZero(t *testing.T) {
 	// Log enough to cause multiple rotations
 	for i := 0; i < 10; i++ {
 		logger.Info("This is a longer message that will cause rotation number %d", i)
+		// Force flush after each message to ensure rotation happens
+		logger.FlushAll()
+		time.Sleep(10 * time.Millisecond) // Small delay to ensure rotation completes
 	}
 
 	// Wait for processing

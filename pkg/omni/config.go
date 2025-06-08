@@ -318,6 +318,11 @@ func NewWithConfig(config *Config) (*Omni, error) {
 		f.startCompressionWorkers()
 	}
 
+	// Initialize rotation manager with maxFiles if set
+	if config.MaxFiles > 0 {
+		f.SetMaxFiles(config.MaxFiles)
+	}
+	
 	// Start cleanup routine if max age is set
 	if config.MaxAge > 0 {
 		f.startCleanupRoutine()

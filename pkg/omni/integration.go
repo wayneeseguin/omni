@@ -628,6 +628,11 @@ func (f *Omni) Shutdown(ctx context.Context) error {
 	case err := <-done:
 		return err
 	case <-ctx.Done():
+		// Even if context times out, ensure Close() completes in background
+		// to prevent goroutine leaks
+		go func() {
+			<-done // Wait for Close to complete
+		}()
 		return ctx.Err()
 	}
 }
@@ -980,6 +985,13 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 	// Queue for compression if enabled
 	if f.compressionManager != nil && f.compression != CompressionNone {
 		f.compressionManager.QueueFile(rotatedPath)
+	}
+	
+	// Run cleanup after rotation to enforce maxFiles limit
+	if f.rotationManager != nil {
+		if err := f.rotationManager.CleanupOldFiles(dest.URI); err != nil {
+			f.logError("cleanup", dest.URI, "Failed to cleanup old files after rotation", err, ErrorLevelLow)
+		}
 	}
 	
 	return nil

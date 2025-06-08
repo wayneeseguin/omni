@@ -340,8 +340,20 @@ func (f *Omni) GetMaxSize() int64 {
 // SetMaxFiles sets the maximum number of log files
 func (f *Omni) SetMaxFiles(count int) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.maxFiles = count
+	f.mu.Unlock()
+	
+	// Initialize rotation manager if needed
+	if f.rotationManager == nil {
+		f.rotationManager = features.NewRotationManager()
+		f.rotationManager.SetErrorHandler(func(source, dest, msg string, err error) {
+			f.logError(source, dest, msg, err, ErrorLevelWarn)
+		})
+		f.rotationManager.SetMetricsHandler(f.trackMetric)
+	}
+	
+	// Propagate the setting to rotation manager
+	f.rotationManager.SetMaxFiles(count)
 }
 
 // GetMaxFiles returns the maximum number of log files

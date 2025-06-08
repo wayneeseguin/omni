@@ -240,6 +240,14 @@ func TestConcurrentOperations(t *testing.T) {
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
+		
+		// Ensure all writes are synced to disk
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
+		}
+		
+		// Give a small delay to ensure rotation completes
+		time.Sleep(100 * time.Millisecond)
 
 		// Should have rotated files
 		files, err := filepath.Glob(logFile + "*")

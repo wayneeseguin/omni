@@ -1,4 +1,4 @@
-.PHONY: all ci build test test-verbose test-race test-integration integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full vet clean coverage coverage-text fmt deps security check build-examples run-examples install-tools help
+.PHONY: all ci build test test-unit test-verbose test-race test-integration test-all integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full vet clean coverage coverage-text fmt deps gosec trivy security check build-examples run-examples install-tools help
 
 # Default target - show help
 all: help
@@ -12,10 +12,13 @@ build:
 	@echo "Building omni..."
 	@go build -v ./...
 
-# Run tests
-test:
-	@echo "Running tests..."
+# Run unit tests
+test-unit:
+	@echo "Running unit tests..."
 	@CGO_ENABLED=0 go test -v -coverprofile=coverage.out $(shell go list ./... | grep -v /examples/)
+
+# Run tests (alias for test-unit)
+test: test-unit
 
 # Run tests with verbose output
 test-verbose:
@@ -38,6 +41,10 @@ test-integration-verbose:
 	@echo "Running integration tests with verbose output..."
 	@go clean -testcache
 	@VERBOSE=1 go test -v -tags=integration -timeout=10m ./...
+
+# Run all test targets
+test-all: test-unit test-verbose test-race test-integration test-integration-verbose test-nats-recovery test-nats-monitor test-nats-load
+	@echo "All tests completed!"
 
 # Run integration tests with Docker containers
 integration:
@@ -134,10 +141,19 @@ deps:
 	@go mod tidy
 	@go mod verify
 
-# Check for security vulnerabilities
-security:
-	@echo "Running security scan..."
+# Check for security vulnerabilities with gosec
+gosec:
+	@echo "Running gosec security scan..."
 	@gosec -quiet ./...
+
+# Check for vulnerabilities with trivy
+trivy:
+	@echo "Running trivy vulnerability scan..."
+	@trivy fs . --scanners vuln
+
+# Run all security checks
+security: gosec trivy
+	@echo "All security checks completed!"
 
 # Run all quality checks
 check: vet test security
@@ -172,11 +188,13 @@ help:
 	@echo "  help                     - Show this help message (default)"
 	@echo "  ci                       - Run full CI pipeline (lint, test, build)"
 	@echo "  build                    - Build the library"
-	@echo "  test                     - Run tests (CGO disabled, no linker warnings)"
+	@echo "  test                     - Run unit tests (alias for test-unit)"
+	@echo "  test-unit                - Run unit tests (CGO disabled, no linker warnings)"
 	@echo "  test-verbose             - Run tests with verbose output"
 	@echo "  test-race                - Run tests with race detector (may show warnings)"
 	@echo "  test-integration         - Run integration tests"
 	@echo "  test-integration-verbose - Run integration tests with verbose output"
+	@echo "  test-all                 - Run all test targets"
 	@echo "  integration              - Run all integration tests with Docker containers"
 	@echo "  integration-nats         - Run only NATS integration tests"
 	@echo "  integration-vault        - Run only Vault integration tests"
@@ -194,7 +212,9 @@ help:
 	@echo "  clean                    - Remove build artifacts"
 	@echo "  fmt                      - Format code"
 	@echo "  deps                     - Tidy and verify dependencies"
-	@echo "  security                 - Run security scan"
+	@echo "  gosec                    - Run gosec security scan"
+	@echo "  trivy                    - Run trivy vulnerability scan"
+	@echo "  security                 - Run all security scans (gosec + trivy)"
 	@echo "  check                    - Run all quality checks"
 	@echo "  build-examples           - Build all examples"
 	@echo "  run-examples             - Run all examples"

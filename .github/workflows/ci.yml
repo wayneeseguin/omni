@@ -91,6 +91,16 @@ jobs:
     - name: Run gosec
       run: gosec ./...
 
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        scanners: 'vuln'
+        format: 'table'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+
     - name: Run go mod tidy
       run: |
         go mod tidy
