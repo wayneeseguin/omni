@@ -1,6 +1,6 @@
 //go:build integration && debug
 
-package natsplugin
+package main
 
 import (
 	"fmt"

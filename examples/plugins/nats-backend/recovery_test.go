@@ -1,6 +1,6 @@
 //go:build integration
 
-package natsplugin
+package main
 
 import (
 	"sync"

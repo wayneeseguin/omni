@@ -1,4 +1,4 @@
-package natsplugin
+package main
 
 import (
 	"context"
