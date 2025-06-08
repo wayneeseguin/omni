@@ -173,8 +173,8 @@ func TestShutdownTimeout(t *testing.T) {
 
 	// Shutdown with very short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
 	err = logger.Shutdown(ctx)
-	cancel()
 
 	// Should get timeout error since channel is full and processing takes time
 	if err == nil || err != context.DeadlineExceeded {
