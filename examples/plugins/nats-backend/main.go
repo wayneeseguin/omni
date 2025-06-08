@@ -405,7 +405,9 @@ func main() {
 		fmt.Println("   Backend created successfully")
 		fmt.Printf("   Supports atomic: %v\n", backend1.SupportsAtomic())
 		// Don't actually write without a real NATS server
-		backend1.Close()
+		if err := backend1.Close(); err != nil {
+			fmt.Printf("   Failed to close backend: %v\n", err)
+		}
 	}
 
 	// NATS backend with queue group
@@ -418,7 +420,9 @@ func main() {
 		fmt.Printf("   Failed to create backend: %v\n", err)
 	} else {
 		fmt.Println("   Backend created successfully with queue group")
-		backend2.Close()
+		if err := backend2.Close(); err != nil {
+			fmt.Printf("   Failed to close backend: %v\n", err)
+		}
 	}
 
 	// NATS backend with batching
@@ -431,7 +435,9 @@ func main() {
 		fmt.Printf("   Failed to create backend: %v\n", err)
 	} else {
 		fmt.Println("   Backend created successfully with batching enabled")
-		backend3.Close()
+		if err := backend3.Close(); err != nil {
+			fmt.Printf("   Failed to close backend: %v\n", err)
+		}
 	}
 
 	// NATS backend with authentication
@@ -444,7 +450,9 @@ func main() {
 		fmt.Printf("   Failed to create backend: %v\n", err)
 	} else {
 		fmt.Println("   Backend created successfully with authentication")
-		backend4.Close()
+		if err := backend4.Close(); err != nil {
+			fmt.Printf("   Failed to close backend: %v\n", err)
+		}
 	}
 
 	// NATS backend with custom reconnection settings
@@ -457,7 +465,9 @@ func main() {
 		fmt.Printf("   Failed to create backend: %v\n", err)
 	} else {
 		fmt.Println("   Backend created successfully with custom reconnection settings")
-		backend5.Close()
+		if err := backend5.Close(); err != nil {
+			fmt.Printf("   Failed to close backend: %v\n", err)
+		}
 	}
 
 	// Shutdown the plugin
