@@ -230,7 +230,15 @@ func generateMessage(size int) string {
 	for i := 0; i < repeat; i++ {
 		result += base
 	}
-	return result[:size]
+	// Ensure we don't exceed the actual length of the result
+	if len(result) > size {
+		return result[:size]
+	}
+	// If result is shorter than requested size, pad it
+	for len(result) < size {
+		result += "x"
+	}
+	return result
 }
 
 func percentile(latencies []time.Duration, p float64) time.Duration {
