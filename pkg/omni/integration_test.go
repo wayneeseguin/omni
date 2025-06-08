@@ -282,8 +282,8 @@ func TestConcurrentMultiDestination(t *testing.T) {
 		t.Logf("All goroutines completed in %v", time.Since(start))
 	}
 
-	// Give time for messages to be processed
-	time.Sleep(500 * time.Millisecond)
+	// Give time for messages to be processed - reduced for tests
+	time.Sleep(50 * time.Millisecond)
 
 	// Flush and verify
 	if err := logger.FlushAll(); err != nil {

@@ -57,7 +57,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 		logger.Info("Test log message", "key", "value", "number", 42)
 
 		// Give Vault time to process
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	// Test 2: Write multiple log levels
@@ -68,7 +68,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 		logger.Error("Error message", "error", true)
 
 		// Give Vault time to process
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	// Test 3: Structured logging with complex data
@@ -86,7 +86,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 		logger.Info("User action", "data", complexData)
 
 		// Give Vault time to process
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	// Test 4: Verify logs are written to Vault

@@ -69,7 +69,7 @@ func TestVeryLargeMessage(t *testing.T) {
 	logger.Info("Large message: %s", largeData)
 
 	// Wait for processing
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Check that it was written
 	metrics := logger.GetMetrics()
@@ -252,7 +252,7 @@ func TestRapidOpenClose(t *testing.T) {
 	}
 
 	// No goroutine leaks or file descriptor leaks should occur
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 }
 
 // TestConcurrentDestinationOperations tests concurrent operations on destinations
@@ -379,7 +379,7 @@ func TestExtremeConcurrency(t *testing.T) {
 	elapsed := time.Since(start)
 
 	// Wait for processing
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Check performance
 	metrics := logger.GetMetrics()

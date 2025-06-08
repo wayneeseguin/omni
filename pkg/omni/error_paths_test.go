@@ -289,7 +289,7 @@ func TestRecoveryFallback(t *testing.T) {
 	}
 
 	// Wait for recovery
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Check if fallback file was created
 	if _, err := os.Stat(fallbackFile); os.IsNotExist(err) {

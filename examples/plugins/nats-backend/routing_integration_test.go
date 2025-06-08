@@ -41,7 +41,7 @@ func TestNATSRoutingIntegration(t *testing.T) {
 				break
 			}
 			if i < 4 {
-				time.Sleep(time.Second)
+				time.Sleep(100 * time.Millisecond)
 			}
 		}
 
@@ -165,8 +165,8 @@ func TestNATSRoutingIntegration(t *testing.T) {
 		}
 	}
 
-	// Wait for messages to be delivered
-	time.Sleep(2 * time.Second)
+	// Wait for messages to be delivered - reduced for tests
+	time.Sleep(200 * time.Millisecond)
 
 	// Verify counters
 	mu.Lock()
@@ -332,8 +332,8 @@ func TestNATSHierarchicalRouting(t *testing.T) {
 	}
 	t.Logf("Sent %d messages to NATS", sentCount)
 
-	// Wait for delivery
-	time.Sleep(2 * time.Second)
+	// Wait for delivery - reduced for tests
+	time.Sleep(200 * time.Millisecond)
 
 	// Verify wildcard subscriptions
 	mu.Lock()

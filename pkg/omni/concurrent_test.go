@@ -392,7 +392,7 @@ func TestConcurrentOperations(t *testing.T) {
 		wg.Wait()
 
 		// Give time for processing
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)

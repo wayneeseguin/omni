@@ -146,7 +146,7 @@ func testConcurrentWriteSafety(t *testing.T) {
 
 	// Flush and wait for messages
 	backend.Flush()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	success := atomic.LoadInt32(&successCount)
 	errors := atomic.LoadInt32(&errorCount)

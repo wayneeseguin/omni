@@ -49,10 +49,10 @@ func TestVaultBackendURIParsing(t *testing.T) {
 		},
 		{
 			name:          "Complex path",
-			uri:           "vault://token@vault.example.com:8200/app/logs/production",
-			config:        map[string]interface{}{},
-			expectError:   true, // Will fail because vault.example.com doesn't exist
-			expectedHost:  "vault.example.com:8200",
+			uri:           "vault://token@localhost:8200/app/logs/production",
+			config:        map[string]interface{}{"skip_health_check": true},
+			expectError:   false,
+			expectedHost:  "localhost:8200",
 			expectedToken: "token",
 			expectedPath:  "app/logs/production",
 		},

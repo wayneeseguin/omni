@@ -325,7 +325,7 @@ func TestAnalyzeData(t *testing.T) {
 	}
 
 	// Should take some time due to sleep statements
-	expectedMinDuration := 2 * time.Second // 5 steps * 500ms each = 2.5s
+	expectedMinDuration := 200 * time.Millisecond // 5 steps * 50ms each = 250ms
 	if duration < expectedMinDuration {
 		t.Logf("Warning: Analysis completed faster than expected: %v (expected at least %v)", duration, expectedMinDuration)
 	}

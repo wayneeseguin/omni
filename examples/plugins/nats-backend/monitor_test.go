@@ -78,7 +78,7 @@ func TestNATSMonitoring(t *testing.T) {
 
 	// Flush and wait
 	backend.Flush()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Report statistics
 	stats.Report(t)
@@ -263,7 +263,7 @@ func TestNATSConnectionMonitoring(t *testing.T) {
 		if err := nc.Publish("monitor.health", []byte(msg)); err != nil {
 			t.Errorf("Publish failed: %v", err)
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	// Wait for monitoring to complete

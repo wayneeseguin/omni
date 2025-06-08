@@ -154,8 +154,8 @@ func processFile(path string) error {
 		"modified": info.ModTime(),
 	})
 
-	// Simulate processing
-	time.Sleep(50 * time.Millisecond)
+	// Simulate processing - reduced for tests
+	time.Sleep(5 * time.Millisecond)
 
 	// Simulate occasional errors
 	if info.Size() == 0 {
@@ -186,8 +186,8 @@ func analyzeData() error {
 
 		logger.InfoWithFields("Analysis step started", stepFields)
 
-		// Simulate work
-		time.Sleep(500 * time.Millisecond)
+		// Simulate work - reduced from 500ms to 50ms for tests
+		time.Sleep(50 * time.Millisecond)
 
 		// Log some debug information
 		if logger.GetLevel() <= omni.LevelDebug {
@@ -246,8 +246,8 @@ func generateReport() error {
 			return fmt.Errorf("write section %s: %w", section, err)
 		}
 
-		// Simulate content generation
-		time.Sleep(200 * time.Millisecond)
+		// Simulate content generation - reduced for tests
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	logger.InfoWithFields("Report generated successfully", map[string]interface{}{

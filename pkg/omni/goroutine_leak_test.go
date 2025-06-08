@@ -48,7 +48,7 @@ func TestNoGoroutineLeakOnShutdown(t *testing.T) {
 	}
 
 	// Allow time for goroutines to clean up
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
 
@@ -80,7 +80,7 @@ func TestCleanupRoutineNoLeak(t *testing.T) {
 	logger.startCleanupRoutine()
 
 	// Let it run a few cycles
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Get goroutine count before stopping
 	beforeStop := runtime.NumGoroutine()
@@ -181,8 +181,8 @@ func TestShutdownTimeout(t *testing.T) {
 		t.Errorf("Expected context deadline exceeded error, got %v", err)
 	}
 
-	// Wait for background cleanup
-	time.Sleep(1 * time.Second)
+	// Wait for background cleanup - reduced for tests
+	time.Sleep(200 * time.Millisecond)
 
 	// Check goroutines were still cleaned up
 	finalGoroutines := runtime.NumGoroutine()
