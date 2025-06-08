@@ -370,3 +370,101 @@ var OmniPlugin = &NATSBackendPlugin{}
 // init function removed - plugin will be loaded via plugin system
 // The NATSBackendPlugin doesn't implement the full BackendPlugin interface,
 // it implements a simpler interface for creating backends
+
+func main() {
+	// Example usage demonstrating the NATS Backend plugin
+	fmt.Println("NATS Backend Plugin")
+	fmt.Printf("Name: %s\n", OmniPlugin.Name())
+	fmt.Printf("Version: %s\n", OmniPlugin.Version())
+	fmt.Printf("Description: %s\n", OmniPlugin.Description())
+	fmt.Printf("Supported schemes: %v\n", OmniPlugin.SupportedSchemes())
+
+	// Initialize the plugin
+	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
+		fmt.Printf("Failed to initialize plugin: %v\n", err)
+		return
+	}
+
+	// Check health status
+	health := OmniPlugin.Health()
+	fmt.Printf("\nHealth status: %v\n", health.Healthy)
+	fmt.Printf("Health message: %s\n", health.Message)
+
+	// Demo: Show backend creation with different configurations
+	fmt.Println("\nDemo: Creating NATS backends with different configurations...")
+
+	// Basic NATS backend
+	fmt.Println("\n1. Basic NATS backend:")
+	basicURI := "nats://localhost:4222/logs"
+	fmt.Printf("   URI: %s\n", basicURI)
+	
+	backend1, err := OmniPlugin.CreateBackend(basicURI, nil)
+	if err != nil {
+		fmt.Printf("   Failed to create backend: %v\n", err)
+	} else {
+		fmt.Println("   Backend created successfully")
+		fmt.Printf("   Supports atomic: %v\n", backend1.SupportsAtomic())
+		// Don't actually write without a real NATS server
+		backend1.Close()
+	}
+
+	// NATS backend with queue group
+	fmt.Println("\n2. NATS backend with queue group:")
+	queueURI := "nats://localhost:4222/logs?queue=log-workers"
+	fmt.Printf("   URI: %s\n", queueURI)
+	
+	backend2, err := OmniPlugin.CreateBackend(queueURI, nil)
+	if err != nil {
+		fmt.Printf("   Failed to create backend: %v\n", err)
+	} else {
+		fmt.Println("   Backend created successfully with queue group")
+		backend2.Close()
+	}
+
+	// NATS backend with batching
+	fmt.Println("\n3. NATS backend with batching:")
+	batchURI := "nats://localhost:4222/logs?async=true&batch=50&flush_interval=200"
+	fmt.Printf("   URI: %s\n", batchURI)
+	
+	backend3, err := OmniPlugin.CreateBackend(batchURI, nil)
+	if err != nil {
+		fmt.Printf("   Failed to create backend: %v\n", err)
+	} else {
+		fmt.Println("   Backend created successfully with batching enabled")
+		backend3.Close()
+	}
+
+	// NATS backend with authentication
+	fmt.Println("\n4. NATS backend with authentication:")
+	authURI := "nats://user:password@localhost:4222/secure-logs?tls=true"
+	fmt.Printf("   URI: %s\n", authURI)
+	
+	backend4, err := OmniPlugin.CreateBackend(authURI, nil)
+	if err != nil {
+		fmt.Printf("   Failed to create backend: %v\n", err)
+	} else {
+		fmt.Println("   Backend created successfully with authentication")
+		backend4.Close()
+	}
+
+	// NATS backend with custom reconnection settings
+	fmt.Println("\n5. NATS backend with custom reconnection:")
+	reconnectURI := "nats://localhost:4222/logs?max_reconnect=10&reconnect_wait=5"
+	fmt.Printf("   URI: %s\n", reconnectURI)
+	
+	backend5, err := OmniPlugin.CreateBackend(reconnectURI, nil)
+	if err != nil {
+		fmt.Printf("   Failed to create backend: %v\n", err)
+	} else {
+		fmt.Println("   Backend created successfully with custom reconnection settings")
+		backend5.Close()
+	}
+
+	// Shutdown the plugin
+	ctx := context.Background()
+	if err := OmniPlugin.Shutdown(ctx); err != nil {
+		fmt.Printf("\nFailed to shutdown plugin: %v\n", err)
+	} else {
+		fmt.Println("\nPlugin shutdown successfully")
+	}
+}

@@ -26,3 +26,4 @@ examples/plugin-usage/redis:/localhost:6379/0?key=app_logs&max=1000
 examples/plugins/vault-backend/vault-backend
 examples/plugins/vault-backend/vault:/invalid-token@localhost:8200/logs
 examples/plugins/vault-backend/vault:/test-token@localhost:8200/logs
+examples/plugins/nats-backend/nats-backend
