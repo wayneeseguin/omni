@@ -102,15 +102,16 @@ func (f *Omni) processMessage(msg LogMessage, dest *Destination) error {
 		msg.Entry.Fields = redactedFields
 	}
 	
-	// Write to backend
-	if dest.backend != nil {
+	// Write to backend using thread-safe method
+	backend := dest.GetBackend()
+	if backend != nil {
 		writeStart := time.Now()
-		n, err := dest.backend.Write(data)
+		n, err := backend.Write(data)
 		writeDuration := time.Since(writeStart)
 		
 		// Flush to ensure data is written to disk immediately
 		if err == nil {
-			if flushErr := dest.backend.Flush(); flushErr != nil {
+			if flushErr := backend.Flush(); flushErr != nil {
 				f.logError("flush", dest.URI, "Failed to flush backend", flushErr, ErrorLevelLow)
 			}
 		}

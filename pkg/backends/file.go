@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/gofrs/flock"
 )
@@ -32,6 +33,7 @@ type FileBackendImpl struct {
 	lock   *flock.Flock
 	path   string
 	size   int64
+	mu     sync.Mutex // Protects writer access
 }
 
 // NewFileBackend creates a new file backend
@@ -73,6 +75,10 @@ func NewFileBackend(path string) (*FileBackendImpl, error) {
 
 // Write writes a log entry to the file
 func (fb *FileBackendImpl) Write(entry []byte) (int, error) {
+	// Protect writer access
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	
 	// Try to acquire lock
 	if err := fb.lock.Lock(); err != nil {
 		return 0, fmt.Errorf("acquire lock: %w", err)
@@ -93,6 +99,9 @@ func (fb *FileBackendImpl) Write(entry []byte) (int, error) {
 
 // Flush flushes buffered data to disk
 func (fb *FileBackendImpl) Flush() error {
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	
 	if fb.writer != nil {
 		return fb.writer.Flush()
 	}
@@ -101,11 +110,17 @@ func (fb *FileBackendImpl) Flush() error {
 
 // Close closes the file backend
 func (fb *FileBackendImpl) Close() error {
+	// Lock for the entire close operation
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	
 	var errs []error
 
-	// Flush writer
-	if err := fb.Flush(); err != nil {
-		errs = append(errs, fmt.Errorf("flush: %w", err))
+	// Flush writer (without calling Flush() to avoid deadlock)
+	if fb.writer != nil {
+		if err := fb.writer.Flush(); err != nil {
+			errs = append(errs, fmt.Errorf("flush: %w", err))
+		}
 	}
 
 	// Unlock file
@@ -171,9 +186,14 @@ func (fb *FileBackendImpl) GetSize() int64 {
 
 // Sync syncs the file to disk
 func (fb *FileBackendImpl) Sync() error {
+	// Use Flush() which already has the mutex
 	if err := fb.Flush(); err != nil {
 		return err
 	}
+	
+	fb.mu.Lock()
+	defer fb.mu.Unlock()
+	
 	if fb.file != nil {
 		return fb.file.Sync()
 	}

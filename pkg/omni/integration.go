@@ -145,8 +145,10 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 		Backend: backendType,
 		Done:    make(chan struct{}),
 		Enabled: true,
-		backend: backend,
 	}
+	
+	// Set backend using thread-safe method
+	dest.SetBackend(backend)
 	
 	// For file backends, set additional fields
 	if fileBackend, ok := backend.(*backends.FileBackendImpl); ok {
@@ -424,10 +426,8 @@ func (f *Omni) RemoveDestination(name string) error {
 	
 	for i, dest := range f.Destinations {
 		if dest.URI == name {
-			// Close the destination
-			if dest.backend != nil {
-				_ = dest.backend.Close() // Best effort close
-			}
+			// Close the destination using thread-safe method
+			_ = dest.Close() // Best effort close
 			
 			// Remove from rotation manager
 			if dest.Backend == BackendFlock && f.rotationManager != nil {
@@ -510,10 +510,9 @@ func (f *Omni) FlushAll() error {
 	
 	var errs []error
 	for _, dest := range destinations {
-		if dest.backend != nil {
-			if err := dest.backend.Flush(); err != nil {
-				errs = append(errs, fmt.Errorf("flush %s: %w", dest.URI, err))
-			}
+		// Use the thread-safe Flush method
+		if err := dest.Flush(); err != nil {
+			errs = append(errs, fmt.Errorf("flush %s: %w", dest.URI, err))
 		}
 	}
 	
@@ -550,9 +549,12 @@ func (f *Omni) Sync() error {
 	
 	var errs []error
 	for _, dest := range destinations {
-		if dest.backend != nil {
-			if err := dest.backend.Sync(); err != nil {
-				errs = append(errs, fmt.Errorf("sync %s: %w", dest.URI, err))
+		backend := dest.GetBackend()
+		if backend != nil {
+			if fileBackend, ok := backend.(backends.FileBackend); ok {
+				if err := fileBackend.Sync(); err != nil {
+					errs = append(errs, fmt.Errorf("sync %s: %w", dest.URI, err))
+				}
 			}
 		}
 	}
@@ -596,10 +598,8 @@ func (f *Omni) Close() error {
 	
 	var errs []error
 	for _, dest := range destinations {
-		if dest.backend != nil {
-			if err := dest.backend.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("close %s: %w", dest.URI, err))
-			}
+		if err := dest.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close %s: %w", dest.URI, err))
 		}
 	}
 	
@@ -906,9 +906,8 @@ func (f *Omni) trackMetric(event string) {
 func (f *Omni) checkFlushSize(dest *Destination) {
 	// Check if destination needs flushing based on size
 	if dest.Size > 0 && dest.Size >= f.maxSize/2 {
-		if dest.backend != nil {
-			_ = dest.backend.Flush() // Best effort flush
-		}
+		// Use thread-safe flush method
+		_ = dest.Flush() // Best effort flush
 	}
 }
 
@@ -948,11 +947,12 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 		f.rotationManager.SetMetricsHandler(f.trackMetric)
 	}
 	
-	// Get writer from backend
+	// Get writer from backend using thread-safe method
 	var writer *bufio.Writer
-	if dest.backend != nil {
+	backend := dest.GetBackend()
+	if backend != nil {
 		// Check if it's a file backend that has GetWriter
-		if fileBackend, ok := dest.backend.(backends.FileBackend); ok {
+		if fileBackend, ok := backend.(backends.FileBackend); ok {
 			writer = fileBackend.GetWriter()
 		}
 	}
@@ -968,9 +968,9 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 		return err
 	}
 	
-	// Update destination
+	// Update destination using thread-safe method
+	dest.SetBackend(newDest.GetBackend())
 	dest.mu.Lock()
-	dest.backend = newDest.backend
 	dest.File = newDest.File
 	dest.Writer = newDest.Writer
 	dest.Lock = newDest.Lock
@@ -1132,8 +1132,9 @@ func (f *Omni) getDestinationStats() map[string]backends.BackendStats {
 	
 	stats := make(map[string]backends.BackendStats)
 	for _, dest := range f.Destinations {
-		if dest.backend != nil {
-			stats[dest.URI] = dest.backend.GetStats()
+		backend := dest.GetBackend()
+		if backend != nil {
+			stats[dest.URI] = backend.GetStats()
 		}
 	}
 	

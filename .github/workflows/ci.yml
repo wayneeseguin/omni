@@ -10,30 +10,39 @@ jobs:
   vet-and-build:
     name: Vet and Build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
-        cache: true
-        cache-dependency-path: go.sum
-    
+        cache: false
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
     - name: Download dependencies
       run: go mod download
-    
+
     - name: Run go vet
       run: |
         go vet ./pkg/...
         go vet ./internal/...
         cd examples && find . -name "*.go" -exec dirname {} \; | sort -u | xargs -I {} go vet {}
-    
+
     - name: Build
       run: go build -v ./...
-    
+
     - name: Build examples
       run: |
         cd examples
@@ -64,24 +73,24 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: vet-and-build
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
         cache: true
         cache-dependency-path: go.sum
-    
+
     - name: Install gosec
       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-    
+
     - name: Run gosec
       run: gosec ./...
-    
+
     - name: Run go mod tidy
       run: |
         go mod tidy
@@ -91,33 +100,33 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     needs: security
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
         cache: true
         cache-dependency-path: go.sum
-    
+
     - name: Download dependencies
       run: go mod download
-    
+
     - name: Run tests with race detector
       run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
       env:
         FLEXLOG_CHANNEL_SIZE: 1000
-    
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
         flags: unittests
         name: codecov-umbrella
-    
+
     - name: Run benchmarks
       run: go test -run=^$ -bench=. -benchmem ./...
 
@@ -132,18 +141,18 @@ jobs:
           - 4222:4222
           - 8222:8222
         options: --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8222/varz || exit 1" --health-interval 5s --health-timeout 3s --health-retries 10
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.23'
         cache: true
         cache-dependency-path: go.sum
-    
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -159,7 +168,7 @@ jobs:
           -v ${{ github.workspace }}/test-logs:/var/log \
           -e RSYSLOG_DEBUG=on \
           omni/syslog-test:latest
-        
+
         # Wait for syslog to be ready
         for i in {1..30}; do
           if nc -z localhost 5514; then
@@ -172,7 +181,7 @@ jobs:
 
     - name: Create test directories
       run: mkdir -p test-logs
-    
+
     - name: Run integration tests
       run: |
         go test -v -tags=integration -timeout=10m ./...
@@ -191,7 +200,7 @@ jobs:
       run: |
         go test -v -tags=integration -timeout=10m ./pkg/backends -run TestSyslog
         go test -v -tags=integration -timeout=10m ./pkg/omni -run TestSyslog
-    
+
     - name: Test multi-process scenarios
       run: |
         go test -v -run TestMultiProcess -timeout=5m ./...
@@ -207,17 +216,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: integration
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Check if version changed
       id: version
       run: |
         echo "Checking for version changes..."
         # Add version checking logic here
-    
+
     - name: Create Release Notes
       if: steps.version.outputs.changed == 'true'
       run: |
