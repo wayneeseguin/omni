@@ -40,7 +40,7 @@ func basicExample() {
 
 	// Basic logging methods
 	logger.Trace("This is a trace message")
-	logger.Debug("This is a debug message") 
+	logger.Debug("This is a debug message")
 	logger.Info("This is an info message")
 	logger.Warn("This is a warning message")
 	logger.Error("This is an error message")
@@ -51,7 +51,7 @@ func basicExample() {
 	// Structured logging with fields
 	logger.InfoWithFields("User action performed", map[string]interface{}{
 		"user_id":   "12345",
-		"action":    "login", 
+		"action":    "login",
 		"timestamp": time.Now().Unix(),
 		"success":   true,
 	})
@@ -91,7 +91,7 @@ func optionsExample() {
 	// Use the loggers
 	prodLogger.Info("Production logger initialized with options")
 	devLogger.Debug("Development logger initialized with detailed output")
-	
+
 	// Add filters to production logger
 	_ = prodLogger.AddFilter(func(level int, message string, fields map[string]interface{}) bool { //nolint:gosec
 		// Only allow INFO and above in production
@@ -134,7 +134,7 @@ func advancedExample() {
 	// Disable and re-enable a destination
 	_ = logger.DisableDestination("/tmp/api_advanced_copy.log")
 	logger.Info("This message won't go to the disabled destination")
-	
+
 	_ = logger.EnableDestination("/tmp/api_advanced_copy.log")
 	logger.Info("This message will go to the re-enabled destination")
 
@@ -147,7 +147,7 @@ func advancedExample() {
 func doWork(logger *omni.Omni) {
 	// Function that works with the Omni instance
 	logger.Info("Starting work")
-	
+
 	// Structured logging with fields
 	logger.InfoWithFields("Task completed", map[string]interface{}{
 		"task":     "processing",
@@ -210,10 +210,10 @@ func errorHandlingExample() {
 
 	// Test error recovery
 	logger.ErrorWithFields("Simulated application error", map[string]interface{}{
-		"error_type":   "demonstration",
-		"error_code":   500,
-		"recoverable":  true,
-		"timestamp":    time.Now().Unix(),
+		"error_type":  "demonstration",
+		"error_code":  500,
+		"recoverable": true,
+		"timestamp":   time.Now().Unix(),
 	})
 
 	// Test logging after errors

@@ -12,9 +12,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.RemoveAll("test_api")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.RemoveAll("test_api")
 	os.Exit(code)
@@ -301,12 +301,12 @@ func TestLoggerConfiguration(t *testing.T) {
 	// Use simple logging like the working tests
 	logger.Info("Basic test message")
 	logger.Error("Error test message")
-	
+
 	// Test level change
 	logger.SetLevel(omni.LevelError)
 	logger.Error("Error at error level")
 	logger.Info("Info at error level (should not appear)")
-	
+
 	// Test format change
 	logger.SetFormat(omni.FormatJSON)
 	logger.Error("JSON format error")
@@ -348,11 +348,11 @@ func TestStructuredLogging(t *testing.T) {
 
 	// Test various field types
 	logger.InfoWithFields("Complex structured data", map[string]interface{}{
-		"string_field":  "test_value",
-		"int_field":     42,
-		"float_field":   3.14159,
-		"bool_field":    true,
-		"array_field":   []string{"a", "b", "c"},
+		"string_field": "test_value",
+		"int_field":    42,
+		"float_field":  3.14159,
+		"bool_field":   true,
+		"array_field":  []string{"a", "b", "c"},
 		"nested_object": map[string]interface{}{
 			"nested_string": "nested_value",
 			"nested_int":    123,

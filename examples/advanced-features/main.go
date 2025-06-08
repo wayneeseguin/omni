@@ -24,8 +24,8 @@ func main() {
 		omni.WithLevel(omni.LevelTrace),
 		omni.WithRotation(1024*1024, 3), // 1MB max size, keep 3 files
 		omni.WithGzipCompression(),
-		omni.WithStackTrace(8192), // Enable stack trace with 8KB buffer
-		omni.WithJSON(),           // Use JSON format for structured data
+		omni.WithStackTrace(8192),  // Enable stack trace with 8KB buffer
+		omni.WithJSON(),            // Use JSON format for structured data
 		omni.WithChannelSize(1000), // Set channel buffer size
 	)
 	if err != nil {
@@ -166,7 +166,7 @@ func processRequest(logger *omni.Omni, userID, action string) {
 	// Simulate validation with timing
 	start := time.Now()
 	time.Sleep(10 * time.Millisecond)
-	
+
 	validationFields := make(map[string]interface{})
 	for k, v := range baseFields {
 		validationFields[k] = v
@@ -174,7 +174,7 @@ func processRequest(logger *omni.Omni, userID, action string) {
 	validationFields["valid"] = true
 	validationFields["took_ms"] = time.Since(start).Milliseconds()
 	validationFields["step"] = "validation"
-	
+
 	logger.DebugWithFields("Validation completed", validationFields)
 
 	// Simulate business logic with context
@@ -186,7 +186,7 @@ func processRequest(logger *omni.Omni, userID, action string) {
 	})
 
 	time.Sleep(50 * time.Millisecond)
-	
+
 	totalDuration := time.Since(start)
 	resultFields := make(map[string]interface{})
 	for k, v := range baseFields {
@@ -197,7 +197,7 @@ func processRequest(logger *omni.Omni, userID, action string) {
 	resultFields["business_logic_ms"] = time.Since(businessStart).Milliseconds()
 	resultFields["status"] = "success"
 	resultFields["transaction_id"] = generateTransactionID()
-	
+
 	logger.InfoWithFields("Request processed successfully", resultFields)
 
 	logger.TraceWithFields("Exiting processRequest", map[string]interface{}{

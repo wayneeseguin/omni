@@ -54,36 +54,36 @@ func main() {
 	for i := 0; i < 50; i++ {
 		// TRACE level - very detailed diagnostics (goes to all destinations)
 		logger.TraceWithFields("Processing item trace", map[string]interface{}{
-			"item_id":      i,
-			"step":         "initialization",
-			"memory_mb":    45 + i%10,
-			"destination":  "all",
+			"item_id":     i,
+			"step":        "initialization",
+			"memory_mb":   45 + i%10,
+			"destination": "all",
 		})
 
 		// DEBUG level - detailed diagnostics (goes to all destinations)
 		logger.DebugWithFields("Processing item debug", map[string]interface{}{
-			"item_id":      i,
-			"timestamp":    time.Now().Unix(),
-			"destination":  "all",
+			"item_id":     i,
+			"timestamp":   time.Now().Unix(),
+			"destination": "all",
 		})
 
 		// INFO level - general information (goes to all destinations)
 		if i%10 == 0 {
 			logger.InfoWithFields("Progress update", map[string]interface{}{
-				"processed":    i,
-				"total":        50,
-				"percentage":   (i * 100) / 50,
-				"destination":  "all",
+				"processed":   i,
+				"total":       50,
+				"percentage":  (i * 100) / 50,
+				"destination": "all",
 			})
 		}
 
 		// WARN level - warnings (goes to all destinations)
 		if i%15 == 0 {
 			logger.WarnWithFields("Slow processing detected", map[string]interface{}{
-				"item_id":      i,
-				"duration_ms":  150,
-				"severity":     "warning",
-				"destination":  "all",
+				"item_id":     i,
+				"duration_ms": 150,
+				"severity":    "warning",
+				"destination": "all",
 			})
 		}
 
@@ -101,11 +101,11 @@ func main() {
 		// Audit events - special structured logs
 		if i%20 == 0 {
 			logger.InfoWithFields("Audit event", map[string]interface{}{
-				"event_type":   "progress_checkpoint",
-				"item_id":      i,
-				"user_id":      "system",
-				"timestamp":    time.Now().Format(time.RFC3339),
-				"category":     "audit",
+				"event_type": "progress_checkpoint",
+				"item_id":    i,
+				"user_id":    "system",
+				"timestamp":  time.Now().Format(time.RFC3339),
+				"category":   "audit",
 			})
 		}
 
@@ -115,7 +115,7 @@ func main() {
 	// Demonstrate destination management
 	_ = logger.DisableDestination("logs/structured.log") //nolint:gosec
 	logger.Info("This message will NOT go to structured.log (disabled)")
-	
+
 	_ = logger.EnableDestination("logs/structured.log") //nolint:gosec
 	logger.Info("This message WILL go to structured.log (re-enabled)")
 

@@ -19,9 +19,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.RemoveAll("test_microservice")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.RemoveAll("test_microservice")
 	os.Exit(code)
@@ -378,25 +378,25 @@ func TestMetricsHandler(t *testing.T) {
 	// Create metrics handler
 	metricsHandler := func(w http.ResponseWriter, r *http.Request) {
 		metrics := logger.GetMetrics()
-		
+
 		// Get total messages directly from the metrics
 		totalMessages := metrics.MessagesLogged
-		
+
 		// Export Prometheus-style metrics
 		fmt.Fprintf(w, "# HELP service_log_messages_total Total log messages\n")
 		fmt.Fprintf(w, "# TYPE service_log_messages_total counter\n")
-		fmt.Fprintf(w, "service_log_messages_total{service=\"%s\"} %d\n", 
+		fmt.Fprintf(w, "service_log_messages_total{service=\"%s\"} %d\n",
 			config.ServiceName, totalMessages)
-		
+
 		fmt.Fprintf(w, "# HELP service_log_dropped_total Total dropped messages\n")
 		fmt.Fprintf(w, "# TYPE service_log_dropped_total counter\n")
-		fmt.Fprintf(w, "service_log_dropped_total{service=\"%s\"} %d\n", 
+		fmt.Fprintf(w, "service_log_dropped_total{service=\"%s\"} %d\n",
 			config.ServiceName, metrics.MessagesDropped)
-		
+
 		// Add custom business metrics
 		fmt.Fprintf(w, "# HELP service_uptime_seconds Service uptime\n")
 		fmt.Fprintf(w, "# TYPE service_uptime_seconds gauge\n")
-		fmt.Fprintf(w, "service_uptime_seconds{service=\"%s\"} %f\n", 
+		fmt.Fprintf(w, "service_uptime_seconds{service=\"%s\"} %f\n",
 			config.ServiceName, time.Since(startTime).Seconds())
 	}
 
@@ -542,12 +542,12 @@ func TestIntegrationFlow(t *testing.T) {
 
 	// Test complete flow with middleware
 	handler := serviceMiddleware(processPaymentHandler)
-	
+
 	req := httptest.NewRequest("POST", "/api/payment", bytes.NewReader(paymentJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "integration-test")
 	req.Header.Set(TraceIDHeader, "integration-trace-123")
-	
+
 	w := httptest.NewRecorder()
 
 	handler(w, req)
@@ -560,7 +560,7 @@ func TestIntegrationFlow(t *testing.T) {
 
 	// Check response headers - trace ID should be propagated
 	if resp.Header.Get(TraceIDHeader) != "integration-trace-123" {
-		t.Errorf("Expected trace ID 'integration-trace-123' in response, got '%s'", 
+		t.Errorf("Expected trace ID 'integration-trace-123' in response, got '%s'",
 			resp.Header.Get(TraceIDHeader))
 	}
 

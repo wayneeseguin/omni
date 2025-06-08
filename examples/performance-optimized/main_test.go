@@ -16,9 +16,9 @@ func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.Remove("test_performance.log")
 	os.RemoveAll("test_perf")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.Remove("test_performance.log")
 	os.RemoveAll("test_perf")
@@ -64,7 +64,7 @@ func TestPerformanceOptimizedExample(t *testing.T) {
 
 	// Verify filtering provides performance benefit
 	if filteredDuration >= unfilteredDuration {
-		t.Logf("Warning: Expected filtered logging to be faster. Filtered: %v, Unfiltered: %v", 
+		t.Logf("Warning: Expected filtered logging to be faster. Filtered: %v, Unfiltered: %v",
 			filteredDuration, unfilteredDuration)
 	}
 
@@ -100,7 +100,7 @@ func TestSingleThreadedPerformance(t *testing.T) {
 		// These should be filtered for better performance
 		logger.Trace("Filtered trace message")
 		logger.Debug("Filtered debug message")
-		
+
 		// Only log occasionally
 		if i%100 == 0 {
 			logger.InfoWithFields("Performance test", map[string]interface{}{
@@ -309,7 +309,7 @@ func TestMemoryUsagePatterns(t *testing.T) {
 	allocatedBytes := m2.TotalAlloc - m1.TotalAlloc
 	allocatedKB := allocatedBytes / 1024
 
-	t.Logf("Memory allocated for %d TRACE messages: %d KB (%d bytes)", 
+	t.Logf("Memory allocated for %d TRACE messages: %d KB (%d bytes)",
 		iterations, allocatedKB, allocatedBytes)
 
 	// Basic sanity check - shouldn't allocate excessive memory

@@ -12,9 +12,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.Remove("test_app.log")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.Remove("test_app.log")
 	os.Exit(code)
@@ -115,19 +115,19 @@ func TestLoggingLevels(t *testing.T) {
 		}
 
 		logger.SetLevel(l.level)
-		
+
 		// Only messages at or above the set level should be logged
 		logger.Trace("trace message")
 		logger.Debug("debug message")
 		logger.Info("info message")
 		logger.Warn("warn message")
 		logger.Error("error message")
-		
+
 		if err := logger.Sync(); err != nil {
 			t.Errorf("Failed to sync logger for level %s: %v", l.name, err)
 		}
 		logger.Close()
-		
+
 		// Verify file has content when level is appropriate
 		if stat, err := os.Stat(logFile); err != nil {
 			t.Errorf("Log file error for level %s: %v", l.name, err)
@@ -151,16 +151,16 @@ func TestStructuredLogging(t *testing.T) {
 
 	// Test various field types
 	fields := map[string]interface{}{
-		"string_field":  "test_value",
-		"int_field":     42,
-		"float_field":   3.14,
-		"bool_field":    true,
-		"slice_field":   []string{"a", "b", "c"},
-		"map_field":     map[string]string{"key": "value"},
+		"string_field": "test_value",
+		"int_field":    42,
+		"float_field":  3.14,
+		"bool_field":   true,
+		"slice_field":  []string{"a", "b", "c"},
+		"map_field":    map[string]string{"key": "value"},
 	}
 
 	logger.InfoWithFields("Test structured logging with various field types", fields)
-	
+
 	if err := logger.Sync(); err != nil {
 		t.Errorf("Failed to sync logger: %v", err)
 	}

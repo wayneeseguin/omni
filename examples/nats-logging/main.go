@@ -60,7 +60,7 @@ func simulateWork(logger *omni.Omni) {
 
 	for {
 		requestCounter++
-		
+
 		// Simulate a request
 		requestFields := map[string]interface{}{
 			"request_id": fmt.Sprintf("req-%d", requestCounter),
@@ -95,10 +95,10 @@ func simulateWork(logger *omni.Omni) {
 		// Log metrics periodically
 		if requestCounter%20 == 0 {
 			logger.InfoWithFields("Application metrics", map[string]interface{}{
-				"total_requests":  requestCounter,
-				"total_errors":    errorCounter,
-				"error_rate":      float64(errorCounter) / float64(requestCounter),
-				"uptime_seconds":  requestCounter, // Simplified
+				"total_requests": requestCounter,
+				"total_errors":   errorCounter,
+				"error_rate":     float64(errorCounter) / float64(requestCounter),
+				"uptime_seconds": requestCounter, // Simplified
 			})
 		}
 

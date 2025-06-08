@@ -12,7 +12,7 @@ func TestMain(m *testing.M) {
 	// Setup: create test directory
 	os.MkdirAll("test_logs", 0755)
 	defer os.RemoveAll("test_logs")
-	
+
 	code := m.Run()
 	os.Exit(code)
 }
@@ -96,7 +96,7 @@ func TestProcessRequest(t *testing.T) {
 
 	// Test processRequest function
 	processRequest(logger, "test_user_123", "login")
-	
+
 	// Flush to ensure logs are written
 	logger.FlushAll()
 
@@ -134,13 +134,13 @@ func TestGenerateTransactionID(t *testing.T) {
 
 func TestGenerateRandomString(t *testing.T) {
 	tests := []int{1, 5, 10, 50, 100}
-	
+
 	for _, length := range tests {
 		str := generateRandomString(length)
 		if len(str) != length {
 			t.Errorf("Expected string length %d, got %d", length, len(str))
 		}
-		
+
 		// Test that string contains only expected characters
 		const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 		for _, char := range str {
@@ -163,7 +163,7 @@ func TestDoSomethingThatFails(t *testing.T) {
 	if err == nil {
 		t.Error("doSomethingThatFails should return an error")
 	}
-	
+
 	expectedMsg := "simulated failure in nested function"
 	if err.Error() != expectedMsg {
 		t.Errorf("Expected error message '%s', got '%s'", expectedMsg, err.Error())

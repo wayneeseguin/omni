@@ -19,11 +19,11 @@ type XMLFormatterPlugin struct {
 
 // XMLLogEntry represents a log entry in XML format
 type XMLLogEntry struct {
-	XMLName   xml.Name               `xml:"logEntry"`
-	Timestamp string                 `xml:"timestamp"`
-	Level     string                 `xml:"level"`
-	Message   string                 `xml:"message"`
-	Fields    []XMLField             `xml:"fields>field,omitempty"`
+	XMLName   xml.Name   `xml:"logEntry"`
+	Timestamp string     `xml:"timestamp"`
+	Level     string     `xml:"level"`
+	Message   string     `xml:"message"`
+	Fields    []XMLField `xml:"fields>field,omitempty"`
 }
 
 // XMLField represents a structured field in XML
@@ -67,26 +67,26 @@ func (p *XMLFormatterPlugin) CreateFormatter(config map[string]interface{}) (omn
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
-	
+
 	formatter := &XMLFormatter{
 		includeFields: true,
 		timeFormat:    time.RFC3339,
 		rootElement:   "logEntry",
 	}
-	
+
 	// Apply configuration
 	if val, ok := config["include_fields"].(bool); ok {
 		formatter.includeFields = val
 	}
-	
+
 	if val, ok := config["time_format"].(string); ok {
 		formatter.timeFormat = val
 	}
-	
+
 	if val, ok := config["root_element"].(string); ok {
 		formatter.rootElement = val
 	}
-	
+
 	return formatter, nil
 }
 
@@ -119,17 +119,17 @@ func getMessageText(msg omni.LogMessage) string {
 	if msg.Entry != nil && msg.Entry.Message != "" {
 		return msg.Entry.Message
 	}
-	
+
 	// If there's a format string, format it with args
 	if msg.Format != "" && len(msg.Args) > 0 {
 		return fmt.Sprintf(msg.Format, msg.Args...)
 	}
-	
+
 	// If there's just a format string without args, use it as is
 	if msg.Format != "" {
 		return msg.Format
 	}
-	
+
 	// Fallback: convert args to string with spaces
 	if len(msg.Args) > 0 {
 		strArgs := make([]string, len(msg.Args))
@@ -138,7 +138,7 @@ func getMessageText(msg omni.LogMessage) string {
 		}
 		return strings.Join(strArgs, " ")
 	}
-	
+
 	return ""
 }
 
@@ -157,7 +157,7 @@ func (f *XMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
 		Level:     levelToString(msg.Level),
 		Message:   getMessageText(msg),
 	}
-	
+
 	// Add fields if enabled and present
 	if f.includeFields {
 		fields := getMessageFields(msg)
@@ -170,7 +170,7 @@ func (f *XMLFormatter) Format(msg omni.LogMessage) ([]byte, error) {
 			}
 		}
 	}
-	
+
 	// Marshal to XML
 	return xml.MarshalIndent(entry, "", "  ")
 }
@@ -183,13 +183,13 @@ func main() {
 	fmt.Println("XML Formatter Plugin")
 	fmt.Printf("Name: %s\n", OmniPlugin.Name())
 	fmt.Printf("Version: %s\n", OmniPlugin.Version())
-	
+
 	// Initialize the plugin
 	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to initialize plugin: %v\n", err)
 		return
 	}
-	
+
 	// Create a formatter
 	formatter, err := OmniPlugin.CreateFormatter(map[string]interface{}{
 		"include_fields": true,
@@ -199,7 +199,7 @@ func main() {
 		fmt.Printf("Failed to create formatter: %v\n", err)
 		return
 	}
-	
+
 	// Create a sample log message
 	sampleMsg := omni.LogMessage{
 		Level:     omni.LevelInfo,
@@ -216,13 +216,13 @@ func main() {
 			},
 		},
 	}
-	
+
 	// Format the message
 	formatted, err := formatter.Format(sampleMsg)
 	if err != nil {
 		fmt.Printf("Failed to format message: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("\nSample XML output:\n%s\n", string(formatted))
 }

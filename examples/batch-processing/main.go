@@ -24,7 +24,7 @@ func main() {
 
 	// Example 1: High-throughput logging with optimized settings
 	fmt.Println("\n1. High-throughput logging with optimization:")
-	
+
 	logFile := filepath.Join(tempDir, "optimized.log")
 	logger, err := omni.NewWithOptions(
 		omni.WithPath(logFile),
@@ -47,16 +47,16 @@ func main() {
 		})
 	}
 	optimizedDuration := time.Since(start)
-	
+
 	// Flush to ensure all messages are written
 	_ = logger.FlushAll() //nolint:gosec
-	_ = logger.Close() //nolint:gosec
+	_ = logger.Close()    //nolint:gosec
 
 	fmt.Printf("✓ Logged 1000 messages with optimization in %v\n", optimizedDuration)
 
 	// Example 2: Processing batches of data with structured logging
 	fmt.Println("\n2. Processing data in batches with structured logging:")
-	
+
 	logFile2 := filepath.Join(tempDir, "data_batches.log")
 	logger2, err := omni.NewWithOptions(
 		omni.WithPath(logFile2),
@@ -70,22 +70,22 @@ func main() {
 	// Simulate processing data in batches
 	totalRecords := 500
 	batchSize := 50
-	
+
 	for batchStart := 0; batchStart < totalRecords; batchStart += batchSize {
 		batchEnd := batchStart + batchSize
 		if batchEnd > totalRecords {
 			batchEnd = totalRecords
 		}
-		
+
 		batchID := (batchStart / batchSize) + 1
-		
+
 		logger2.InfoWithFields("Batch processing started", map[string]interface{}{
 			"batch_id":    batchID,
 			"batch_start": batchStart,
 			"batch_end":   batchEnd,
 			"batch_size":  batchEnd - batchStart,
 		})
-		
+
 		// Process each record in the batch
 		for i := batchStart; i < batchEnd; i++ {
 			logger2.DebugWithFields("Processing record", map[string]interface{}{
@@ -93,28 +93,28 @@ func main() {
 				"record_id": i,
 				"status":    "processing",
 			})
-			
+
 			// Simulate processing time
 			if i%100 == 0 {
 				time.Sleep(1 * time.Millisecond)
 			}
 		}
-		
+
 		logger2.InfoWithFields("Batch processing completed", map[string]interface{}{
-			"batch_id":         batchID,
+			"batch_id":          batchID,
 			"records_processed": batchEnd - batchStart,
-			"total_progress":   float64(batchEnd) / float64(totalRecords) * 100,
+			"total_progress":    float64(batchEnd) / float64(totalRecords) * 100,
 		})
 	}
-	
+
 	_ = logger2.FlushAll() //nolint:gosec
-	_ = logger2.Close() //nolint:gosec
+	_ = logger2.Close()    //nolint:gosec
 
 	fmt.Printf("✓ Processed %d records in %d batches\n", totalRecords, (totalRecords+batchSize-1)/batchSize)
 
 	// Example 3: Concurrent batch processing
 	fmt.Println("\n3. Concurrent batch processing:")
-	
+
 	logFile3 := filepath.Join(tempDir, "concurrent_batches.log")
 	logger3, err := omni.NewWithOptions(
 		omni.WithPath(logFile3),
@@ -130,26 +130,26 @@ func main() {
 	var wg sync.WaitGroup
 	numWorkers := 4
 	itemsPerWorker := 100
-	
+
 	start = time.Now()
-	
+
 	for workerID := 0; workerID < numWorkers; workerID++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			logger3.InfoWithFields("Worker started", map[string]interface{}{
 				"worker_id": id,
 				"items":     itemsPerWorker,
 			})
-			
+
 			for i := 0; i < itemsPerWorker; i++ {
 				logger3.InfoWithFields("Processing item", map[string]interface{}{
 					"worker_id": id,
 					"item_id":   i,
 					"thread":    "concurrent",
 				})
-				
+
 				if i%25 == 0 {
 					logger3.InfoWithFields("Worker progress", map[string]interface{}{
 						"worker_id": id,
@@ -157,27 +157,27 @@ func main() {
 					})
 				}
 			}
-			
+
 			logger3.InfoWithFields("Worker completed", map[string]interface{}{
 				"worker_id": id,
 				"items":     itemsPerWorker,
 			})
 		}(workerID)
 	}
-	
+
 	wg.Wait()
 	concurrentDuration := time.Since(start)
-	
+
 	_ = logger3.FlushAll() //nolint:gosec
 
-	fmt.Printf("✓ Processed %d items concurrently by %d workers in %v\n", 
+	fmt.Printf("✓ Processed %d items concurrently by %d workers in %v\n",
 		numWorkers*itemsPerWorker, numWorkers, concurrentDuration)
 
 	// Performance summary
 	fmt.Println("\n📊 Performance Summary:")
 	fmt.Printf("  Optimized throughput: %.0f msgs/sec\n", 1000.0/optimizedDuration.Seconds())
 	fmt.Printf("  Concurrent throughput: %.0f msgs/sec\n", float64(numWorkers*itemsPerWorker)/concurrentDuration.Seconds())
-	
+
 	fmt.Println("\n✅ Batch processing example completed!")
 	fmt.Printf("📁 Log files created in: %s\n", tempDir)
 	fmt.Println("   - optimized.log: High-throughput logging")

@@ -33,9 +33,9 @@ type NATSBackend struct {
 	options    []nats.Option
 
 	// Performance options
-	async      bool
-	batchSize  int
-	flushTimer *time.Timer
+	async         bool
+	batchSize     int
+	flushTimer    *time.Timer
 	flushInterval time.Duration
 
 	// Buffering
@@ -44,7 +44,7 @@ type NATSBackend struct {
 
 	// Metrics
 	atomicSupport bool
-	
+
 	// Message format
 	format string
 }
@@ -138,27 +138,27 @@ func NewNATSBackendWithOptions(uri string, connect bool) (*NATSBackend, error) {
 
 	// Parse query parameters
 	query := parsedURL.Query()
-	
+
 	if queue := query.Get("queue"); queue != "" {
 		backend.queueGroup = queue
 	}
-	
+
 	if asyncStr := query.Get("async"); asyncStr != "" {
 		backend.async, _ = strconv.ParseBool(asyncStr)
 	}
-	
+
 	if batchStr := query.Get("batch"); batchStr != "" {
 		if batch, err := strconv.Atoi(batchStr); err == nil {
 			backend.batchSize = batch
 		}
 	}
-	
+
 	if flushStr := query.Get("flush_interval"); flushStr != "" {
 		if flush, err := strconv.Atoi(flushStr); err == nil {
 			backend.flushInterval = time.Duration(flush) * time.Millisecond
 		}
 	}
-	
+
 	if format := query.Get("format"); format != "" {
 		backend.format = format
 	}
@@ -234,7 +234,7 @@ func (n *NATSBackend) bufferWrite(entry []byte) (int, error) {
 	// Make a copy of the entry
 	entryCopy := make([]byte, len(entry))
 	copy(entryCopy, entry)
-	
+
 	n.buffer = append(n.buffer, entryCopy)
 
 	// Flush if buffer is full
@@ -303,7 +303,7 @@ func (n *NATSBackend) flushBufferLocked() error {
 // startFlushTimer starts the periodic flush timer
 func (n *NATSBackend) startFlushTimer() {
 	n.flushTimer = time.AfterFunc(n.flushInterval, func() {
-		_ = n.Flush() //nolint:gosec
+		_ = n.Flush()       //nolint:gosec
 		n.startFlushTimer() // Restart timer
 	})
 }

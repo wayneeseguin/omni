@@ -42,10 +42,10 @@ func TestVaultBackendURIParsing(t *testing.T) {
 			expectedPath:  "logs",
 		},
 		{
-			name:          "Invalid scheme",
-			uri:           "http://localhost:8200",
-			config:        map[string]interface{}{},
-			expectError:   true,
+			name:        "Invalid scheme",
+			uri:         "http://localhost:8200",
+			config:      map[string]interface{}{},
+			expectError: true,
 		},
 		{
 			name:          "Complex path",
@@ -63,7 +63,7 @@ func TestVaultBackendURIParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			backend, err := plugin.CreateBackend(tt.uri, tt.config)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error but got none")

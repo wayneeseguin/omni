@@ -154,11 +154,11 @@ func testConcurrentWriteSafety(t *testing.T) {
 
 	t.Logf("Concurrent write test completed in %v", duration)
 	t.Logf("Success: %d, Errors: %d, Received: %d", success, errors, received)
-	
+
 	if success == 0 {
 		t.Error("No messages were written successfully")
 	}
-	
+
 	if float64(errors)/float64(success+errors) > 0.1 {
 		t.Errorf("Error rate too high: %.2f%%", float64(errors)/float64(success+errors)*100)
 	}
@@ -262,12 +262,12 @@ func TestNATSLoadTest(t *testing.T) {
 	t.Logf("  Messages/sec: %.2f", messagesPerSec)
 	t.Logf("  Throughput: %.2f MB/s", mbPerSec)
 	t.Logf("  Errors: %d (%.2f%%)", errors, errorRate)
-	
+
 	// Performance thresholds
 	if messagesPerSec < 1000 {
 		t.Errorf("Performance below threshold: %.2f messages/sec (expected > 1000)", messagesPerSec)
 	}
-	
+
 	if errorRate > 1.0 {
 		t.Errorf("Error rate too high: %.2f%% (expected < 1%%)", errorRate)
 	}

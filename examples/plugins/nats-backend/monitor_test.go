@@ -64,13 +64,13 @@ func TestNATSMonitoring(t *testing.T) {
 			"fields":    tm.fields,
 			"seq":       i,
 		}
-		
+
 		data, err := json.Marshal(entry)
 		if err != nil {
 			t.Errorf("Failed to marshal message %d: %v", i, err)
 			continue
 		}
-		
+
 		if _, err := backend.Write(data); err != nil {
 			t.Errorf("Failed to write message %d: %v", i, err)
 		}
@@ -143,31 +143,31 @@ func (s *MessageStats) Report(t *testing.T) {
 	defer s.mu.Unlock()
 
 	duration := time.Since(s.startTime)
-	
+
 	t.Log("=== NATS Monitoring Report ===")
 	t.Logf("Duration: %v", duration)
 	t.Logf("Total messages: %d", s.totalCount)
 	t.Logf("Total bytes: %d", s.totalBytes)
 	t.Logf("Parse errors: %d", s.errors)
-	
+
 	if s.totalCount > 0 {
 		t.Logf("Messages/sec: %.2f", float64(s.totalCount)/duration.Seconds())
 		t.Logf("Bytes/sec: %.2f", float64(s.totalBytes)/duration.Seconds())
 		t.Logf("Avg message size: %d bytes", s.totalBytes/s.totalCount)
 	}
-	
+
 	// Level breakdown
 	t.Log("\nMessage levels:")
 	for level, count := range s.levelCounts {
 		percentage := float64(count) / float64(s.totalCount) * 100
 		t.Logf("  %s: %d (%.1f%%)", level, count, percentage)
 	}
-	
+
 	// Latency stats
 	if len(s.latencies) > 0 {
 		var total time.Duration
 		var min, max time.Duration = s.latencies[0], s.latencies[0]
-		
+
 		for _, l := range s.latencies {
 			total += l
 			if l < min {
@@ -177,14 +177,14 @@ func (s *MessageStats) Report(t *testing.T) {
 				max = l
 			}
 		}
-		
+
 		avg := total / time.Duration(len(s.latencies))
 		t.Log("\nLatency statistics:")
 		t.Logf("  Min: %v", min)
 		t.Logf("  Max: %v", max)
 		t.Logf("  Avg: %v", avg)
 	}
-	
+
 	// Message sequence check
 	t.Log("\nMessage sequence check:")
 	if s.checkSequence() {
@@ -199,7 +199,7 @@ func (s *MessageStats) checkSequence() bool {
 	if len(s.messages) == 0 {
 		return true
 	}
-	
+
 	// Sort by sequence number and check for gaps
 	expected := 0
 	for _, msg := range s.messages {

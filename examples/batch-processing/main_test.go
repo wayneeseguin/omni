@@ -14,9 +14,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.RemoveAll("test_batch")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.RemoveAll("test_batch")
 	os.Exit(code)
@@ -159,9 +159,9 @@ func TestBatchDataProcessing(t *testing.T) {
 		}
 
 		logger.InfoWithFields("Batch processing completed", map[string]interface{}{
-			"batch_id":         batchID,
+			"batch_id":          batchID,
 			"records_processed": batchEnd - batchStart,
-			"total_progress":   float64(batchEnd) / float64(totalRecords) * 100,
+			"total_progress":    float64(batchEnd) / float64(totalRecords) * 100,
 		})
 	}
 
@@ -330,15 +330,15 @@ func TestStructuredBatchLogging(t *testing.T) {
 				"total_items": 50,
 			},
 			"processing_info": map[string]interface{}{
-				"start_time":     time.Now().Unix(),
-				"worker_thread":  "main",
-				"priority":       "normal",
+				"start_time":    time.Now().Unix(),
+				"worker_thread": "main",
+				"priority":      "normal",
 			},
 			"data_fields": map[string]interface{}{
-				"user_id":      fmt.Sprintf("user_%d", i),
-				"action_type":  "batch_process",
-				"success":      i%5 != 0, // Some failures
-				"duration_ms":  (i * 10) + 50,
+				"user_id":     fmt.Sprintf("user_%d", i),
+				"action_type": "batch_process",
+				"success":     i%5 != 0, // Some failures
+				"duration_ms": (i * 10) + 50,
 			},
 		})
 	}

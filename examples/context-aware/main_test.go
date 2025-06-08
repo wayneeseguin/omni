@@ -13,9 +13,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.Remove("test_context.log")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.Remove("test_context.log")
 	os.Exit(code)

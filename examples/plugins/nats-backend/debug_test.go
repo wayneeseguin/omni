@@ -23,7 +23,7 @@ func TestNATSConnectionDebug(t *testing.T) {
 
 	for _, server := range servers {
 		t.Logf("\nTrying server: %s", server)
-		
+
 		// Try direct connection
 		opts := []nats.Option{
 			nats.Name("omni-debug-test"),
@@ -55,11 +55,11 @@ func TestNATSConnectionDebug(t *testing.T) {
 		t.Logf("  - Connected URL: %s", nc.ConnectedUrl())
 		t.Logf("  - Server ID: %s", nc.ConnectedServerId())
 		t.Logf("  - Max Payload: %d", nc.MaxPayload())
-		
+
 		// Test publish
 		testSubject := "debug.test"
 		testMsg := []byte("debug test message")
-		
+
 		err = nc.Publish(testSubject, testMsg)
 		if err != nil {
 			t.Logf("Failed to publish to %s: %v", testSubject, err)
@@ -77,10 +77,10 @@ func TestNATSConnectionDebug(t *testing.T) {
 			t.Logf("Failed to subscribe to %s: %v", testSubject, err)
 		} else {
 			defer sub.Unsubscribe()
-			
+
 			// Publish another message
 			nc.Publish(testSubject, []byte("test after subscribe"))
-			
+
 			// Wait for message
 			select {
 			case <-received:

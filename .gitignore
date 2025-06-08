@@ -11,3 +11,18 @@ coverage*.out
 # Docker test volumes
 test-logs/
 gosec-report.json
+
+
+# Ignore example compiled binaries
+examples/advanced-features/advanced
+examples/api/api
+examples/basic/basic
+examples/cli-application/cli-application
+examples/context-aware/context
+examples/microservice/microservice
+examples/multiple-destinations/multi
+examples/performance-optimized/perf
+examples/plugin-usage/redis:/localhost:6379/0?key=app_logs&max=1000
+examples/plugins/vault-backend/vault-backend
+examples/plugins/vault-backend/vault:/invalid-token@localhost:8200/logs
+examples/plugins/vault-backend/vault:/test-token@localhost:8200/logs

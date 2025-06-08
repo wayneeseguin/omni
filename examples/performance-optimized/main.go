@@ -15,11 +15,11 @@ func main() {
 	logger, err := omni.NewWithOptions(
 		omni.WithPath("performance.log"),
 		omni.WithLevel(omni.LevelInfo),
-		omni.WithJSON(),                                                         // JSON format for better performance parsing
-		omni.WithDefaultBatching(),                                              // Enable batching with default settings (64KB, 100 entries, 100ms)
-		omni.WithChannelSize(10000),                                             // Large channel buffer for high throughput
-		omni.WithRotation(100*1024*1024, 5),                                    // 100MB files, keep 5
-		omni.WithGzipCompression(),                                              // Compress old files
+		omni.WithJSON(),                     // JSON format for better performance parsing
+		omni.WithDefaultBatching(),          // Enable batching with default settings (64KB, 100 entries, 100ms)
+		omni.WithChannelSize(10000),         // Large channel buffer for high throughput
+		omni.WithRotation(100*1024*1024, 5), // 100MB files, keep 5
+		omni.WithGzipCompression(),          // Compress old files
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -143,7 +143,7 @@ func main() {
 
 	// Test 5: Batching vs Non-batching performance
 	log.Printf("Test 5: Batching performance comparison")
-	
+
 	// Test without batching first (create new logger)
 	nonBatchLogger, err := omni.NewWithOptions(
 		omni.WithPath("performance-nobatch.log"),
@@ -164,7 +164,7 @@ func main() {
 		}
 		nonBatchTime := time.Since(start)
 		_ = nonBatchLogger.Close() //nolint:gosec
-		
+
 		// Test with batching (use existing logger)
 		start = time.Now()
 		for i := 0; i < 5000; i++ {
@@ -175,7 +175,7 @@ func main() {
 			})
 		}
 		batchTime := time.Since(start)
-		
+
 		log.Printf("Non-batching time: %v", nonBatchTime)
 		log.Printf("Batching time: %v", batchTime)
 		if nonBatchTime > batchTime {

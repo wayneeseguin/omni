@@ -13,9 +13,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.RemoveAll("test_cli")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.RemoveAll("test_cli")
 	os.Exit(code)
@@ -27,7 +27,7 @@ func TestSetupLogger(t *testing.T) {
 	origDebug := *debug
 	origVerbose := *verbose
 	origJsonLogs := *jsonLogs
-	
+
 	defer func() {
 		// Restore original values
 		*logFile = origLogFile
@@ -83,7 +83,7 @@ func TestSetupLoggerWithDebug(t *testing.T) {
 	origDebug := *debug
 	origVerbose := *verbose
 	origJsonLogs := *jsonLogs
-	
+
 	defer func() {
 		// Restore original values
 		*logFile = origLogFile
@@ -422,7 +422,7 @@ func TestCliIntegration(t *testing.T) {
 	origVerbose := *verbose
 	origJsonLogs := *jsonLogs
 	origOperation := *operation
-	
+
 	defer func() {
 		// Restore original values
 		*logFile = origLogFile
@@ -497,7 +497,7 @@ func TestInvalidOperation(t *testing.T) {
 
 	// Test invalid operation
 	*operation = "invalid"
-	
+
 	// This would normally be handled in main(), but we can test the error case directly
 	var err2 error
 	switch *operation {

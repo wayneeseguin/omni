@@ -19,9 +19,9 @@ import (
 func TestMain(m *testing.M) {
 	// Setup: clean up any existing test files
 	os.RemoveAll("test_webservice")
-	
+
 	code := m.Run()
-	
+
 	// Cleanup: remove test files
 	os.RemoveAll("test_webservice")
 	os.Exit(code)
@@ -447,19 +447,19 @@ func TestMetricsEndpoint(t *testing.T) {
 	// Call the metrics handler function directly
 	func(w http.ResponseWriter, r *http.Request) {
 		requestID := getRequestID(r)
-		
+
 		logger.InfoWithFields("Metrics endpoint accessed", map[string]interface{}{
 			"request_id": requestID,
 			"endpoint":   "/metrics",
 		})
-		
+
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintf(w, "# HELP webservice_status Web service status\n")
 		fmt.Fprintf(w, "webservice_status 1\n")
-		
+
 		fmt.Fprintf(w, "# HELP webservice_uptime_seconds Service uptime in seconds\n")
 		fmt.Fprintf(w, "webservice_uptime_seconds %d\n", time.Now().Unix())
-		
+
 		// Basic logger info
 		destinations := logger.ListDestinations()
 		fmt.Fprintf(w, "# HELP log_destinations_total Total log destinations\n")

@@ -84,10 +84,10 @@ func demonstrateCustomRedaction() {
 func demonstrateMultiplePatterns() {
 	// Create logger with multiple pattern types
 	patterns := []string{
-		`"password":\s*"[^"]*"`,     // JSON password fields
-		`"apiKey":\s*"[^"]*"`,      // JSON API key fields
-		`Bearer\s+[\w.-]+`,         // Authorization headers
-		`key=[A-Za-z0-9]+`,        // URL parameters
+		`"password":\s*"[^"]*"`, // JSON password fields
+		`"apiKey":\s*"[^"]*"`,   // JSON API key fields
+		`Bearer\s+[\w.-]+`,      // Authorization headers
+		`key=[A-Za-z0-9]+`,      // URL parameters
 	}
 
 	logger, err := omni.NewWithOptions(
@@ -131,7 +131,7 @@ func demonstrateStructuredRedaction() {
 	// Log structured data containing sensitive information
 	logger.InfoWithFields("User registration event", map[string]interface{}{
 		"user_id":         "12345",
-		"username":        "john_doe", 
+		"username":        "john_doe",
 		"email":           "john@example.com",
 		"credit_card":     "4532-1234-5678-9012",
 		"social_security": "123-45-6789",

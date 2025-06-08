@@ -21,11 +21,11 @@ type RedisBackendPlugin struct {
 
 // RedisBackend implements the Backend interface for Redis
 type RedisBackend struct {
-	conn        net.Conn
-	addr        string
-	key         string
-	maxEntries  int
-	expiration  time.Duration
+	conn          net.Conn
+	addr          string
+	key           string
+	maxEntries    int
+	expiration    time.Duration
 	atomicSupport bool
 }
 
@@ -57,56 +57,56 @@ func (p *RedisBackendPlugin) CreateBackend(uri string, config map[string]interfa
 	if !p.initialized {
 		return nil, fmt.Errorf("plugin not initialized")
 	}
-	
+
 	// Parse Redis URI: redis://host:port/db?key=logkey&max=1000&expire=3600
 	parsedURL, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("parse Redis URI: %w", err)
 	}
-	
+
 	if parsedURL.Scheme != "redis" {
 		return nil, fmt.Errorf("unsupported scheme: %s", parsedURL.Scheme)
 	}
-	
+
 	addr := parsedURL.Host
 	if addr == "" {
 		addr = "localhost:6379"
 	}
-	
+
 	// Parse query parameters
 	query := parsedURL.Query()
 	key := query.Get("key")
 	if key == "" {
 		key = "omni:entries"
 	}
-	
+
 	maxEntries := 10000 // default
 	if maxStr := query.Get("max"); maxStr != "" {
 		if max, err := strconv.Atoi(maxStr); err == nil {
 			maxEntries = max
 		}
 	}
-	
+
 	var expiration time.Duration
 	if expireStr := query.Get("expire"); expireStr != "" {
 		if exp, err := strconv.Atoi(expireStr); err == nil {
 			expiration = time.Duration(exp) * time.Second
 		}
 	}
-	
+
 	backend := &RedisBackend{
-		addr:       addr,
-		key:        key,
-		maxEntries: maxEntries,
-		expiration: expiration,
+		addr:          addr,
+		key:           key,
+		maxEntries:    maxEntries,
+		expiration:    expiration,
 		atomicSupport: true, // Redis supports atomic operations
 	}
-	
+
 	// Connect to Redis
 	if err := backend.connect(); err != nil {
 		return nil, fmt.Errorf("connect to Redis: %w", err)
 	}
-	
+
 	return backend, nil
 }
 
@@ -121,7 +121,7 @@ func (b *RedisBackend) connect() error {
 	if err != nil {
 		return err
 	}
-	
+
 	b.conn = conn
 	return nil
 }
@@ -133,52 +133,52 @@ func (b *RedisBackend) Write(entry []byte) (int, error) {
 			return 0, err
 		}
 	}
-	
+
 	// Use Redis LPUSH to add to list and LTRIM to maintain max entries
 	timestamp := time.Now().Unix()
 	value := fmt.Sprintf("%d:%s", timestamp, string(entry))
-	
+
 	// LPUSH command
 	cmd := fmt.Sprintf("*3\r\n$5\r\nLPUSH\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
 		len(b.key), b.key, len(value), value)
-	
+
 	if _, err := b.conn.Write([]byte(cmd)); err != nil {
 		return 0, err
 	}
-	
+
 	// Read response
 	if err := b.readResponse(); err != nil {
 		return 0, err
 	}
-	
+
 	// LTRIM to maintain max entries
 	if b.maxEntries > 0 {
 		trimCmd := fmt.Sprintf("*4\r\n$5\r\nLTRIM\r\n$%d\r\n%s\r\n$1\r\n0\r\n$%d\r\n%d\r\n",
 			len(b.key), b.key, len(strconv.Itoa(b.maxEntries-1)), b.maxEntries-1)
-		
+
 		if _, err := b.conn.Write([]byte(trimCmd)); err != nil {
 			return 0, err
 		}
-		
+
 		if err := b.readResponse(); err != nil {
 			return 0, err
 		}
 	}
-	
+
 	// Set expiration if configured
 	if b.expiration > 0 {
 		expireCmd := fmt.Sprintf("*3\r\n$6\r\nEXPIRE\r\n$%d\r\n%s\r\n$%d\r\n%d\r\n",
 			len(b.key), b.key, len(strconv.Itoa(int(b.expiration.Seconds()))), int(b.expiration.Seconds()))
-		
+
 		if _, err := b.conn.Write([]byte(expireCmd)); err != nil {
 			return 0, err
 		}
-		
+
 		if err := b.readResponse(); err != nil {
 			return 0, err
 		}
 	}
-	
+
 	return len(entry), nil
 }
 
@@ -189,12 +189,12 @@ func (b *RedisBackend) readResponse() error {
 	if err != nil {
 		return err
 	}
-	
+
 	response := string(buffer[:n])
 	if strings.HasPrefix(response, "-") {
 		return fmt.Errorf("Redis error: %s", strings.TrimSpace(response[1:]))
 	}
-	
+
 	return nil
 }
 
@@ -226,20 +226,20 @@ func main() {
 	fmt.Printf("Name: %s\n", OmniPlugin.Name())
 	fmt.Printf("Version: %s\n", OmniPlugin.Version())
 	fmt.Printf("Supported schemes: %v\n", OmniPlugin.SupportedSchemes())
-	
+
 	// Initialize the plugin
 	if err := OmniPlugin.Initialize(map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to initialize plugin: %v\n", err)
 		return
 	}
-	
+
 	// Demo creating a backend (won't connect to Redis in demo mode)
 	fmt.Println("\nDemo: Creating Redis backend...")
-	
+
 	// Parse a sample Redis URI
 	sampleURI := "redis://localhost:6379/0?key=demo:logs&max=1000&expire=3600"
 	fmt.Printf("Sample URI: %s\n", sampleURI)
-	
+
 	// This would normally create a Redis backend, but we'll just demonstrate
 	// the parsing logic without actually connecting
 	backend, err := OmniPlugin.CreateBackend(sampleURI, map[string]interface{}{})
@@ -248,21 +248,21 @@ func main() {
 		fmt.Println("This is expected when Redis is not running.")
 	} else {
 		fmt.Println("Redis backend created successfully!")
-		
+
 		// Demo writing a log entry
 		testEntry := []byte(`{"timestamp":"2023-12-25T10:30:45Z","level":"INFO","message":"Test log entry"}`)
-		
+
 		n, err := backend.Write(testEntry)
 		if err != nil {
 			fmt.Printf("Failed to write log entry: %v\n", err)
 		} else {
 			fmt.Printf("Successfully wrote %d bytes to Redis\n", n)
 		}
-		
+
 		// Clean up
 		_ = backend.Close() //nolint:gosec
 	}
-	
+
 	// Shutdown the plugin
 	ctx := context.Background()
 	if err := OmniPlugin.Shutdown(ctx); err != nil {

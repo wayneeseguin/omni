@@ -77,9 +77,9 @@ func TestVaultBackendIntegration(t *testing.T) {
 			"user_id": 12345,
 			"action":  "login",
 			"metadata": map[string]interface{}{
-				"ip":        "192.168.1.1",
+				"ip":         "192.168.1.1",
 				"user_agent": "Mozilla/5.0",
-				"timestamp": time.Now().Unix(),
+				"timestamp":  time.Now().Unix(),
 			},
 		}
 
@@ -113,7 +113,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 		if len(keys) > 0 {
 			key := keys[0].(string)
 			logPath := fmt.Sprintf("secret/data/logs/%s", key)
-			
+
 			logSecret, err := client.Logical().Read(logPath)
 			if err != nil {
 				t.Errorf("Failed to read log from Vault: %v", err)
@@ -142,7 +142,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 		}
 
 		duration := time.Since(start)
-		t.Logf("Logged %d messages in %v (%.2f msgs/sec)", 
+		t.Logf("Logged %d messages in %v (%.2f msgs/sec)",
 			numLogs, duration, float64(numLogs)/duration.Seconds())
 	})
 
@@ -150,7 +150,7 @@ func TestVaultBackendIntegration(t *testing.T) {
 	t.Run("ErrorScenarios", func(t *testing.T) {
 		// Test with invalid Vault configuration
 		invalidLogger, err := omni.New("vault://invalid-token@localhost:8200/logs")
-		
+
 		if err == nil {
 			defer invalidLogger.Close()
 			// Try to log with invalid credentials

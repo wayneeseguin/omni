@@ -30,8 +30,8 @@ func TestRedactionExample(t *testing.T) {
 	// Test built-in redaction
 	t.Run("BuiltInRedaction", func(t *testing.T) {
 		logger.InfoWithFields("Test message", map[string]interface{}{
-			"password": "secret123",
-			"api_key": "sk-test123",
+			"password":   "secret123",
+			"api_key":    "sk-test123",
 			"safe_field": "visible",
 		})
 
@@ -42,7 +42,7 @@ func TestRedactionExample(t *testing.T) {
 		// Read and verify log content
 		content := readLastLogEntry(t, logFile)
 		t.Logf("Log content: %s", content)
-		
+
 		// Check that sensitive fields are redacted
 		if strings.Contains(content, "secret123") {
 			t.Error("Password was not redacted")
@@ -74,7 +74,7 @@ func TestRedactionExample(t *testing.T) {
 
 		ssnLogger.InfoWithFields("Customer data", map[string]interface{}{
 			"name": "John Doe",
-			"ssn": "123-45-6789",
+			"ssn":  "123-45-6789",
 		})
 
 		time.Sleep(100 * time.Millisecond)
@@ -82,7 +82,7 @@ func TestRedactionExample(t *testing.T) {
 
 		content := readLastLogEntry(t, "ssn_test.log")
 		t.Logf("SSN Log content: %s", content)
-		
+
 		if strings.Contains(content, "123-45-6789") {
 			t.Error("SSN was not redacted")
 		}
@@ -98,7 +98,7 @@ func TestRedactionExample(t *testing.T) {
 				"name": "Alice",
 				"credentials": map[string]interface{}{
 					"password": "nested_secret",
-					"token": "nested_token",
+					"token":    "nested_token",
 				},
 			},
 		})
@@ -106,7 +106,7 @@ func TestRedactionExample(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		content := readLastLogEntry(t, logFile)
-		
+
 		if strings.Contains(content, "nested_secret") {
 			t.Error("Nested password was not redacted")
 		}
@@ -128,7 +128,7 @@ func TestRedactionExample(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		content := readLastLogEntry(t, logFile)
-		
+
 		// All keys and passwords should be redacted
 		if strings.Contains(content, "key1") || strings.Contains(content, "key2") {
 			t.Error("API keys in array were not redacted")
@@ -153,8 +153,8 @@ func TestRedactionPerformance(t *testing.T) {
 
 	// Add multiple custom patterns
 	patterns := []string{
-		`\b\d{3}-\d{2}-\d{4}\b`,  // SSN
-		`\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`, // Credit card
+		`\b\d{3}-\d{2}-\d{4}\b`,                               // SSN
+		`\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`,          // Credit card
 		`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`, // Email
 	}
 	err = logger.SetRedaction(patterns, "[REDACTED]")
@@ -168,11 +168,11 @@ func TestRedactionPerformance(t *testing.T) {
 
 	for i := 0; i < iterations; i++ {
 		logger.InfoWithFields("Performance test", map[string]interface{}{
-			"iteration": i,
-			"email": "test@example.com",
-			"ssn": "123-45-6789",
+			"iteration":   i,
+			"email":       "test@example.com",
+			"ssn":         "123-45-6789",
 			"credit_card": "4111-1111-1111-1111",
-			"password": "secret123",
+			"password":    "secret123",
 			"data": map[string]interface{}{
 				"nested_email": "nested@example.com",
 				"nested_token": "token123",
@@ -229,7 +229,7 @@ func TestRedactionCompleteness(t *testing.T) {
 	// Test all built-in sensitive field names
 	sensitiveFields := []string{
 		"password", "passwd", "pass",
-		"secret", "api_key", "apikey", 
+		"secret", "api_key", "apikey",
 		"auth_token", "auth-token", "authorization",
 		"private_key", "privatekey", "token",
 		"access_token", "refresh_token",
@@ -247,7 +247,7 @@ func TestRedactionCompleteness(t *testing.T) {
 	// Read log and parse JSON
 	content := readLastLogEntry(t, logFile)
 	t.Logf("Completeness log content: %s", content)
-	
+
 	var logEntry map[string]interface{}
 	if err := json.Unmarshal([]byte(content), &logEntry); err != nil {
 		t.Fatalf("Failed to parse log entry: %v", err)
@@ -257,9 +257,9 @@ func TestRedactionCompleteness(t *testing.T) {
 	if fields, ok := logEntry["fields"].(map[string]interface{}); ok {
 		for fieldName, fieldValue := range fields {
 			if strings.Contains(strings.ToLower(fieldName), "password") ||
-			   strings.Contains(strings.ToLower(fieldName), "secret") ||
-			   strings.Contains(strings.ToLower(fieldName), "key") ||
-			   strings.Contains(strings.ToLower(fieldName), "token") {
+				strings.Contains(strings.ToLower(fieldName), "secret") ||
+				strings.Contains(strings.ToLower(fieldName), "key") ||
+				strings.Contains(strings.ToLower(fieldName), "token") {
 				if fieldValue != "[REDACTED]" {
 					t.Errorf("Field %s was not properly redacted: %v", fieldName, fieldValue)
 				}

@@ -12,7 +12,7 @@ import (
 func main() {
 	// Example 1: Using different formatters
 	fmt.Println("=== Example 1: JSON Formatter ===")
-	
+
 	// Create logger with JSON formatter
 	jsonLogger, err := omni.NewWithOptions(
 		omni.WithPath("/tmp/plugin_json.log"),
@@ -26,17 +26,17 @@ func main() {
 
 	// Log structured data with JSON format
 	jsonLogger.InfoWithFields("JSON formatting example", map[string]interface{}{
-		"user_id":    "12345",
-		"action":     "login",
-		"success":    true,
-		"timestamp":  time.Now().Unix(),
+		"user_id":   "12345",
+		"action":    "login",
+		"success":   true,
+		"timestamp": time.Now().Unix(),
 	})
 
 	fmt.Println("✓ JSON formatter example completed")
 
 	// Example 2: Using text formatter
 	fmt.Println("\n=== Example 2: Text Formatter ===")
-	
+
 	textLogger, err := omni.NewWithOptions(
 		omni.WithPath("/tmp/plugin_text.log"),
 		omni.WithLevel(omni.LevelDebug),
@@ -58,7 +58,7 @@ func main() {
 
 	// Example 3: Using multiple destinations with different formats
 	fmt.Println("\n=== Example 3: Multiple Destinations ===")
-	
+
 	multiLogger, err := omni.NewWithOptions(
 		omni.WithPath("/tmp/plugin_multi.log"),
 		omni.WithLevel(omni.LevelInfo),
@@ -77,15 +77,15 @@ func main() {
 	// Log to multiple destinations
 	multiLogger.InfoWithFields("Multi-destination logging", map[string]interface{}{
 		"destinations": []string{"/tmp/plugin_multi.log", "/tmp/plugin_backup.log"},
-		"format":      "JSON",
-		"level":       "INFO",
+		"format":       "JSON",
+		"level":        "INFO",
 	})
 
 	fmt.Println("✓ Multi-destination example completed")
 
 	// Example 4: Advanced features demonstration
 	fmt.Println("\n=== Example 4: Advanced Features ===")
-	
+
 	advancedLogger, err := omni.NewWithOptions(
 		omni.WithPath("/tmp/plugin_advanced.log"),
 		omni.WithLevel(omni.LevelDebug),
@@ -124,7 +124,7 @@ func main() {
 func cleanupFiles() {
 	files := []string{
 		"/tmp/plugin_json.log",
-		"/tmp/plugin_text.log", 
+		"/tmp/plugin_text.log",
 		"/tmp/plugin_multi.log",
 		"/tmp/plugin_backup.log",
 		"/tmp/plugin_advanced.log",

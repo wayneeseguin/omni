@@ -24,11 +24,11 @@ type VaultBackendPlugin struct {
 
 // VaultBackend implements the Backend interface for HashiCorp Vault
 type VaultBackend struct {
-	client     *api.Client
-	kvPath     string
-	mountPath  string
-	mu         sync.Mutex
-	writeCount uint64
+	client       *api.Client
+	kvPath       string
+	mountPath    string
+	mu           sync.Mutex
+	writeCount   uint64
 	bytesWritten uint64
 }
 
@@ -68,7 +68,7 @@ func (p *VaultBackendPlugin) Shutdown(ctx context.Context) error {
 func (p *VaultBackendPlugin) Health() plugins.HealthStatus {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	return plugins.HealthStatus{
 		Healthy: p.initialized,
 		Message: "Vault backend plugin is operational",
@@ -96,7 +96,7 @@ func (p *VaultBackendPlugin) CreateBackend(uri string, config map[string]interfa
 	if parsedURL.User != nil {
 		token = parsedURL.User.Username()
 	}
-	
+
 	address := fmt.Sprintf("http://%s", parsedURL.Host)
 	if parsedURL.Host == "" {
 		address = "http://localhost:8200"
@@ -128,7 +128,7 @@ func (p *VaultBackendPlugin) CreateBackend(uri string, config map[string]interfa
 	// Create Vault client
 	vaultConfig := api.DefaultConfig()
 	vaultConfig.Address = address
-	
+
 	client, err := api.NewClient(vaultConfig)
 	if err != nil {
 		return nil, fmt.Errorf("create vault client: %w", err)
@@ -168,14 +168,14 @@ func (vb *VaultBackend) Write(entry []byte) (int, error) {
 	if err := json.Unmarshal(entry, &logData); err != nil {
 		// If not JSON, store as plain text
 		logData = map[string]interface{}{
-			"message": string(entry),
+			"message":   string(entry),
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}
 	}
 
 	// Generate a unique key for this log entry
 	key := fmt.Sprintf("%s/%d-%d", vb.kvPath, time.Now().UnixNano(), vb.writeCount)
-	
+
 	// Prepare the data for Vault KV v2
 	data := map[string]interface{}{
 		"data": logData,
@@ -193,7 +193,7 @@ func (vb *VaultBackend) Write(entry []byte) (int, error) {
 
 	vb.writeCount++
 	vb.bytesWritten += uint64(len(entry))
-	
+
 	return len(entry), nil
 }
 
@@ -258,9 +258,9 @@ func init() {
 
 // Compile-time interface checks
 var (
-	_ plugins.Plugin = (*VaultBackendPlugin)(nil)
+	_ plugins.Plugin        = (*VaultBackendPlugin)(nil)
 	_ plugins.BackendPlugin = (*VaultBackendPlugin)(nil)
-	_ plugins.Backend = (*VaultBackend)(nil)
+	_ plugins.Backend       = (*VaultBackend)(nil)
 )
 
 // Helper function to create a logger with vault backend (for testing)
@@ -269,13 +269,13 @@ func NewVaultLogger(address, token, mountPath string) (*omni.Omni, error) {
 	host := strings.TrimPrefix(address, "http://")
 	host = strings.TrimPrefix(host, "https://")
 	uri := fmt.Sprintf("vault://%s@%s/logs", token, host)
-	
+
 	// Create logger with vault destination
 	logger, err := omni.New(uri)
 	if err != nil {
 		return nil, fmt.Errorf("create vault logger: %w", err)
 	}
-	
+
 	return logger, nil
 }
 
