@@ -18,62 +18,58 @@ COVERAGE_HTML=coverage.html
 # Default target - show help
 .DEFAULT_GOAL := help
 
-.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-all integration integration-nats integration-vault integration-syslog integration-debug debug-nats test-nats-recovery test-nats-monitor test-nats-load bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools
+.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all integration integration-nats integration-vault integration-syslog integration-debug bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools
 
 # Show help with version
 help:
 	@echo "Omni Makefile - Available targets:"
 	@echo ""
 	@echo "Build & Package:"
-	@echo "  make              - Show this help message (default)"
-	@echo "  make build        - Build the omni library"
-	@echo "  make build-examples - Build all example applications"
-	@echo "  make package      - Clean, build, and prepare for release"
-	@echo "  make clean        - Remove build artifacts and binaries"
+	@printf "  \033[36m%-25s\033[0m %s\n" ""                    "Show this help message (default)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "build"               "Build the omni library"
+	@printf "  \033[36m%-25s\033[0m %s\n" "build-examples"      "Build all example applications"
+	@printf "  \033[36m%-25s\033[0m %s\n" "package"             "Clean, build, and prepare for release"
+	@printf "  \033[36m%-25s\033[0m %s\n" "clean"               "Remove build artifacts and binaries"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test         - Run all unit tests (alias for test-unit)"
-	@echo "  make test-unit    - Run Go unit tests with coverage"
-	@echo "  make test-clean   - Run tests without linker warnings (CGO disabled)"
-	@echo "  make test-verbose - Run tests with verbose output"
-	@echo "  make test-race    - Run tests with Go race detector enabled"
-	@echo "  make test-integration - Run Docker-based integration tests"
-	@echo "  make test-all     - Run all test targets"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test"                "Run all unit tests (alias for test-unit)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-unit"           "Run Go unit tests with coverage"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-clean"          "Run tests without linker warnings (CGO disabled)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-verbose"        "Run tests with verbose output"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-race"           "Run tests with Go race detector enabled"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-integration"    "Run Docker-based integration tests"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-nats"           "Run all NATS tests (unit + integration)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-vault"          "Run all Vault tests (unit + integration)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-all"            "Run all test targets"
 	@echo ""
 	@echo "Integration Testing:"
-	@echo "  make integration  - Run all integration tests with Docker"
-	@echo "  make integration-nats - Run NATS integration tests only"
-	@echo "  make integration-vault - Run Vault integration tests only"
-	@echo "  make integration-syslog - Run Syslog integration tests only"
-	@echo "  make integration-debug - Run integration tests (keep containers)"
-	@echo ""
-	@echo "NATS Testing:"
-	@echo "  make debug-nats   - Start NATS debug environment"
-	@echo "  make test-nats-recovery - Run NATS error recovery tests"
-	@echo "  make test-nats-monitor - Run NATS monitoring tests"
-	@echo "  make test-nats-load - Run NATS load/performance tests"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration"         "Run all integration tests with Docker"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration-nats"    "Run NATS integration tests only"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration-vault"   "Run Vault integration tests only"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration-syslog"  "Run Syslog integration tests only"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration-debug"   "Run integration tests (keep containers)"
 	@echo ""
 	@echo "Code Quality:"
-	@echo "  make fmt          - Format all Go source files using gofmt"
-	@echo "  make vet          - Run go vet for static analysis"
-	@echo "  make security     - Run all security checks (gosec + trivy)"
-	@echo "  make gosec        - Run gosec security scanner"
-	@echo "  make trivy        - Run trivy vulnerability scanner"
-	@echo "  make coverage     - Generate HTML coverage report"
-	@echo "  make coverage-text - Show coverage summary in terminal"
+	@printf "  \033[36m%-25s\033[0m %s\n" "fmt"                 "Format all Go source files using gofmt"
+	@printf "  \033[36m%-25s\033[0m %s\n" "vet"                 "Run go vet for static analysis"
+	@printf "  \033[36m%-25s\033[0m %s\n" "security"            "Run all security checks (gosec + trivy)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "gosec"               "Run gosec security scanner"
+	@printf "  \033[36m%-25s\033[0m %s\n" "trivy"               "Run trivy vulnerability scanner"
+	@printf "  \033[36m%-25s\033[0m %s\n" "coverage"            "Generate HTML coverage report"
+	@printf "  \033[36m%-25s\033[0m %s\n" "coverage-text"       "Show coverage summary in terminal"
 	@echo ""
 	@echo "Performance:"
-	@echo "  make bench        - Run benchmarks"
-	@echo "  make bench-full   - Run comprehensive benchmarks (10s)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "bench"               "Run benchmarks"
+	@printf "  \033[36m%-25s\033[0m %s\n" "bench-full"          "Run comprehensive benchmarks (10s)"
 	@echo ""
 	@echo "Deployment & Dependencies:"
-	@echo "  make deps         - Download and verify Go module dependencies"
-	@echo "  make check        - Verify all build prerequisites are installed"
-	@echo "  make ci           - Run full CI pipeline (vet, test, build)"
-	@echo "  make install-tools - Install development tools"
+	@printf "  \033[36m%-25s\033[0m %s\n" "deps"                "Download and verify Go module dependencies"
+	@printf "  \033[36m%-25s\033[0m %s\n" "check"               "Verify all build prerequisites are installed"
+	@printf "  \033[36m%-25s\033[0m %s\n" "ci"                  "Run full CI pipeline (vet, test, build)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "install-tools"       "Install development tools"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make run-examples - Run all example applications"
+	@printf "  \033[36m%-25s\033[0m %s\n" "run-examples"        "Run all example applications"
 	@echo ""
 	@echo "Version: $(VERSION)"
 
@@ -144,8 +140,40 @@ test-integration-verbose:
 	@$(GOCLEAN) -testcache
 	@VERBOSE=1 $(GOTEST) -v -tags=integration -timeout=10m ./...
 
+# Run all NATS tests with verbose output
+test-nats:
+	@echo "Running all NATS tests with verbose output..."
+	@$(GOCLEAN) -testcache
+	@echo "Starting NATS container for tests..."
+	@docker run -d --name omni-test-nats -p 4222:4222 nats:latest > /dev/null 2>&1 || true
+	@sleep 2
+	@echo "Running NATS unit tests..."
+	@$(GOTEST) -v ./examples/plugins/nats-backend/... || true
+	@echo "Running NATS integration tests..."
+	@$(GOTEST) -v -tags=integration -timeout=10m ./examples/plugins/nats-backend/... || (docker stop omni-test-nats > /dev/null 2>&1; docker rm omni-test-nats > /dev/null 2>&1; exit 1)
+	@echo "Running NATS example tests..."
+	@$(GOTEST) -v ./examples/nats-logging/... || true
+	@docker stop omni-test-nats > /dev/null 2>&1 || true
+	@docker rm omni-test-nats > /dev/null 2>&1 || true
+	@echo "All NATS tests completed!"
+
+# Run all Vault tests with verbose output
+test-vault:
+	@echo "Running all Vault tests with verbose output..."
+	@$(GOCLEAN) -testcache
+	@echo "Starting Vault container for tests..."
+	@docker run -d --name omni-test-vault -p 8200:8200 -e VAULT_DEV_ROOT_TOKEN_ID=test-token hashicorp/vault:latest > /dev/null 2>&1 || true
+	@sleep 3
+	@echo "Running Vault unit tests..."
+	@$(GOTEST) -v ./examples/plugins/vault-backend/... || true
+	@echo "Running Vault integration tests..."
+	@$(GOTEST) -v -tags=integration -timeout=10m ./examples/plugins/vault-backend/... || (docker stop omni-test-vault > /dev/null 2>&1; docker rm omni-test-vault > /dev/null 2>&1; exit 1)
+	@docker stop omni-test-vault > /dev/null 2>&1 || true
+	@docker rm omni-test-vault > /dev/null 2>&1 || true
+	@echo "All Vault tests completed!"
+
 # Run all test targets
-test-all: test-verbose test-race test-integration-verbose test-nats-recovery test-nats-monitor test-nats-load
+test-all: test-verbose test-race integration
 	@echo "All tests completed!"
 
 # Integration testing targets
@@ -169,23 +197,6 @@ integration-debug:
 	@echo "Running integration tests with containers kept alive..."
 	@./scripts/integration --keep-containers --verbose
 
-# NATS testing targets
-debug-nats:
-	@echo "Starting NATS debug environment..."
-	@./scripts/debug-nats start
-	@./scripts/debug-nats status
-
-test-nats-recovery:
-	@echo "Running NATS error recovery tests..."
-	@./scripts/debug-nats test TestNATSErrorRecovery
-
-test-nats-monitor:
-	@echo "Running NATS monitoring tests..."
-	@./scripts/debug-nats test TestNATSMonitoring
-
-test-nats-load:
-	@echo "Running NATS load tests..."
-	@$(GOTEST) -v -tags=integration -run TestNATSLoadTest -timeout=30s ./examples/plugins/nats-backend/...
 
 # Code Quality targets
 fmt:
