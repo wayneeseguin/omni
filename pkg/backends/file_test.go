@@ -647,22 +647,24 @@ func TestFileBackendImpl_ErrorRecovery(t *testing.T) {
 	}
 
 	// Simulate disk full by trying to write to /dev/full if it exists
-	if _, err := os.Stat("/dev/full"); err == nil {
-		t.Run("disk_full_simulation", func(t *testing.T) {
-			// Create backend pointing to /dev/full to simulate disk full
-			fullBackend, err := backends.NewFileBackend("/dev/full")
-			if err != nil {
-				t.Skip("Cannot create backend for /dev/full (may not have permissions)")
-			}
-			defer fullBackend.Close()
+	t.Run("disk_full_simulation", func(t *testing.T) {
+		if _, err := os.Stat("/dev/full"); err != nil {
+			t.Skip("/dev/full not available on this system")
+		}
+		
+		// Create backend pointing to /dev/full to simulate disk full
+		fullBackend, err := backends.NewFileBackend("/dev/full")
+		if err != nil {
+			t.Skip("Cannot create backend for /dev/full (may not have permissions)")
+		}
+		defer fullBackend.Close()
 
-			// This should fail
-			_, err = fullBackend.Write([]byte("This should fail"))
-			if err == nil {
-				t.Error("Expected write to /dev/full to fail")
-			}
-		})
-	}
+		// This should fail
+		_, err = fullBackend.Write([]byte("This should fail"))
+		if err == nil {
+			t.Error("Expected write to /dev/full to fail")
+		}
+	})
 
 	// Test flush on closed backend
 	t.Run("flush_after_close", func(t *testing.T) {
