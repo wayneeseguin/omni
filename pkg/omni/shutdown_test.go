@@ -336,8 +336,8 @@ func TestShutdownWithActiveWorkers(t *testing.T) {
 
 	// Enable features that create workers
 	logger.SetCompression(CompressionGzip)
-	logger.SetMaxSize(1024)        // Small size to trigger rotation
-	logger.SetMaxAge(time.Hour)    // Enable cleanup routine
+	logger.SetMaxSize(1024)     // Small size to trigger rotation
+	logger.SetMaxAge(time.Hour) // Enable cleanup routine
 
 	// Start heavy logging to keep workers busy
 	go func() {
@@ -676,7 +676,7 @@ func TestShutdownReentrance(t *testing.T) {
 	// Subsequent shutdowns should be safe and fast
 	for i := 0; i < 5; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		
+
 		start := time.Now()
 		err := logger.Shutdown(ctx)
 		duration := time.Since(start)

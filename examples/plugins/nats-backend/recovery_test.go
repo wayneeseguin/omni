@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 // TestNATSErrorRecovery tests various error scenarios and recovery
@@ -210,9 +211,7 @@ func testPanicRecovery(t *testing.T) {
 
 // TestNATSLoadTest performs a load test to find limits
 func TestNATSLoadTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping load test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping load test in unit mode")
 
 	backend, err := NewNATSBackend("nats://localhost:4222/load.test?batch=1000&flush_interval=100")
 	if err != nil {

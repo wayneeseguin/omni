@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package backends_test
@@ -136,7 +137,7 @@ func TestSyslogMultipleDestinationsWithDocker(t *testing.T) {
 	if proto == "" {
 		proto = "tcp"
 	}
-	
+
 	err = logger.AddDestinationWithBackend(syslogAddr, omni.BackendSyslog)
 	if err != nil {
 		t.Fatalf("Failed to add syslog destination: %v", err)

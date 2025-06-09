@@ -397,7 +397,7 @@ func main() {
 	fmt.Println("\n1. Basic NATS backend:")
 	basicURI := "nats://localhost:4222/logs"
 	fmt.Printf("   URI: %s\n", basicURI)
-	
+
 	backend1, err := OmniPlugin.CreateBackend(basicURI, nil)
 	if err != nil {
 		fmt.Printf("   Failed to create backend: %v\n", err)
@@ -414,7 +414,7 @@ func main() {
 	fmt.Println("\n2. NATS backend with queue group:")
 	queueURI := "nats://localhost:4222/logs?queue=log-workers"
 	fmt.Printf("   URI: %s\n", queueURI)
-	
+
 	backend2, err := OmniPlugin.CreateBackend(queueURI, nil)
 	if err != nil {
 		fmt.Printf("   Failed to create backend: %v\n", err)
@@ -429,7 +429,7 @@ func main() {
 	fmt.Println("\n3. NATS backend with batching:")
 	batchURI := "nats://localhost:4222/logs?async=true&batch=50&flush_interval=200"
 	fmt.Printf("   URI: %s\n", batchURI)
-	
+
 	backend3, err := OmniPlugin.CreateBackend(batchURI, nil)
 	if err != nil {
 		fmt.Printf("   Failed to create backend: %v\n", err)
@@ -444,7 +444,7 @@ func main() {
 	fmt.Println("\n4. NATS backend with authentication:")
 	authURI := "nats://user:password@localhost:4222/secure-logs?tls=true"
 	fmt.Printf("   URI: %s\n", authURI)
-	
+
 	backend4, err := OmniPlugin.CreateBackend(authURI, nil)
 	if err != nil {
 		fmt.Printf("   Failed to create backend: %v\n", err)
@@ -459,7 +459,7 @@ func main() {
 	fmt.Println("\n5. NATS backend with custom reconnection:")
 	reconnectURI := "nats://localhost:4222/logs?max_reconnect=10&reconnect_wait=5"
 	fmt.Printf("   URI: %s\n", reconnectURI)
-	
+
 	backend5, err := OmniPlugin.CreateBackend(reconnectURI, nil)
 	if err != nil {
 		fmt.Printf("   Failed to create backend: %v\n", err)

@@ -117,17 +117,17 @@ Example test structure when implemented:
 func TestDynamicLogLevelChange(t *testing.T) {
     // Create logger with initial level
     logger := createTestLogger()
-    
+
     // Test initial level
     assert.Equal(t, INFO, logger.GetLevel())
-    
+
     // Change level dynamically
     err := logger.SetLevel(DEBUG)
     assert.NoError(t, err)
-    
+
     // Verify new level is active
     assert.Equal(t, DEBUG, logger.GetLevel())
-    
+
     // Test that new level affects logging behavior
     // ... test implementation
 }

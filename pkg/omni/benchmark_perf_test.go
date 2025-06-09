@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/internal/buffer"
 )
 

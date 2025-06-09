@@ -34,13 +34,13 @@ type LogEntry struct {
 type Backend interface {
 	// Write writes a log entry to the backend
 	Write(entry []byte) (int, error)
-	
+
 	// Flush ensures all buffered data is written
 	Flush() error
-	
+
 	// Close closes the backend
 	Close() error
-	
+
 	// SupportsAtomic returns whether the backend supports atomic writes
 	SupportsAtomic() bool
 }

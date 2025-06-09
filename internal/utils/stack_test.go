@@ -116,14 +116,14 @@ Example test structure when implemented:
 
 func TestBasicStackTraceCapture(t *testing.T) {
     stack := captureStackTrace(0) // Current position
-    
+
     // Verify stack contains current function
     assert.Contains(t, stack, "TestBasicStackTraceCapture")
-    
+
     // Verify stack format
     lines := strings.Split(stack, "\n")
     assert.Greater(t, len(lines), 0)
-    
+
     // Test depth limiting
     limitedStack := captureStackTrace(3)
     limitedLines := strings.Split(limitedStack, "\n")
@@ -134,7 +134,7 @@ func TestStackTraceFiltering(t *testing.T) {
     // Test filtering runtime frames
     filtered := captureFilteredStackTrace([]string{"runtime."})
     assert.NotContains(t, filtered, "runtime.goexit")
-    
+
     // Test custom filter patterns
     customFiltered := captureFilteredStackTrace([]string{"testing."})
     assert.NotContains(t, customFiltered, "testing.tRunner")
@@ -150,19 +150,19 @@ func BenchmarkStackTraceCapture(b *testing.B) {
 func TestConcurrentStackTraceCapture(t *testing.T) {
     const numGoroutines = 100
     var wg sync.WaitGroup
-    
+
     results := make([]string, numGoroutines)
     wg.Add(numGoroutines)
-    
+
     for i := 0; i < numGoroutines; i++ {
         go func(index int) {
             defer wg.Done()
             results[index] = captureStackTrace(0)
         }(i)
     }
-    
+
     wg.Wait()
-    
+
     // Verify all captures succeeded
     for i, result := range results {
         assert.NotEmpty(t, result, "Goroutine %d failed to capture stack", i)

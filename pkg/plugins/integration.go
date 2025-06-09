@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	
+
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 
@@ -28,18 +28,18 @@ func (i *Integration) CreateBackendFromURI(uri string) (Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse URI: %w", err)
 	}
-	
+
 	scheme := parsedURI.Scheme
 	if scheme == "" {
 		return nil, fmt.Errorf("URI missing scheme")
 	}
-	
+
 	// Find backend plugin for scheme
 	plugin, exists := i.manager.GetBackendPlugin(scheme)
 	if !exists {
 		return nil, fmt.Errorf("no backend plugin found for scheme %s", scheme)
 	}
-	
+
 	// Extract config from URI query parameters
 	config := make(map[string]interface{})
 	for key, values := range parsedURI.Query() {
@@ -49,13 +49,13 @@ func (i *Integration) CreateBackendFromURI(uri string) (Backend, error) {
 			config[key] = values
 		}
 	}
-	
+
 	// Create backend instance
 	backend, err := plugin.CreateBackend(uri, config)
 	if err != nil {
 		return nil, fmt.Errorf("create backend: %w", err)
 	}
-	
+
 	return backend, nil
 }
 
@@ -65,12 +65,12 @@ func (i *Integration) CreateFormatterByName(name string, config map[string]inter
 	if !exists {
 		return nil, fmt.Errorf("no formatter plugin found for format %s", name)
 	}
-	
+
 	formatter, err := plugin.CreateFormatter(config)
 	if err != nil {
 		return nil, fmt.Errorf("create formatter: %w", err)
 	}
-	
+
 	return formatter, nil
 }
 
@@ -80,12 +80,12 @@ func (i *Integration) CreateFilterByType(filterType string, config map[string]in
 	if !exists {
 		return nil, fmt.Errorf("no filter plugin found for type %s", filterType)
 	}
-	
+
 	filter, err := plugin.CreateFilter(config)
 	if err != nil {
 		return nil, fmt.Errorf("create filter: %w", err)
 	}
-	
+
 	return filter, nil
 }
 
@@ -93,17 +93,17 @@ func (i *Integration) CreateFilterByType(filterType string, config map[string]in
 func (i *Integration) ShutdownAll(ctx context.Context) error {
 	plugins := i.manager.ListPlugins()
 	var errors []string
-	
+
 	for _, plugin := range plugins {
 		if err := plugin.Shutdown(ctx); err != nil {
 			errors = append(errors, fmt.Sprintf("%s: %v", plugin.Name(), err))
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("shutdown errors:\n%s", strings.Join(errors, "\n"))
 	}
-	
+
 	return nil
 }
 
@@ -111,12 +111,12 @@ func (i *Integration) ShutdownAll(ctx context.Context) error {
 func (i *Integration) GetAvailableBackends() []string {
 	i.manager.mu.RLock()
 	defer i.manager.mu.RUnlock()
-	
+
 	schemes := make([]string, 0, len(i.manager.backends))
 	for scheme := range i.manager.backends {
 		schemes = append(schemes, scheme)
 	}
-	
+
 	return schemes
 }
 
@@ -124,12 +124,12 @@ func (i *Integration) GetAvailableBackends() []string {
 func (i *Integration) GetAvailableFormatters() []string {
 	i.manager.mu.RLock()
 	defer i.manager.mu.RUnlock()
-	
+
 	formats := make([]string, 0, len(i.manager.formatters))
 	for format := range i.manager.formatters {
 		formats = append(formats, format)
 	}
-	
+
 	return formats
 }
 
@@ -137,12 +137,12 @@ func (i *Integration) GetAvailableFormatters() []string {
 func (i *Integration) GetAvailableFilters() []string {
 	i.manager.mu.RLock()
 	defer i.manager.mu.RUnlock()
-	
+
 	filterTypes := make([]string, 0, len(i.manager.filters))
 	for filterType := range i.manager.filters {
 		filterTypes = append(filterTypes, filterType)
 	}
-	
+
 	return filterTypes
 }
 
@@ -150,19 +150,19 @@ func (i *Integration) GetAvailableFilters() []string {
 func (i *Integration) ValidatePluginHealth() error {
 	plugins := i.manager.ListPlugins()
 	var errors []string
-	
+
 	for _, plugin := range plugins {
 		// Try to get basic info
 		name := plugin.Name()
 		version := plugin.Version()
-		
+
 		if name == "" {
 			errors = append(errors, "plugin with empty name detected")
 		}
 		if version == "" {
 			errors = append(errors, fmt.Sprintf("plugin %s has empty version", name))
 		}
-		
+
 		// Check type-specific functionality
 		if backendPlugin, ok := plugin.(BackendPlugin); ok {
 			schemes := backendPlugin.SupportedSchemes()
@@ -170,14 +170,14 @@ func (i *Integration) ValidatePluginHealth() error {
 				errors = append(errors, fmt.Sprintf("backend plugin %s supports no schemes", name))
 			}
 		}
-		
+
 		if formatterPlugin, ok := plugin.(FormatterPlugin); ok {
 			formatName := formatterPlugin.FormatName()
 			if formatName == "" {
 				errors = append(errors, fmt.Sprintf("formatter plugin %s has empty format name", name))
 			}
 		}
-		
+
 		if filterPlugin, ok := plugin.(FilterPlugin); ok {
 			filterType := filterPlugin.FilterType()
 			if filterType == "" {
@@ -185,11 +185,11 @@ func (i *Integration) ValidatePluginHealth() error {
 			}
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("plugin health check failed:\n%s", strings.Join(errors, "\n"))
 	}
-	
+
 	return nil
 }
 

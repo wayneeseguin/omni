@@ -31,34 +31,34 @@ func NewManager() *Manager {
 func (m *Manager) LoadPlugin(path string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Load the plugin
 	p, err := plugin.Open(path)
 	if err != nil {
 		return fmt.Errorf("open plugin %s: %w", path, err)
 	}
-	
+
 	// Look for the plugin entry point
 	sym, err := p.Lookup("OmniPlugin")
 	if err != nil {
 		return fmt.Errorf("plugin %s missing OmniPlugin symbol: %w", path, err)
 	}
-	
+
 	// Cast to plugin interface
 	pluginInstance, ok := sym.(Plugin)
 	if !ok {
 		return fmt.Errorf("plugin %s OmniPlugin is not a Plugin interface", path)
 	}
-	
+
 	// Check for duplicate names
 	name := pluginInstance.Name()
 	if _, exists := m.loaded[name]; exists {
 		return fmt.Errorf("plugin %s already loaded", name)
 	}
-	
+
 	// Register the plugin
 	m.loaded[name] = pluginInstance
-	
+
 	// Register specific plugin types
 	if backendPlugin, ok := pluginInstance.(BackendPlugin); ok {
 		schemes := backendPlugin.SupportedSchemes()
@@ -66,17 +66,17 @@ func (m *Manager) LoadPlugin(path string) error {
 			m.backends[scheme] = backendPlugin
 		}
 	}
-	
+
 	if formatterPlugin, ok := pluginInstance.(FormatterPlugin); ok {
 		formatName := formatterPlugin.FormatName()
 		m.formatters[formatName] = formatterPlugin
 	}
-	
+
 	if filterPlugin, ok := pluginInstance.(FilterPlugin); ok {
 		filterType := filterPlugin.FilterType()
 		m.filters[filterType] = filterPlugin
 	}
-	
+
 	return nil
 }
 
@@ -84,20 +84,20 @@ func (m *Manager) LoadPlugin(path string) error {
 func (m *Manager) UnloadPlugin(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	pluginInstance, exists := m.loaded[name]
 	if !exists {
 		return fmt.Errorf("plugin %s not loaded", name)
 	}
-	
+
 	// Shutdown the plugin
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	if err := pluginInstance.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown plugin %s: %w", name, err)
 	}
-	
+
 	// Remove from registries
 	if backendPlugin, ok := pluginInstance.(BackendPlugin); ok {
 		schemes := backendPlugin.SupportedSchemes()
@@ -105,19 +105,19 @@ func (m *Manager) UnloadPlugin(name string) error {
 			delete(m.backends, scheme)
 		}
 	}
-	
+
 	if formatterPlugin, ok := pluginInstance.(FormatterPlugin); ok {
 		formatName := formatterPlugin.FormatName()
 		delete(m.formatters, formatName)
 	}
-	
+
 	if filterPlugin, ok := pluginInstance.(FilterPlugin); ok {
 		filterType := filterPlugin.FilterType()
 		delete(m.filters, filterType)
 	}
-	
+
 	delete(m.loaded, name)
-	
+
 	return nil
 }
 
@@ -125,7 +125,7 @@ func (m *Manager) UnloadPlugin(name string) error {
 func (m *Manager) GetBackendPlugin(scheme string) (BackendPlugin, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	plugin, exists := m.backends[scheme]
 	return plugin, exists
 }
@@ -134,7 +134,7 @@ func (m *Manager) GetBackendPlugin(scheme string) (BackendPlugin, bool) {
 func (m *Manager) GetFormatterPlugin(format string) (FormatterPlugin, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	plugin, exists := m.formatters[format]
 	return plugin, exists
 }
@@ -143,7 +143,7 @@ func (m *Manager) GetFormatterPlugin(format string) (FormatterPlugin, bool) {
 func (m *Manager) GetFilterPlugin(filterType string) (FilterPlugin, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	plugin, exists := m.filters[filterType]
 	return plugin, exists
 }
@@ -152,12 +152,12 @@ func (m *Manager) GetFilterPlugin(filterType string) (FilterPlugin, bool) {
 func (m *Manager) ListPlugins() []Plugin {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	plugins := make([]Plugin, 0, len(m.loaded))
 	for _, plugin := range m.loaded {
 		plugins = append(plugins, plugin)
 	}
-	
+
 	return plugins
 }
 
@@ -166,29 +166,28 @@ func (m *Manager) InitializePlugin(name string, config map[string]interface{}) e
 	m.mu.RLock()
 	pluginInstance, exists := m.loaded[name]
 	m.mu.RUnlock()
-	
+
 	if !exists {
 		return fmt.Errorf("plugin %s not loaded", name)
 	}
-	
+
 	return pluginInstance.Initialize(config)
 }
-
 
 // GetPluginInfo returns information about loaded plugins
 func (m *Manager) GetPluginInfo() []PluginInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	infos := make([]PluginInfo, 0, len(m.loaded))
-	
+
 	for _, plugin := range m.loaded {
 		info := PluginInfo{
 			Name:    plugin.Name(),
 			Version: plugin.Version(),
 			Details: make(map[string]interface{}),
 		}
-		
+
 		// Determine plugin type and add specific details
 		if backendPlugin, ok := plugin.(BackendPlugin); ok {
 			info.Type = "backend"
@@ -202,10 +201,10 @@ func (m *Manager) GetPluginInfo() []PluginInfo {
 		} else {
 			info.Type = "unknown"
 		}
-		
+
 		infos = append(infos, info)
 	}
-	
+
 	return infos
 }
 
@@ -213,19 +212,19 @@ func (m *Manager) GetPluginInfo() []PluginInfo {
 func (m *Manager) RegisterBackendPlugin(plugin BackendPlugin) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	name := plugin.Name()
 	if _, exists := m.loaded[name]; exists {
 		return fmt.Errorf("plugin %s already registered", name)
 	}
-	
+
 	m.loaded[name] = plugin
-	
+
 	schemes := plugin.SupportedSchemes()
 	for _, scheme := range schemes {
 		m.backends[scheme] = plugin
 	}
-	
+
 	return nil
 }
 
@@ -233,16 +232,16 @@ func (m *Manager) RegisterBackendPlugin(plugin BackendPlugin) error {
 func (m *Manager) RegisterFormatterPlugin(plugin FormatterPlugin) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	name := plugin.Name()
 	if _, exists := m.loaded[name]; exists {
 		return fmt.Errorf("plugin %s already registered", name)
 	}
-	
+
 	m.loaded[name] = plugin
 	formatName := plugin.FormatName()
 	m.formatters[formatName] = plugin
-	
+
 	return nil
 }
 
@@ -250,15 +249,15 @@ func (m *Manager) RegisterFormatterPlugin(plugin FormatterPlugin) error {
 func (m *Manager) RegisterFilterPlugin(plugin FilterPlugin) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	name := plugin.Name()
 	if _, exists := m.loaded[name]; exists {
 		return fmt.Errorf("plugin %s already registered", name)
 	}
-	
+
 	m.loaded[name] = plugin
 	filterType := plugin.FilterType()
 	m.filters[filterType] = plugin
-	
+
 	return nil
 }

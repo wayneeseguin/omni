@@ -3,7 +3,7 @@ package formatters
 import (
 	"fmt"
 	"sync"
-	
+
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 
@@ -21,16 +21,16 @@ func NewFactory() *Factory {
 	f := &Factory{
 		formatters: make(map[string]FormatterConstructor),
 	}
-	
+
 	// Register default formatters
 	_ = f.Register("text", func() (types.Formatter, error) {
 		return NewTextFormatter(), nil
 	})
-	
+
 	_ = f.Register("json", func() (types.Formatter, error) {
 		return NewJSONFormatter(), nil
 	})
-	
+
 	return f
 }
 
@@ -38,15 +38,15 @@ func NewFactory() *Factory {
 func (f *Factory) Register(name string, constructor FormatterConstructor) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if name == "" {
 		return fmt.Errorf("formatter name cannot be empty")
 	}
-	
+
 	if constructor == nil {
 		return fmt.Errorf("formatter constructor cannot be nil")
 	}
-	
+
 	f.formatters[name] = constructor
 	return nil
 }
@@ -56,11 +56,11 @@ func (f *Factory) CreateFormatter(name string) (types.Formatter, error) {
 	f.mu.RLock()
 	constructor, exists := f.formatters[name]
 	f.mu.RUnlock()
-	
+
 	if !exists {
 		return nil, fmt.Errorf("formatter %q not registered", name)
 	}
-	
+
 	return constructor()
 }
 
@@ -91,12 +91,12 @@ func (f *Factory) CreateFormatterByType(formatType int) (types.Formatter, error)
 func (f *Factory) ListFormatters() []string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	names := make([]string, 0, len(f.formatters))
 	for name := range f.formatters {
 		names = append(names, name)
 	}
-	
+
 	return names
 }
 

@@ -6,8 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/wayneeseguin/omni/pkg/backends"
-	"github.com/wayneeseguin/omni/pkg/features"
 	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
@@ -18,134 +16,84 @@ func main() {
 
 	fmt.Println("=== Omni Disk Full Handling Example ===")
 
-	// Create rotation manager with aggressive cleanup
-	rotMgr := features.NewRotationManager()
-	rotMgr.SetMaxFiles(3)                      // Keep only 3 rotated files
-	rotMgr.SetMaxAge(24 * time.Hour)          // Keep logs for 24 hours
-	rotMgr.SetCleanupInterval(5 * time.Minute) // Check every 5 minutes
-
-	// Set up error handler to monitor disk issues
+	// Track metrics for demonstration
 	errorCount := 0
-	rotMgr.SetErrorHandler(func(source, dest, msg string, err error) {
-		errorCount++
-		fmt.Printf("[%s] %s: %s (error: %v)\n", source, dest, msg, err)
-	})
-
-	// Set up metrics handler to track rotations
 	rotationCount := 0
-	rotMgr.SetMetricsHandler(func(metric string) {
-		if metric == "rotation_completed" {
-			rotationCount++
-			fmt.Printf("✓ Log rotation completed (total: %d)\n", rotationCount)
-		}
-	})
 
-	// Create file backend with disk full handling
+	// Create logger with file backend that supports disk full handling
 	logPath := "example-diskfull.log"
-	backend, err := backends.NewFileBackendWithRotation(logPath, rotMgr)
-	if err != nil {
-		log.Fatalf("Failed to create backend: %v", err)
-	}
-
-	// Configure retry behavior
-	backend.SetMaxRetries(3) // Retry up to 3 times on disk full
-
-	// Set custom error handler for the backend
-	diskFullEvents := 0
-	backend.SetErrorHandler(func(source, dest, msg string, err error) {
-		fmt.Printf("[Backend] %s -> %s: %s\n", source, dest, msg)
-		if err != nil {
-			fmt.Printf("  Error: %v\n", err)
-		}
-		
-		// Track disk full events
-		if source == "write" && err != nil {
-			diskFullEvents++
-		}
-	})
-
-	// Create logger with our backend
-	logger, err := omni.NewWithBackend(backend)
+	logger, err := omni.NewWithBackend(logPath, omni.BackendFlock)
 	if err != nil {
 		log.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
 
+	// Configure the logger for demonstration of disk full handling
+	logger.SetMaxSize(1024 * 1024) // 1MB files for quick rotation
+	logger.SetMaxFiles(3)          // Keep only 3 files
+	if err := logger.SetFormat(omni.FormatJSON); err != nil {
+		log.Printf("Warning: failed to set JSON format: %v", err)
+	}
+
 	fmt.Println("\nSimulating high-volume logging...")
-	fmt.Println("(In production, disk full would trigger automatic rotation)\n")
+	fmt.Println("(In production, disk full would trigger automatic rotation)")
 
 	// Simulate heavy logging that might fill disk
 	startTime := time.Now()
 	messageCount := 0
-	
-	// Log messages with increasing data
-	for i := 0; i < 1000; i++ {
+	diskFullEvents := 0
+
+	// Log messages with increasing data to trigger rotations
+	for i := 0; i < 500; i++ {
 		// Create a message with variable size
-		data := make([]byte, 1024*(i%10+1)) // 1KB to 10KB messages
+		data := make([]byte, 2048*(i%5+1)) // 2KB to 10KB messages
 		for j := range data {
 			data[j] = byte('A' + (j % 26))
 		}
-		
-		message := fmt.Sprintf("Log entry %d: %s", i, string(data[:100]))
-		
+
+		message := fmt.Sprintf("Log entry %d with large data", i)
+
 		// Log with structured data
 		logger.InfoWithFields(message, map[string]interface{}{
-			"iteration":    i,
-			"size_bytes":   len(data),
-			"timestamp":    time.Now().Unix(),
-			"disk_full_events": diskFullEvents,
+			"iteration":   i,
+			"size_bytes":  len(data),
+			"timestamp":   time.Now().Unix(),
+			"large_data":  string(data[:200]), // Include some of the data
+			"disk_events": diskFullEvents,
 		})
-		
+
 		messageCount++
-		
-		// Simulate some processing time
-		if i%100 == 0 {
-			fmt.Printf("Progress: %d messages logged, %d rotations, %d disk full events\n", 
-				messageCount, rotationCount, diskFullEvents)
+
+		// Simulate some processing time and show progress
+		if i%50 == 0 {
+			fmt.Printf("Progress: %d messages logged, %d rotations\n",
+				messageCount, rotationCount)
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-
-	// Force a sync to ensure all data is written
-	logger.Sync()
 
 	// Display summary
 	duration := time.Since(startTime)
 	fmt.Println("\n=== Summary ===")
 	fmt.Printf("Messages logged: %d\n", messageCount)
 	fmt.Printf("Log rotations: %d\n", rotationCount)
-	fmt.Printf("Disk full events: %d\n", diskFullEvents)
 	fmt.Printf("Errors handled: %d\n", errorCount)
 	fmt.Printf("Duration: %v\n", duration)
 	fmt.Printf("Rate: %.2f messages/second\n", float64(messageCount)/duration.Seconds())
 
-	// Show rotated files
-	rotatedFiles, err := rotMgr.GetRotatedFiles(logPath)
-	if err == nil && len(rotatedFiles) > 0 {
-		fmt.Println("\nRotated log files:")
-		for _, file := range rotatedFiles {
-			fmt.Printf("  - %s (%.2f KB, rotated at %s)\n", 
-				file.Name, 
-				float64(file.Size)/1024,
-				file.RotationTime.Format("15:04:05"))
-		}
-	}
-
-	// Demonstrate manual rotation
-	fmt.Println("\nPerforming manual rotation...")
-	if err := backend.Rotate(); err != nil {
-		fmt.Printf("Manual rotation failed: %v\n", err)
-	} else {
-		fmt.Println("✓ Manual rotation completed")
-	}
+	// Note: Manual rotation is not directly available as a public API
+	// Rotation happens automatically when file size exceeds maxSize
+	fmt.Println("\nRotation occurs automatically when file size exceeds the configured maximum.")
 
 	// Clean up example files
 	fmt.Println("\nCleaning up example files...")
-	os.Remove(logPath)
-	for _, file := range rotatedFiles {
-		os.Remove(file.Path)
+	cleanupFiles := []string{logPath, logPath + ".1", logPath + ".2", logPath + ".3"}
+	for _, file := range cleanupFiles {
+		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			log.Printf("Warning: failed to remove %s: %v", file, err)
+		}
 	}
-	
+
 	fmt.Println("\n=== Example completed ===")
 }
 

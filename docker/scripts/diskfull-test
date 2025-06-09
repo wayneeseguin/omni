@@ -31,7 +31,7 @@ print "==========================\n";
 
 # Execute the test binary
 my @test_cmd = (
-    '/diskfull-test',
+    '/diskfull-test-binary',
     '-test.v',
     '-test.run=TestFileBackendDiskFull|TestFileBackendDiskFullWithRotation'
 );

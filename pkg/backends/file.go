@@ -47,7 +47,7 @@ func NewFileBackend(path string) (*FileBackendImpl, error) {
 
 	// Clean the path to prevent directory traversal
 	cleanPath := filepath.Clean(path)
-	
+
 	// Open file
 	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644) // #nosec G302 - log files need to be readable
 	if err != nil {
@@ -78,7 +78,7 @@ func (fb *FileBackendImpl) Write(entry []byte) (int, error) {
 	// Protect writer access
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	// Try to acquire lock
 	if err := fb.lock.Lock(); err != nil {
 		return 0, fmt.Errorf("acquire lock: %w", err)
@@ -101,7 +101,7 @@ func (fb *FileBackendImpl) Write(entry []byte) (int, error) {
 func (fb *FileBackendImpl) Flush() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.writer != nil {
 		return fb.writer.Flush()
 	}
@@ -113,7 +113,7 @@ func (fb *FileBackendImpl) Close() error {
 	// Lock for the entire close operation
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	var errs []error
 
 	// Flush writer (without calling Flush() to avoid deadlock)
@@ -190,10 +190,10 @@ func (fb *FileBackendImpl) Sync() error {
 	if err := fb.Flush(); err != nil {
 		return err
 	}
-	
+
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.file != nil {
 		return fb.file.Sync()
 	}
@@ -207,7 +207,7 @@ func (fb *FileBackendImpl) GetStats() BackendStats {
 	if fb.size > 0 {
 		bytesWritten = uint64(fb.size)
 	}
-	
+
 	return BackendStats{
 		Path:         fb.path,
 		Size:         fb.size,
@@ -215,4 +215,3 @@ func (fb *FileBackendImpl) GetStats() BackendStats {
 		BytesWritten: bytesWritten,
 	}
 }
-

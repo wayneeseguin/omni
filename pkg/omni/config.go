@@ -37,7 +37,7 @@ type Config struct {
 
 	// Filtering settings
 	Filters []FilterFunc // Filter functions
-	
+
 	// Sampling settings
 	SamplingStrategy int                                              // Sampling strategy
 	SamplingRate     float64                                          // Sampling rate (0.0-1.0)
@@ -60,17 +60,16 @@ type Config struct {
 	BatchMaxSize       int           // Maximum batch size in bytes (default: 64KB)
 	BatchMaxCount      int           // Maximum number of entries in a batch (default: 100)
 	BatchFlushInterval time.Duration // How often to flush batches (default: 100ms)
-	
+
 	// Recovery settings
 	Recovery *RecoveryConfig // Recovery configuration
-	
+
 	// Backend factory for creating custom destinations
 	BackendFactory BackendFactory // Custom backend factory
-	
+
 	// Formatter for custom log formatting
 	Formatter Formatter // Custom formatter
 }
-
 
 // DefaultConfig returns a Config with sensible defaults.
 // These defaults are designed to work well for most applications:
@@ -249,7 +248,7 @@ func NewWithConfig(config *Config) (*Omni, error) {
 	if config.BackendFactory != nil {
 		f.backendFactory = config.BackendFactory
 	}
-	
+
 	// Set formatter if provided
 	if config.Formatter != nil {
 		f.formatter = config.Formatter
@@ -322,7 +321,7 @@ func NewWithConfig(config *Config) (*Omni, error) {
 	if config.MaxFiles > 0 {
 		f.SetMaxFiles(config.MaxFiles)
 	}
-	
+
 	// Start cleanup routine if max age is set
 	if config.MaxAge > 0 {
 		f.startCleanupRoutine()
@@ -348,18 +347,18 @@ func (f *Omni) GetConfig() *Config {
 	defer f.mu.RUnlock()
 
 	config := &Config{
-		Path:             f.path,
-		Level:            f.level,
-		Format:           f.format,
-		FormatOptions:    f.formatOptions,
-		ChannelSize:      f.channelSize,
-		MaxSize:          f.maxSize,
-		MaxFiles:         f.maxFiles,
-		MaxAge:           f.maxAge,
-		CleanupInterval:  f.cleanupInterval,
-		Compression:      f.compression,
-		CompressMinAge:   f.compressMinAge,
-		CompressWorkers:  f.compressWorkers,
+		Path:            f.path,
+		Level:           f.level,
+		Format:          f.format,
+		FormatOptions:   f.formatOptions,
+		ChannelSize:     f.channelSize,
+		MaxSize:         f.maxSize,
+		MaxFiles:        f.maxFiles,
+		MaxAge:          f.maxAge,
+		CleanupInterval: f.cleanupInterval,
+		Compression:     f.compression,
+		CompressMinAge:  f.compressMinAge,
+		CompressWorkers: f.compressWorkers,
 		// ErrorHandler cannot be easily converted back
 		IncludeTrace:     f.includeTrace,
 		StackSize:        f.stackSize,
@@ -424,12 +423,12 @@ func (f *Omni) UpdateConfig(config *Config) error {
 	// Store error handler for later setting
 	errorHandler := config.ErrorHandler
 	f.mu.Unlock()
-	
+
 	// Set error handler after releasing the lock
 	if errorHandler != nil {
 		f.SetErrorHandler(errorHandler)
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

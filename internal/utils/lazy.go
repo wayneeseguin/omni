@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 

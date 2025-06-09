@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 func TestDefaultSampleKeyFunc(t *testing.T) {
@@ -126,29 +128,63 @@ func TestNewBatchWriter(t *testing.T) {
 }
 
 func TestNewSyslog(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog tests in unit mode")
+
+	// Skip unless integration tests are explicitly enabled
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping syslog tests. Set OMNI_RUN_INTEGRATION_TESTS=true to run")
+	}
+
+	// Check if we have a syslog server available for testing
+	syslogAddr := os.Getenv("OMNI_SYSLOG_TEST_ADDR")
+	if syslogAddr == "" {
+		// Only run basic validation tests when no syslog server is available
+		t.Run("InvalidAddress", func(t *testing.T) {
+			// Test with invalid address
+			_, err := NewSyslog("", "test-tag")
+			if err == nil {
+				t.Error("Expected error for empty address")
+			}
+		})
+
+		t.Skip("Skipping syslog connection tests. Set OMNI_SYSLOG_TEST_ADDR to test with a syslog server")
+		return
+	}
+
+	// Run connection tests when syslog server is available
 	t.Run("UnixSocketPath", func(t *testing.T) {
 		// Test with Unix socket path
-		_, err := NewSyslog("/dev/log", "test-tag")
-		// This will likely fail on macOS/systems without /dev/log, but that's expected
+		logger, err := NewSyslog("/dev/log", "test-tag")
 		if err != nil {
-			t.Logf("Expected error for Unix socket (system dependent): %v", err)
+			// This is expected on systems without /dev/log
+			t.Logf("Unix socket connection failed (expected on some systems): %v", err)
+		} else {
+			defer logger.Close()
+			t.Log("Successfully connected to Unix socket")
 		}
 	})
 
 	t.Run("NetworkAddress", func(t *testing.T) {
-		// Test with network address
-		_, err := NewSyslog("localhost:514", "test-tag")
-		// This will likely fail unless syslog server is running, but that's expected
+		// Test with the configured syslog server address
+		logger, err := NewSyslog(syslogAddr, "test-tag")
 		if err != nil {
-			t.Logf("Expected error for network address (no server running): %v", err)
+			t.Errorf("Failed to connect to syslog server at %s: %v", syslogAddr, err)
+		} else {
+			defer logger.Close()
+			t.Logf("Successfully connected to syslog server at %s", syslogAddr)
 		}
 	})
 
 	t.Run("WithSyslogPrefix", func(t *testing.T) {
 		// Test with syslog:// prefix
-		_, err := NewSyslog("syslog://localhost:514", "test-tag")
+		prefixedAddr := "syslog://" + syslogAddr
+		logger, err := NewSyslog(prefixedAddr, "test-tag")
 		if err != nil {
-			t.Logf("Expected error for prefixed address (no server running): %v", err)
+			t.Errorf("Failed to connect with prefixed address %s: %v", prefixedAddr, err)
+		} else {
+			defer logger.Close()
+			t.Log("Successfully connected with syslog:// prefix")
 		}
 	})
 
@@ -279,7 +315,7 @@ func TestChannelSizeEnvironmentInteraction(t *testing.T) {
 
 			size := getDefaultChannelSize()
 			if size != tc.expectedSize {
-				t.Errorf("Expected size %d for env value '%s', got %d", 
+				t.Errorf("Expected size %d for env value '%s', got %d",
 					tc.expectedSize, tc.envValue, size)
 			}
 		})

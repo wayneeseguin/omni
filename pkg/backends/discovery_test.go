@@ -61,7 +61,7 @@ func TestPluginDiscovery_SetPattern(t *testing.T) {
 func TestPluginDiscovery_DiscoverPlugins(t *testing.T) {
 	// Create temporary directory structure for testing
 	tempDir := t.TempDir()
-	
+
 	// Create subdirectories
 	pluginDir1 := filepath.Join(tempDir, "plugins1")
 	pluginDir2 := filepath.Join(tempDir, "plugins2")
@@ -131,7 +131,7 @@ func TestPluginDiscovery_DiscoverPlugins(t *testing.T) {
 func TestPluginDiscovery_DiscoverPlugins_NonexistentPath(t *testing.T) {
 	manager := backends.NewPluginManager()
 	discovery := backends.NewPluginDiscovery(manager)
-	
+
 	// Set paths that don't exist
 	discovery.SetSearchPaths([]string{"/nonexistent/path1", "/nonexistent/path2"})
 	discovery.SetPattern("*.so")
@@ -166,7 +166,7 @@ func TestPluginDiscovery_DiscoverPlugins_MixedPaths(t *testing.T) {
 
 	manager := backends.NewPluginManager()
 	discovery := backends.NewPluginDiscovery(manager)
-	
+
 	// Mix real and nonexistent paths
 	discovery.SetSearchPaths([]string{
 		"/nonexistent/path1",
@@ -287,7 +287,7 @@ func TestPluginDiscovery_LoadPluginSpecs(t *testing.T) {
 func TestPluginDiscovery_ScanForPluginConfigs(t *testing.T) {
 	// Create temporary directory structure
 	tempDir := t.TempDir()
-	
+
 	// Create plugin directories with config files
 	pluginDir1 := filepath.Join(tempDir, "plugins1")
 	pluginDir2 := filepath.Join(tempDir, "plugins2")
@@ -304,8 +304,8 @@ func TestPluginDiscovery_ScanForPluginConfigs(t *testing.T) {
 
 	// Create configuration files
 	configFiles := map[string]string{
-		filepath.Join(subPluginDir1, "plugin.json"):   `{"name": "plugin1", "version": "1.0.0"}`,
-		filepath.Join(subPluginDir2, "plugin.json"):   `{"name": "plugin2", "version": "2.0.0"}`,
+		filepath.Join(subPluginDir1, "plugin.json"):    `{"name": "plugin1", "version": "1.0.0"}`,
+		filepath.Join(subPluginDir2, "plugin.json"):    `{"name": "plugin2", "version": "2.0.0"}`,
 		filepath.Join(pluginDir1, "omni-plugins.json"): `{"plugins": ["plugin1", "plugin2"]}`,
 		filepath.Join(pluginDir2, "omni-plugins.json"): `{"plugins": ["plugin3"]}`,
 	}
@@ -415,11 +415,11 @@ func TestPluginRegistry_RegisterAndGet(t *testing.T) {
 	registry := backends.NewPluginRegistry()
 
 	metadata := backends.PluginMetadata{
-		Name:        "test-plugin",
-		Version:     "1.0.0",
-		Description: "A test plugin",
-		Author:      "Test Author",
-		License:     "MIT",
+		Name:         "test-plugin",
+		Version:      "1.0.0",
+		Description:  "A test plugin",
+		Author:       "Test Author",
+		License:      "MIT",
 		Dependencies: []string{"dep1", "dep2"},
 		Config: map[string]interface{}{
 			"setting1": "value1",
@@ -515,7 +515,7 @@ func TestPluginRegistry_List(t *testing.T) {
 			if listed.Name == expected.Name {
 				found = true
 				if listed.Version != expected.Version {
-					t.Errorf("Plugin %s: expected version %s, got %s", 
+					t.Errorf("Plugin %s: expected version %s, got %s",
 						expected.Name, expected.Version, listed.Version)
 				}
 				break
@@ -664,7 +664,7 @@ func TestPluginDiscovery_Environment(t *testing.T) {
 	tempDir := t.TempDir()
 	envDir1 := filepath.Join(tempDir, "env1")
 	envDir2 := filepath.Join(tempDir, "env2")
-	
+
 	for _, dir := range []string{envDir1, envDir2} {
 		err := os.MkdirAll(dir, 0755)
 		if err != nil {

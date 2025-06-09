@@ -354,7 +354,7 @@ func TestDestinationFailureRecovery(t *testing.T) {
 		t.Fatalf("Failed to create read-only directory: %v", err)
 	}
 	badFile := filepath.Join(readOnlyDir, "bad.log")
-	
+
 	// Try to add destination - this should fail due to permissions
 	err = logger.AddDestination(badFile)
 	if err != nil {
@@ -642,7 +642,7 @@ func TestWithFields(t *testing.T) {
 	logContent := string(content)
 	expectedMessages := []string{
 		"User logged in",
-		"Session created", 
+		"Session created",
 		"Operation failed",
 	}
 
@@ -749,7 +749,7 @@ func TestGetErrors(t *testing.T) {
 		// Check errors
 		errorChan := logger.GetErrors()
 		errorCount := 0
-		
+
 		// Non-blocking read from error channel
 		for {
 			select {
@@ -760,8 +760,8 @@ func TestGetErrors(t *testing.T) {
 				goto checkCount
 			}
 		}
-		
-		checkCount:
+
+	checkCount:
 		if errorCount == 0 {
 			t.Error("Expected errors to be recorded")
 		}
@@ -1120,7 +1120,7 @@ func TestStructuredLoggingEnhanced(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-	
+
 	// Set level to trace to ensure all messages are logged
 	logger.SetLevel(LevelTrace)
 
@@ -1175,7 +1175,7 @@ func TestStructuredLoggingEnhanced(t *testing.T) {
 	expectedMessages := []string{
 		"Purchase completed",
 		"Trace with fields",
-		"Debug with fields", 
+		"Debug with fields",
 		"Info with fields",
 		"Warning with fields",
 		"Error with fields",
@@ -1300,7 +1300,7 @@ func TestRecoverFromError(t *testing.T) {
 		// Test RecoverFromError method
 		testErr := errors.New("test error")
 		logger.RecoverFromError(testErr, msg, dest)
-		
+
 		// If we get here without panic, the test passes
 		t.Log("RecoverFromError executed successfully")
 	}

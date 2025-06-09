@@ -37,7 +37,7 @@ func isTestMode() bool {
 			return true
 		}
 	}
-	
+
 	// Check if we're running under go test via executable name
 	if exe, err := os.Executable(); err == nil {
 		if strings.HasSuffix(exe, ".test") {
@@ -48,7 +48,7 @@ func isTestMode() bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -83,7 +83,7 @@ func NewBatchWriter(writer interface{}, maxSize, maxCount int, flushInterval tim
 }
 
 // NewSyslog creates a new logger with syslog backend.
-// 
+//
 // Parameters:
 //   - address: The syslog server address (e.g., "localhost:514", "/dev/log")
 //   - tag: The syslog tag to use for messages
@@ -103,7 +103,7 @@ func NewSyslog(address, tag string) (*Omni, error) {
 			uri = "syslog://" + address
 		}
 	}
-	
+
 	return NewWithBackend(uri, BackendSyslog)
 }
 

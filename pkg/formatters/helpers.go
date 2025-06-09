@@ -170,4 +170,3 @@ func safeFieldsCopy(value interface{}, visited map[uintptr]bool, depth int) inte
 		return value
 	}
 }
-

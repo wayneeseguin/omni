@@ -14,7 +14,7 @@ import (
 
 // sensitiveKeywords contains field names that should be redacted
 var sensitiveKeywords = []string{
-	"auth_token", "password", "passwd", "pass", "secret", "key", "private_key", "token", 
+	"auth_token", "password", "passwd", "pass", "secret", "key", "private_key", "token",
 	"access_token", "refresh_token", "api_key", "apikey", "authorization",
 	"client_secret", "client_id", "session_token", "bearer", "oauth", "jwt",
 	"ssn", "social_security", "credit_card", "creditcard", "card_number", "cvv", "cvc",
@@ -27,30 +27,30 @@ var builtInDataPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),
 	regexp.MustCompile(`\b\d{3}\s\d{2}\s\d{4}\b`),
 	regexp.MustCompile(`\b\d{9}\b`),
-	
+
 	// Credit Card Numbers (major brands)
-	regexp.MustCompile(`\b4\d{3}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`), // Visa
+	regexp.MustCompile(`\b4\d{3}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`),      // Visa
 	regexp.MustCompile(`\b5[1-5]\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`), // MasterCard
-	regexp.MustCompile(`\b3[47]\d{2}[-\s]?\d{6}[-\s]?\d{5}\b`), // American Express
-	regexp.MustCompile(`\b6011[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`), // Discover
-	
+	regexp.MustCompile(`\b3[47]\d{2}[-\s]?\d{6}[-\s]?\d{5}\b`),             // American Express
+	regexp.MustCompile(`\b6011[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`),        // Discover
+
 	// Email Addresses
 	regexp.MustCompile(`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`),
-	
+
 	// Phone Numbers (US format)
 	regexp.MustCompile(`\b\d{3}[-.]?\d{3}[-.]?\d{4}\b`),
 	regexp.MustCompile(`\(\d{3}\)\s*\d{3}[-.]?\d{4}\b`),
-	
+
 	// Common API Key Formats
-	regexp.MustCompile(`\bsk-[a-zA-Z0-9]{48}\b`), // OpenAI
-	regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`), // AWS Access Key
-	regexp.MustCompile(`\bghp_[a-zA-Z0-9]{36,40}\b`), // GitHub Personal Access Token
+	regexp.MustCompile(`\bsk-[a-zA-Z0-9]{48}\b`),                             // OpenAI
+	regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`),                               // AWS Access Key
+	regexp.MustCompile(`\bghp_[a-zA-Z0-9]{36,40}\b`),                         // GitHub Personal Access Token
 	regexp.MustCompile(`\bxoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}\b`), // Slack Bot Token
-	
+
 	// Common Secrets
 	regexp.MustCompile(`\b[A-Za-z0-9+/]{40,}={0,2}\b`), // Base64 encoded secrets (40+ chars)
-	regexp.MustCompile(`\b[a-f0-9]{32}\b`), // MD5 hashes (often used as tokens)
-	regexp.MustCompile(`\b[a-f0-9]{64}\b`), // SHA256 hashes
+	regexp.MustCompile(`\b[a-f0-9]{32}\b`),             // MD5 hashes (often used as tokens)
+	regexp.MustCompile(`\b[a-f0-9]{64}\b`),             // SHA256 hashes
 }
 
 // sensitivePatterns contains regex patterns to redact sensitive data in JSON fields
@@ -92,9 +92,9 @@ type RedactionConfig struct {
 	EnableBuiltInPatterns bool     // Whether to apply built-in data patterns (SSN, credit cards, etc.)
 	EnableFieldRedaction  bool     // Whether to apply JSON field redaction
 	EnableDataPatterns    bool     // Whether to apply data pattern redaction in content
-	MaxCacheSize         int      // Maximum size of redaction cache
-	SkipLevels           []int    // Log levels to skip redaction for (e.g., DEBUG)
-	FieldPaths           []string // Specific field paths to redact (e.g., "user.profile.ssn")
+	MaxCacheSize          int      // Maximum size of redaction cache
+	SkipLevels            []int    // Log levels to skip redaction for (e.g., DEBUG)
+	FieldPaths            []string // Specific field paths to redact (e.g., "user.profile.ssn")
 }
 
 // FieldPathRule defines a rule for redacting specific field paths
@@ -129,33 +129,33 @@ type RedactionManager struct {
 
 // RedactionMetrics tracks redaction statistics
 type RedactionMetrics struct {
-	TotalProcessed     uint64
-	TotalRedacted      uint64
-	FieldsRedacted     map[string]uint64
-	PatternsMatched    map[string]uint64
-	ProcessingTimeNs   int64
-	CacheHits          uint64
-	CacheMisses        uint64
-	LastUpdate         time.Time
+	TotalProcessed   uint64
+	TotalRedacted    uint64
+	FieldsRedacted   map[string]uint64
+	PatternsMatched  map[string]uint64
+	ProcessingTimeNs int64
+	CacheHits        uint64
+	CacheMisses      uint64
+	LastUpdate       time.Time
 }
 
 // RedactionCache provides caching for redaction operations
 type RedactionCache struct {
-	mu       sync.RWMutex
-	cache    map[string]string
-	maxSize  int
-	ttl      time.Duration
-	hits     uint64
-	misses   uint64
+	mu        sync.RWMutex
+	cache     map[string]string
+	maxSize   int
+	ttl       time.Duration
+	hits      uint64
+	misses    uint64
 	evictions uint64
 }
 
 // ContextualRule defines context-aware redaction rules
 type ContextualRule struct {
-	Name        string
-	Condition   func(level int, fields map[string]interface{}) bool
+	Name         string
+	Condition    func(level int, fields map[string]interface{}) bool
 	RedactFields []string
-	Replacement string
+	Replacement  string
 }
 
 // RedactionMode defines how redaction is performed
@@ -308,13 +308,13 @@ func RecursiveRedactWithSkip(v interface{}, currentPath string, redactor *Redact
 				// Skip this field, it was already redacted by contextual rules
 				continue
 			}
-			
+
 			// Build the current field path
 			fieldPath := k
 			if currentPath != "" {
 				fieldPath = currentPath + "." + k
 			}
-			
+
 			// Check if this specific path should be redacted
 			if ShouldRedactPath(fieldPath, fieldPathRules) {
 				val[k] = GetReplacementForPath(fieldPath, fieldPathRules)
@@ -324,17 +324,17 @@ func RecursiveRedactWithSkip(v interface{}, currentPath string, redactor *Redact
 				if redactor != nil {
 					redacted = redactor.Redact(str)
 				}
-				
+
 				// If no custom pattern matched but field name is sensitive, use built-in redaction
 				if redacted == str && IsSensitiveKey(k) {
 					redacted = "[REDACTED]"
 				}
-				
+
 				// Update the value if it was redacted
 				if redacted != str {
 					val[k] = redacted
 				}
-				
+
 				// Continue recursively even for strings in case of nested objects
 				RecursiveRedactWithSkip(v2, fieldPath, redactor, fieldPathRules, skipFields)
 			} else if IsSensitiveKey(k) {
@@ -350,7 +350,7 @@ func RecursiveRedactWithSkip(v interface{}, currentPath string, redactor *Redact
 			// For arrays, use index in path like "users[0]" but also support wildcard matching
 			indexPath := currentPath + "[" + fmt.Sprintf("%d", i) + "]"
 			wildcardPath := currentPath + "[*]"
-			
+
 			switch itemVal := item.(type) {
 			case map[string]interface{}, []interface{}:
 				RecursiveRedactWithSkip(itemVal, indexPath, redactor, fieldPathRules, skipFields)
@@ -381,7 +381,7 @@ func ShouldRedactPath(path string, fieldPathRules []FieldPathRule) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -393,7 +393,7 @@ func GetReplacementForPath(path string, fieldPathRules []FieldPathRule) string {
 			return rule.Replacement
 		}
 	}
-	
+
 	return "[REDACTED]" // Default replacement
 }
 
@@ -403,7 +403,7 @@ func MatchesPath(path, pattern string) bool {
 	if path == pattern {
 		return true
 	}
-	
+
 	// Support wildcard matching (basic implementation)
 	if strings.Contains(pattern, "*") {
 		// Handle special case where pattern starts with "*."
@@ -415,13 +415,13 @@ func MatchesPath(path, pattern string) bool {
 			// Also check if it matches with a prefix
 			return strings.HasSuffix(path, "."+suffix)
 		}
-		
+
 		// Convert pattern to regex-like matching for other wildcard cases
 		regexPattern := strings.ReplaceAll(pattern, "*", "[^.]*")
 		matched, _ := regexp.MatchString("^"+regexPattern+"$", path)
 		return matched
 	}
-	
+
 	return false
 }
 
@@ -436,7 +436,7 @@ func MatchesPath(path, pattern string) bool {
 //   - string: The redacted string
 func RegexRedact(input string, redactor *Redactor) string {
 	result := input
-	
+
 	// Apply JSON field patterns first
 	for _, pattern := range sensitivePatterns {
 		if strings.Contains(pattern.String(), "\"[^\"]*\"") {
@@ -445,12 +445,12 @@ func RegexRedact(input string, redactor *Redactor) string {
 			result = pattern.ReplaceAllString(result, `${1}[REDACTED]`)
 		}
 	}
-	
+
 	// Apply built-in data patterns for content redaction
 	for _, pattern := range builtInDataPatterns {
 		result = pattern.ReplaceAllString(result, "[REDACTED]")
 	}
-	
+
 	// Also apply simple key=value patterns for common formats
 	keyValuePatterns := []*regexp.Regexp{
 		regexp.MustCompile(`\bpassword\s*=\s*\S+`),
@@ -458,7 +458,7 @@ func RegexRedact(input string, redactor *Redactor) string {
 		regexp.MustCompile(`\btoken\s*=\s*\S+`),
 		regexp.MustCompile(`\bsecret\s*=\s*\S+`),
 	}
-	
+
 	for _, pattern := range keyValuePatterns {
 		result = pattern.ReplaceAllStringFunc(result, func(match string) string {
 			parts := strings.Split(match, "=")
@@ -468,12 +468,12 @@ func RegexRedact(input string, redactor *Redactor) string {
 			return "[REDACTED]"
 		})
 	}
-	
+
 	// Apply custom redactor if set
 	if redactor != nil {
 		result = redactor.Redact(result)
 	}
-	
+
 	return result
 }
 
@@ -543,20 +543,20 @@ func (r *Redactor) Redact(input string) string {
 		return cached
 	}
 	r.mu.RUnlock()
-	
+
 	// Apply redaction patterns
 	result := input
 	for _, pattern := range r.patterns {
 		result = pattern.ReplaceAllString(result, r.replace)
 	}
-	
+
 	// Cache the result (with size limit to prevent memory leaks)
 	r.mu.Lock()
 	if len(r.cache) < 1000 { // Limit cache size
 		r.cache[input] = result
 	}
 	r.mu.Unlock()
-	
+
 	return result
 }
 
@@ -742,7 +742,7 @@ func (rm *RedactionManager) SetConfig(config *RedactionConfig) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 	rm.config = config
-	
+
 	// Initialize cache if configured
 	if config != nil && config.MaxCacheSize > 0 {
 		rm.cache = &RedactionCache{
@@ -779,7 +779,7 @@ func (rm *RedactionManager) AddFieldPathRule(rule FieldPathRule) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 	rm.fieldPathRules = append(rm.fieldPathRules, rule)
-	
+
 	if rm.metricsHandler != nil {
 		rm.metricsHandler(fmt.Sprintf("redaction_rule_added_%s", rule.Path))
 	}
@@ -789,7 +789,7 @@ func (rm *RedactionManager) AddFieldPathRule(rule FieldPathRule) {
 func (rm *RedactionManager) RemoveFieldPathRule(path string) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-	
+
 	newRules := make([]FieldPathRule, 0, len(rm.fieldPathRules))
 	for _, rule := range rm.fieldPathRules {
 		if rule.Path != path {
@@ -816,10 +816,10 @@ func (rm *RedactionManager) RedactMessage(level int, message string, fields map[
 			atomic.AddUint64(&rm.metrics.TotalProcessed, 1)
 		}
 	}()
-	
+
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
-	
+
 	// Skip redaction for configured levels
 	if rm.config != nil {
 		for _, skipLevel := range rm.config.SkipLevels {
@@ -828,10 +828,10 @@ func (rm *RedactionManager) RedactMessage(level int, message string, fields map[
 			}
 		}
 	}
-	
+
 	// Apply contextual rules and field redaction first
 	redactedFields := rm.applyContextualRules(level, fields)
-	
+
 	// Check cache first for message redaction only
 	cacheKey := rm.generateCacheKey(message, fields)
 	var redactedMessage string
@@ -845,7 +845,7 @@ func (rm *RedactionManager) RedactMessage(level int, message string, fields map[
 	} else {
 		redactedMessage = rm.redactString(message)
 	}
-	
+
 	return redactedMessage, redactedFields
 }
 
@@ -854,15 +854,15 @@ func (rm *RedactionManager) applyContextualRules(level int, fields map[string]in
 	if fields == nil {
 		return nil
 	}
-	
+
 	result := make(map[string]interface{})
 	for k, v := range fields {
 		result[k] = v
 	}
-	
+
 	// Track fields redacted by contextual rules to avoid double redaction
 	contextuallyRedacted := make(map[string]bool)
-	
+
 	// Apply contextual rules
 	for _, rule := range rm.contextualRules {
 		if rule.Condition(level, fields) {
@@ -875,10 +875,10 @@ func (rm *RedactionManager) applyContextualRules(level int, fields map[string]in
 			}
 		}
 	}
-	
+
 	// Apply standard field redaction but skip contextually redacted fields
 	RecursiveRedactWithSkip(result, "", rm.customRedactor, rm.fieldPathRules, contextuallyRedacted)
-	
+
 	return result
 }
 
@@ -887,26 +887,26 @@ func (rm *RedactionManager) redactString(input string) string {
 	if input == "" {
 		return input
 	}
-	
+
 	result := input
-	
+
 	// Apply custom redactor
 	if rm.customRedactor != nil {
 		result = rm.customRedactor.Redact(result)
 	}
-	
+
 	// Apply built-in patterns if enabled
 	if rm.config != nil && rm.config.EnableBuiltInPatterns {
 		result = rm.applyBuiltInPatterns(result)
 	}
-	
+
 	return result
 }
 
 // applyBuiltInPatterns applies built-in sensitive data patterns
 func (rm *RedactionManager) applyBuiltInPatterns(input string) string {
 	result := input
-	
+
 	// Apply data patterns
 	for _, pattern := range builtInDataPatterns {
 		matches := pattern.FindAllString(result, -1)
@@ -916,7 +916,7 @@ func (rm *RedactionManager) applyBuiltInPatterns(input string) string {
 			rm.trackPatternMatch(pattern.String())
 		}
 	}
-	
+
 	return result
 }
 
@@ -926,12 +926,12 @@ func (rm *RedactionManager) getReplacementForPattern(value string, pattern *rege
 		// Preserve structure (e.g., XXX-XX-1234 for SSN)
 		return rm.maskValue(value)
 	}
-	
+
 	// Use hash for consistent replacement
 	if rm.hashSalt != "" {
 		return rm.hashValue(value)
 	}
-	
+
 	return "[REDACTED]"
 }
 
@@ -939,7 +939,7 @@ func (rm *RedactionManager) getReplacementForPattern(value string, pattern *rege
 func (rm *RedactionManager) maskValue(value string) string {
 	runes := []rune(value)
 	result := make([]rune, len(runes))
-	
+
 	for i, r := range runes {
 		if r >= '0' && r <= '9' {
 			// Keep last 4 digits visible
@@ -955,7 +955,7 @@ func (rm *RedactionManager) maskValue(value string) string {
 			result[i] = r
 		}
 	}
-	
+
 	return string(result)
 }
 
@@ -1000,11 +1000,11 @@ func (rm *RedactionManager) trackPatternMatch(pattern string) {
 func (rm *RedactionManager) GetMetrics() RedactionMetrics {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
-	
+
 	if rm.metrics == nil {
 		return RedactionMetrics{}
 	}
-	
+
 	// Create a copy
 	metrics := RedactionMetrics{
 		TotalProcessed:   atomic.LoadUint64(&rm.metrics.TotalProcessed),
@@ -1014,7 +1014,7 @@ func (rm *RedactionManager) GetMetrics() RedactionMetrics {
 		FieldsRedacted:   make(map[string]uint64),
 		PatternsMatched:  make(map[string]uint64),
 	}
-	
+
 	// Copy maps
 	for k, v := range rm.metrics.FieldsRedacted {
 		metrics.FieldsRedacted[k] = v
@@ -1022,13 +1022,13 @@ func (rm *RedactionManager) GetMetrics() RedactionMetrics {
 	for k, v := range rm.metrics.PatternsMatched {
 		metrics.PatternsMatched[k] = v
 	}
-	
+
 	// Add cache metrics
 	if rm.cache != nil {
 		metrics.CacheHits = atomic.LoadUint64(&rm.cache.hits)
 		metrics.CacheMisses = atomic.LoadUint64(&rm.cache.misses)
 	}
-	
+
 	return metrics
 }
 
@@ -1038,13 +1038,13 @@ func (rm *RedactionManager) GetMetrics() RedactionMetrics {
 func (c *RedactionCache) Get(key string) (string, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	value, exists := c.cache[key]
 	if exists {
 		atomic.AddUint64(&c.hits, 1)
 		return value, true
 	}
-	
+
 	atomic.AddUint64(&c.misses, 1)
 	return "", false
 }
@@ -1053,7 +1053,7 @@ func (c *RedactionCache) Get(key string) (string, bool) {
 func (c *RedactionCache) Set(key, value string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	// Simple eviction
 	if len(c.cache) >= c.maxSize {
 		// Remove a random entry
@@ -1063,7 +1063,7 @@ func (c *RedactionCache) Set(key, value string) {
 			break
 		}
 	}
-	
+
 	c.cache[key] = value
 }
 
@@ -1072,12 +1072,12 @@ func (c *RedactionCache) Set(key, value string) {
 // CreateCreditCardRedactor creates a redactor for credit card numbers
 func CreateCreditCardRedactor() *Redactor {
 	patterns := []string{
-		`\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`,     // Visa
+		`\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`,      // Visa
 		`\b5[1-5]\d{2}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`, // MasterCard
 		`\b3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5}\b`,             // Amex
 		`\b6011[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`,        // Discover
 	}
-	
+
 	redactor, _ := NewRedactor(patterns, "[CC-REDACTED]")
 	return redactor
 }
@@ -1089,7 +1089,7 @@ func CreateSSNRedactor() *Redactor {
 		`\b\d{3}\s\d{2}\s\d{4}\b`,
 		`\b\d{9}\b`,
 	}
-	
+
 	redactor, _ := NewRedactor(patterns, "[SSN-REDACTED]")
 	return redactor
 }
@@ -1099,7 +1099,7 @@ func CreateEmailRedactor() *Redactor {
 	patterns := []string{
 		`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`,
 	}
-	
+
 	redactor, _ := NewRedactor(patterns, "[EMAIL-REDACTED]")
 	return redactor
 }
@@ -1107,12 +1107,12 @@ func CreateEmailRedactor() *Redactor {
 // CreateAPIKeyRedactor creates a redactor for common API key formats
 func CreateAPIKeyRedactor() *Redactor {
 	patterns := []string{
-		`\bsk-[a-zA-Z0-9]{48}\b`,                              // OpenAI
-		`\bAKIA[0-9A-Z]{16}\b`,                                // AWS
+		`\bsk-[a-zA-Z0-9]{48}\b`,                             // OpenAI
+		`\bAKIA[0-9A-Z]{16}\b`,                               // AWS
 		`\bghp_[a-zA-Z0-9]{36,40}\b`,                         // GitHub
 		`\bxoxb-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24}\b`, // Slack
 	}
-	
+
 	redactor, _ := NewRedactor(patterns, "[API-KEY-REDACTED]")
 	return redactor
 }

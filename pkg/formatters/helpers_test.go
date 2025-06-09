@@ -125,7 +125,7 @@ func TestSafeFields(t *testing.T) {
 			"nil":    nil,
 		}
 		result := safeFields(fields)
-		
+
 		if result["string"] != "value" {
 			t.Errorf("expected string field to be preserved")
 		}
@@ -150,7 +150,7 @@ func TestSafeFields(t *testing.T) {
 			},
 		}
 		result := safeFields(fields)
-		
+
 		nested, ok := result["nested"].(map[string]interface{})
 		if !ok {
 			t.Fatal("expected nested to be a map")
@@ -166,7 +166,7 @@ func TestSafeFields(t *testing.T) {
 			"array": [3]int{1, 2, 3},
 		}
 		result := safeFields(fields)
-		
+
 		slice, ok := result["slice"].([]interface{})
 		if !ok {
 			t.Fatal("expected slice to be preserved")
@@ -182,25 +182,25 @@ func TestSafeFields(t *testing.T) {
 		m2 := make(map[string]interface{})
 		m1["child"] = m2
 		m2["parent"] = m1
-		
+
 		fields := map[string]interface{}{
 			"circular": m1,
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		// Should handle circular reference without panicking
 		circular, ok := result["circular"].(map[string]interface{})
 		if !ok {
 			t.Fatal("expected circular to be a map")
 		}
-		
+
 		// Check that circular reference was detected
 		child, ok := circular["child"].(map[string]interface{})
 		if !ok {
 			t.Fatal("expected child to be a map")
 		}
-		
+
 		// The safeFields function handles circular references by depth limiting
 		// rather than explicitly marking them as "[circular reference]"
 		parent := child["parent"]
@@ -218,19 +218,19 @@ func TestSafeFields(t *testing.T) {
 		// Create self reference
 		m := make(map[string]interface{})
 		m["self"] = m
-		
+
 		fields := map[string]interface{}{
 			"selfref": m,
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		// Should handle self reference
 		selfref, ok := result["selfref"].(map[string]interface{})
 		if !ok {
 			t.Fatal("expected selfref to be a map")
 		}
-		
+
 		// The safeFields function handles self references by depth limiting
 		// rather than explicitly marking them as "[circular reference]"
 		self := selfref["self"]
@@ -254,13 +254,13 @@ func TestSafeFields(t *testing.T) {
 			current = next
 		}
 		current["deep"] = "value"
-		
+
 		fields := map[string]interface{}{
 			"deep": root,
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		// Should handle max depth without panicking
 		// Navigate down to check max depth handling
 		current = result["deep"].(map[string]interface{})
@@ -284,26 +284,26 @@ func TestSafeFields(t *testing.T) {
 
 	t.Run("struct fields", func(t *testing.T) {
 		type TestStruct struct {
-			Public   string
-			Number   int
-			private  string //nolint:unused
+			Public  string
+			Number  int
+			private string //nolint:unused
 		}
-		
+
 		fields := map[string]interface{}{
 			"struct": TestStruct{
 				Public: "visible",
 				Number: 42,
 			},
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		// Struct should be converted to map
 		structMap, ok := result["struct"].(map[string]interface{})
 		if !ok {
 			t.Fatal("expected struct to be converted to map")
 		}
-		
+
 		if structMap["Public"] != "visible" {
 			t.Errorf("expected Public field to be visible")
 		}
@@ -318,15 +318,15 @@ func TestSafeFields(t *testing.T) {
 	t.Run("pointer fields", func(t *testing.T) {
 		str := "pointed value"
 		num := 42
-		
+
 		fields := map[string]interface{}{
-			"strPtr":  &str,
-			"numPtr":  &num,
-			"nilPtr":  (*string)(nil),
+			"strPtr": &str,
+			"numPtr": &num,
+			"nilPtr": (*string)(nil),
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		if result["strPtr"] != "pointed value" {
 			t.Errorf("expected string pointer to be dereferenced")
 		}
@@ -343,9 +343,9 @@ func TestSafeFields(t *testing.T) {
 			"func": func() {},
 			"chan": make(chan int),
 		}
-		
+
 		result := safeFields(fields)
-		
+
 		// Functions and channels should be represented as their type
 		if result["func"] != "[func]" {
 			t.Errorf("expected function to be marked as [func], got %v", result["func"])
@@ -440,7 +440,7 @@ func TestTruncateFieldValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := truncateFieldValue(tt.value, tt.maxSize, tt.truncate)
-			
+
 			if tt.expected != nil {
 				if result != tt.expected {
 					t.Errorf("truncateFieldValue() = %v, expected %v", result, tt.expected)

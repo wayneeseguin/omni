@@ -30,3 +30,12 @@ examples/plugins/nats-backend/nats-backend
 *.out
 coverage.*
 *.test
+disk-full-handling
+examples/batch-processing/batch-processing
+examples/context-aware/context-aware
+examples/multiple-destinations/multiple-destinations
+examples/nats-logging/nats-logging
+examples/performance-optimized/performance-optimized
+examples/plugin-usage/plugin-usage
+examples/redaction/redaction
+examples/web-service/web-service

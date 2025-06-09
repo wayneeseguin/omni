@@ -22,14 +22,14 @@ const (
 
 // LogError represents an error that occurred during logging operations
 type LogError struct {
-	Operation   string    // The operation that failed
-	Destination string    // The destination where the error occurred
-	Message     string    // Human readable error message
-	Err         error     // The underlying error
-	Level       ErrorLevel // The severity level of the error
-	Timestamp   time.Time // When the error occurred
+	Operation   string                 // The operation that failed
+	Destination string                 // The destination where the error occurred
+	Message     string                 // Human readable error message
+	Err         error                  // The underlying error
+	Level       ErrorLevel             // The severity level of the error
+	Timestamp   time.Time              // When the error occurred
 	Context     map[string]interface{} // Additional context
-	Code        int       // Error code
+	Code        int                    // Error code
 }
 
 // Error implements the error interface

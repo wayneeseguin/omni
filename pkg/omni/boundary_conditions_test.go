@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 // TestZeroMaxSize tests behavior with zero max size (should disable rotation)
@@ -345,9 +347,7 @@ func TestUnicodeAndSpecialCharacters(t *testing.T) {
 
 // TestExtremeConcurrency tests with extreme number of goroutines
 func TestExtremeConcurrency(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping extreme concurrency test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping extreme concurrency test in unit mode")
 
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
@@ -395,4 +395,3 @@ func TestExtremeConcurrency(t *testing.T) {
 	t.Logf("Messages logged: %d, dropped: %d (%.2f%%)", totalLogged, metrics.MessagesDropped, droppedRatio*100)
 	t.Logf("Average write time: %v, Max write time: %v", metrics.AverageWriteTime, metrics.MaxWriteTime)
 }
-

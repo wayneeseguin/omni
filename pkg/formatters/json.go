@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 
@@ -28,24 +28,24 @@ func (f *JSONFormatter) Format(msg types.LogMessage) ([]byte, error) {
 	if msg.Raw != nil {
 		return msg.Raw, nil
 	}
-	
+
 	// Handle structured entries
 	if msg.Entry != nil {
 		return f.formatStructuredEntry(msg.Entry)
 	}
-	
+
 	// Create a JSON entry from the regular message
 	entry := f.createJSONEntry(msg)
-	
+
 	// Marshal to JSON with circular reference protection
 	data, err := f.safeMarshal(entry)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Add newline for line-delimited JSON
 	data = append(data, '\n')
-	
+
 	return data, nil
 }
 
@@ -53,20 +53,20 @@ func (f *JSONFormatter) Format(msg types.LogMessage) ([]byte, error) {
 func (f *JSONFormatter) formatStructuredEntry(entry *types.LogEntry) ([]byte, error) {
 	// Create a map for JSON output
 	jsonEntry := make(map[string]interface{})
-	
+
 	// Add timestamp if included
 	if f.Options.IncludeTime {
 		jsonEntry["timestamp"] = entry.Timestamp
 	}
-	
+
 	// Add level if included
 	if f.Options.IncludeLevel {
 		jsonEntry["level"] = entry.Level
 	}
-	
+
 	// Add message
 	jsonEntry["message"] = entry.Message
-	
+
 	// Add fields
 	if len(entry.Fields) > 0 {
 		// Check if we should flatten fields or nest them
@@ -90,43 +90,43 @@ func (f *JSONFormatter) formatStructuredEntry(entry *types.LogEntry) ([]byte, er
 			}
 		}
 	}
-	
+
 	// Add stack trace if present
 	if entry.StackTrace != "" {
 		jsonEntry["stack_trace"] = entry.StackTrace
 	}
-	
+
 	// Add metadata if configured
 	if entry.Metadata != nil && len(entry.Metadata) > 0 {
 		jsonEntry["metadata"] = entry.Metadata
 	}
-	
+
 	// Marshal to JSON with circular reference protection
 	data, err := f.safeMarshal(jsonEntry)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Add newline for line-delimited JSON
 	data = append(data, '\n')
-	
+
 	return data, nil
 }
 
 // createJSONEntry creates a JSON-serializable entry from a log message
 func (f *JSONFormatter) createJSONEntry(msg types.LogMessage) map[string]interface{} {
 	entry := make(map[string]interface{})
-	
+
 	// Add timestamp if included
 	if f.Options.IncludeTime {
 		entry["timestamp"] = f.formatTimestamp(msg.Timestamp)
 	}
-	
+
 	// Add level if included
 	if f.Options.IncludeLevel {
 		entry["level"] = f.formatLevel(msg.Level)
 	}
-	
+
 	// Format and add message
 	message := ""
 	if msg.Format != "" {
@@ -137,7 +137,7 @@ func (f *JSONFormatter) createJSONEntry(msg types.LogMessage) map[string]interfa
 		}
 	}
 	entry["message"] = message
-	
+
 	return entry
 }
 
@@ -176,7 +176,7 @@ func (f *JSONFormatter) shouldExcludeField(field string) bool {
 			return true
 		}
 	}
-	
+
 	// If include list is specified, only include fields in the list
 	if len(f.IncludeFields) > 0 {
 		for _, included := range f.IncludeFields {
@@ -186,7 +186,7 @@ func (f *JSONFormatter) shouldExcludeField(field string) bool {
 		}
 		return true // Not in include list
 	}
-	
+
 	return false
 }
 
@@ -204,7 +204,7 @@ func (f *JSONFormatter) WithExcludeFields(fields ...string) *JSONFormatter {
 
 // safeMarshal marshals data to JSON with circular reference protection
 func (f *JSONFormatter) safeMarshal(data interface{}) ([]byte, error) {
-	// Use a simple approach - attempt to marshal, and if it fails with likely 
+	// Use a simple approach - attempt to marshal, and if it fails with likely
 	// circular reference, replace with a safe representation
 	result, err := json.Marshal(data)
 	if err != nil {
@@ -240,7 +240,7 @@ func (f *JSONFormatter) makeSafeRecursive(data interface{}, depth, maxDepth int)
 	if depth >= maxDepth {
 		return "[max depth reached]"
 	}
-	
+
 	switch v := data.(type) {
 	case map[string]interface{}:
 		safe := make(map[string]interface{})

@@ -22,9 +22,9 @@ type Collector struct {
 	errorsBySource sync.Map // map[string]*atomic.Uint64
 
 	// Performance metrics
-	writeCount      uint64
-	totalWriteTime  int64 // nanoseconds
-	maxWriteTime    int64 // nanoseconds
+	writeCount     uint64
+	totalWriteTime int64 // nanoseconds
+	maxWriteTime   int64 // nanoseconds
 }
 
 // NewCollector creates a new metrics collector.
@@ -57,7 +57,7 @@ type Metrics struct {
 	MaxWriteTime     time.Duration `json:"max_write_time"`
 
 	// Destination metrics
-	DestinationCount int                   `json:"destination_count"`
+	DestinationCount int                  `json:"destination_count"`
 	Destinations     []DestinationMetrics `json:"destinations"`
 }
 
@@ -208,7 +208,7 @@ func (c *Collector) TrackWrite(bytes int64, duration time.Duration) {
 // TrackError increments the error counter and tracks by source.
 func (c *Collector) TrackError(source string) {
 	atomic.AddUint64(&c.errorCount, 1)
-	
+
 	val, _ := c.errorsBySource.LoadOrStore(source, &atomic.Uint64{})
 	counter := val.(*atomic.Uint64)
 	counter.Add(1)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 
@@ -129,7 +130,7 @@ func TestLazyMessage_LazyEvaluation(t *testing.T) {
 
 	// First call should format the string
 	result1 := lm.String()
-	
+
 	// Second call should return the cached result
 	result2 := lm.String()
 
@@ -180,9 +181,7 @@ func TestLazyMessage_ThreadSafety(t *testing.T) {
 
 func TestLazyMessage_ThreadSafetyWithRace(t *testing.T) {
 	// Test for race conditions using the race detector
-	if testing.Short() {
-		t.Skip("skipping race condition test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "skipping race condition test in unit mode")
 
 	const numGoroutines = 50
 	const numIterations = 100
@@ -213,14 +212,14 @@ func TestLazyMessage_FormattingErrors(t *testing.T) {
 	// Test with mismatched format and args
 	lm := &LazyMessage{
 		Level:     1,
-		Format:    "Test %s %d %f", // 3 format specifiers
+		Format:    "Test %s %d %f",              // 3 format specifiers
 		Args:      []interface{}{"only", "two"}, // Only 2 arguments
 		Timestamp: time.Now(),
 	}
 
 	// Should not panic, but may produce unexpected output
 	result := lm.String()
-	
+
 	// The exact result depends on fmt.Sprintf behavior with mismatched args
 	// We just ensure it doesn't panic and returns something
 	if result == "" {
@@ -281,9 +280,9 @@ func TestLazyMessage_NilArgs(t *testing.T) {
 func TestLazyMessage_ComplexFormatting(t *testing.T) {
 	now := time.Now()
 	lm := &LazyMessage{
-		Level:  2,
-		Format: "User %s (ID: %d) performed action '%s' at %v with success=%t",
-		Args:   []interface{}{"john_doe", 12345, "login", now, true},
+		Level:     2,
+		Format:    "User %s (ID: %d) performed action '%s' at %v with success=%t",
+		Args:      []interface{}{"john_doe", 12345, "login", now, true},
 		Timestamp: now,
 	}
 
@@ -400,7 +399,7 @@ func TestLazyMessage_ConcurrentStringAndToLogMessage(t *testing.T) {
 
 	const numGoroutines = 50
 	var wg sync.WaitGroup
-	
+
 	stringResults := make([]string, numGoroutines)
 	logMsgResults := make([]types.LogMessage, numGoroutines)
 
@@ -440,9 +439,7 @@ func TestLazyMessage_ConcurrentStringAndToLogMessage(t *testing.T) {
 }
 
 func TestLazyMessage_MemoryUsage(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping memory usage test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "skipping memory usage test in unit mode")
 
 	// Test that lazy evaluation doesn't cause memory leaks
 	const numMessages = 10000
@@ -460,7 +457,7 @@ func TestLazyMessage_MemoryUsage(t *testing.T) {
 
 	// Force garbage collection
 	runtime.GC()
-	
+
 	var m1 runtime.MemStats
 	runtime.ReadMemStats(&m1)
 
@@ -471,7 +468,7 @@ func TestLazyMessage_MemoryUsage(t *testing.T) {
 
 	// Force garbage collection again
 	runtime.GC()
-	
+
 	var m2 runtime.MemStats
 	runtime.ReadMemStats(&m2)
 

@@ -376,7 +376,7 @@ func TestTextFormatter_FormatFields(t *testing.T) {
 
 func TestTextFormatter_TimeZone(t *testing.T) {
 	f := NewTextFormatter()
-	
+
 	// Set timezone to EST
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
@@ -420,7 +420,7 @@ func TestTextFormatter_EmptyMessage(t *testing.T) {
 	if !strings.Contains(string(result), "[INFO]") {
 		t.Errorf("expected level in output, got %s", string(result))
 	}
-	
+
 	// Should end with newline
 	if !strings.HasSuffix(string(result), "\n") {
 		t.Error("expected newline at end")

@@ -304,7 +304,7 @@ func (f *Omni) logf(level int, format string, args ...interface{}) {
 		f.mu.RUnlock()
 		return
 	}
-	
+
 	// Try to send to channel, but don't block if channel is full
 	select {
 	case f.msgChan <- msg:

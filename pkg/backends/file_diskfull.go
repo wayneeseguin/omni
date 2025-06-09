@@ -29,15 +29,15 @@ type FileBackendWithRotation struct {
 func NewFileBackendWithRotation(path string, rotMgr *features.RotationManager) (*FileBackendWithRotation, error) {
 	// Create directory if needed
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, fmt.Errorf("create directory: %w", err)
 	}
 
 	// Clean the path to prevent directory traversal
 	cleanPath := filepath.Clean(path)
-	
+
 	// Open file
-	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}
@@ -86,44 +86,47 @@ func (fb *FileBackendWithRotation) SetErrorHandler(handler func(source, dest, ms
 func (fb *FileBackendWithRotation) Write(entry []byte) (int, error) {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	retries := 0
 	for retries <= fb.maxRetries {
 		// Try to acquire lock
 		if err := fb.lock.Lock(); err != nil {
 			return 0, fmt.Errorf("acquire lock: %w", err)
 		}
-		
+
 		// Write entry
 		n, err := fb.writer.Write(entry)
-		fb.lock.Unlock()
-		
+		if unlockErr := fb.lock.Unlock(); unlockErr != nil {
+			// Log unlock error but continue with write error handling
+			fb.errorHandler("unlock", fb.path, "Failed to unlock file", unlockErr)
+		}
+
 		if err == nil {
 			fb.size += int64(n)
 			return n, nil
 		}
-		
+
 		// Check if error is disk full
 		if !isDiskFullError(err) {
 			return n, err
 		}
-		
+
 		// Handle disk full
 		if retries < fb.maxRetries {
 			if fb.errorHandler != nil {
 				fb.errorHandler("write", fb.path, fmt.Sprintf("Disk full, attempting rotation (retry %d/%d)", retries+1, fb.maxRetries), err)
 			}
-			
+
 			if handleErr := fb.handleDiskFull(); handleErr != nil {
 				return n, fmt.Errorf("disk full handling failed: %w", handleErr)
 			}
 			retries++
 			continue
 		}
-		
+
 		return n, err
 	}
-	
+
 	return 0, fmt.Errorf("write failed after %d retries", fb.maxRetries)
 }
 
@@ -145,27 +148,27 @@ func (fb *FileBackendWithRotation) handleDiskFull() error {
 	if fb.rotationManager == nil {
 		return fmt.Errorf("no rotation manager configured")
 	}
-	
+
 	// Flush current buffer
 	if err := fb.writer.Flush(); err != nil && !isDiskFullError(err) {
 		return fmt.Errorf("flush before rotation: %w", err)
 	}
-	
+
 	// Close current file
 	if err := fb.file.Close(); err != nil {
 		return fmt.Errorf("close before rotation: %w", err)
 	}
-	
+
 	// Rotate current log
 	rotatedPath, err := fb.rotationManager.RotateFile(fb.path, nil)
 	if err != nil {
 		return fmt.Errorf("rotate file: %w", err)
 	}
-	
+
 	if fb.errorHandler != nil {
 		fb.errorHandler("rotation", fb.path, fmt.Sprintf("Rotated log to %s", rotatedPath), nil)
 	}
-	
+
 	// Clean up old logs to free space
 	if err := fb.rotationManager.RunCleanup(fb.path); err != nil {
 		// Log error but don't fail - we still want to try opening new file
@@ -173,25 +176,25 @@ func (fb *FileBackendWithRotation) handleDiskFull() error {
 			fb.errorHandler("cleanup", fb.path, "Cleanup failed during disk full", err)
 		}
 	}
-	
+
 	// If still no space, try aggressive cleanup
 	if err := fb.removeOldestLogs(); err != nil {
 		if fb.errorHandler != nil {
 			fb.errorHandler("cleanup", fb.path, "Failed to remove oldest logs", err)
 		}
 	}
-	
+
 	// Reopen file
-	file, err := os.OpenFile(fb.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(fb.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("reopen file after rotation: %w", err)
 	}
-	
+
 	fb.file = file
 	fb.writer = bufio.NewWriterSize(file, DefaultBufferSize)
 	fb.size = 0
 	fb.lock = flock.New(fb.path)
-	
+
 	return nil
 }
 
@@ -200,16 +203,16 @@ func (fb *FileBackendWithRotation) removeOldestLogs() error {
 	if fb.rotationManager == nil {
 		return fmt.Errorf("no rotation manager configured")
 	}
-	
+
 	rotatedFiles, err := fb.rotationManager.GetRotatedFiles(fb.path)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(rotatedFiles) == 0 {
 		return fmt.Errorf("no rotated files to remove")
 	}
-	
+
 	// Remove oldest files first (list is sorted newest to oldest)
 	removed := 0
 	for i := len(rotatedFiles) - 1; i >= 0; i-- {
@@ -219,27 +222,31 @@ func (fb *FileBackendWithRotation) removeOldestLogs() error {
 			}
 			continue
 		}
-		
+
 		removed++
 		if fb.errorHandler != nil {
 			fb.errorHandler("cleanup", rotatedFiles[i].Path, "Removed old log to free space", nil)
 		}
-		
+
 		// Try to create a small test file to check if we have space
-		testPath := fb.path + ".test"
+		testPath := filepath.Clean(fb.path + ".test")
 		if testFile, err := os.Create(testPath); err == nil {
-			testFile.Close()
-			os.Remove(testPath)
+			if closeErr := testFile.Close(); closeErr != nil {
+				fb.errorHandler("test", testPath, "Failed to close test file", closeErr)
+			}
+			if removeErr := os.Remove(testPath); removeErr != nil {
+				fb.errorHandler("test", testPath, "Failed to remove test file", removeErr)
+			}
 			return nil // We have space now
 		}
-		
+
 		// Continue removing files if still no space
 	}
-	
+
 	if removed == 0 {
 		return fmt.Errorf("unable to remove any files")
 	}
-	
+
 	return fmt.Errorf("removed %d files but still insufficient space", removed)
 }
 
@@ -247,7 +254,7 @@ func (fb *FileBackendWithRotation) removeOldestLogs() error {
 func (fb *FileBackendWithRotation) Flush() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.writer != nil {
 		return fb.writer.Flush()
 	}
@@ -258,7 +265,7 @@ func (fb *FileBackendWithRotation) Flush() error {
 func (fb *FileBackendWithRotation) Close() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	var errs []error
 
 	// Remove from rotation manager
@@ -302,37 +309,37 @@ func (fb *FileBackendWithRotation) SupportsAtomic() bool {
 func (fb *FileBackendWithRotation) Rotate() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.rotationManager == nil {
 		return fmt.Errorf("no rotation manager configured")
 	}
-	
+
 	// Flush before rotation
 	if err := fb.writer.Flush(); err != nil {
 		return fmt.Errorf("flush before rotation: %w", err)
 	}
-	
+
 	// Close current file
 	if err := fb.file.Close(); err != nil {
 		return fmt.Errorf("close before rotation: %w", err)
 	}
-	
+
 	// Rotate
 	_, err := fb.rotationManager.RotateFile(fb.path, nil)
 	if err != nil {
 		return err
 	}
-	
+
 	// Reopen
-	file, err := os.OpenFile(fb.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(fb.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return fmt.Errorf("reopen after rotation: %w", err)
 	}
-	
+
 	fb.file = file
 	fb.writer = bufio.NewWriterSize(file, DefaultBufferSize)
 	fb.size = 0
-	
+
 	return nil
 }
 
@@ -371,10 +378,10 @@ func (fb *FileBackendWithRotation) Sync() error {
 	if err := fb.Flush(); err != nil {
 		return err
 	}
-	
+
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.file != nil {
 		return fb.file.Sync()
 	}
@@ -387,7 +394,7 @@ func (fb *FileBackendWithRotation) GetStats() BackendStats {
 	if fb.size > 0 {
 		bytesWritten = uint64(fb.size)
 	}
-	
+
 	return BackendStats{
 		Path:         fb.path,
 		Size:         fb.size,

@@ -16,11 +16,11 @@ import (
 func TestNewIntegration(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	if integration == nil {
 		t.Fatal("NewIntegration returned nil")
 	}
-	
+
 	if integration.manager != manager {
 		t.Error("Integration manager not set correctly")
 	}
@@ -30,20 +30,20 @@ func TestNewIntegration(t *testing.T) {
 func TestCreateBackendFromURI(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test with no registered plugins
 	_, err := integration.CreateBackendFromURI("test://localhost")
 	if err == nil {
 		t.Error("Expected error for unregistered scheme")
 	}
-	
+
 	// Register a test backend plugin
 	backendCreated := false
 	var capturedURI string
 	var capturedConfig map[string]interface{}
-	
+
 	plugin := &mockBackendPlugin{
-		name: "test-backend",
+		name:    "test-backend",
 		schemes: []string{"test"},
 		createBackendFunc: func(uri string, config map[string]interface{}) (Backend, error) {
 			backendCreated = true
@@ -52,30 +52,30 @@ func TestCreateBackendFromURI(t *testing.T) {
 			return &mockBackend{name: "test-backend-instance"}, nil
 		},
 	}
-	
+
 	err = manager.RegisterBackendPlugin(plugin)
 	if err != nil {
 		t.Fatalf("Failed to register plugin: %v", err)
 	}
-	
+
 	// Create backend from URI
 	backend, err := integration.CreateBackendFromURI("test://localhost:8080/path?param1=value1&param2=value2")
 	if err != nil {
 		t.Fatalf("CreateBackendFromURI failed: %v", err)
 	}
-	
+
 	if backend == nil {
 		t.Fatal("Backend is nil")
 	}
-	
+
 	if !backendCreated {
 		t.Error("Backend creation function was not called")
 	}
-	
+
 	if capturedURI != "test://localhost:8080/path?param1=value1&param2=value2" {
 		t.Errorf("Unexpected URI passed to plugin: %s", capturedURI)
 	}
-	
+
 	// Check captured config from query parameters
 	if capturedConfig["param1"] != "value1" {
 		t.Error("param1 not extracted from URI")
@@ -89,7 +89,7 @@ func TestCreateBackendFromURI(t *testing.T) {
 func TestCreateBackendFromURIErrors(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	tests := []struct {
 		name string
 		uri  string
@@ -97,7 +97,7 @@ func TestCreateBackendFromURIErrors(t *testing.T) {
 		{"Invalid URI", "://invalid"},
 		{"Missing scheme", "localhost:8080"},
 	}
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := integration.CreateBackendFromURI(test.uri)
@@ -106,18 +106,18 @@ func TestCreateBackendFromURIErrors(t *testing.T) {
 			}
 		})
 	}
-	
+
 	// Test backend creation error
 	plugin := &mockBackendPlugin{
-		name: "error-backend",
+		name:    "error-backend",
 		schemes: []string{"error"},
 		createBackendFunc: func(uri string, config map[string]interface{}) (Backend, error) {
 			return nil, errors.New("backend creation failed")
 		},
 	}
-	
+
 	manager.RegisterBackendPlugin(plugin)
-	
+
 	_, err := integration.CreateBackendFromURI("error://localhost")
 	if err == nil {
 		t.Error("Expected error from backend creation")
@@ -128,19 +128,19 @@ func TestCreateBackendFromURIErrors(t *testing.T) {
 func TestCreateFormatterByName(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test with no registered plugins
 	_, err := integration.CreateFormatterByName("xml", nil)
 	if err == nil {
 		t.Error("Expected error for unregistered formatter")
 	}
-	
+
 	// Register a test formatter plugin
 	formatterCreated := false
 	var capturedConfig map[string]interface{}
-	
+
 	plugin := &mockFormatterPlugin{
-		name: "xml-formatter",
+		name:       "xml-formatter",
 		formatName: "xml",
 		createFormatterFunc: func(config map[string]interface{}) (Formatter, error) {
 			formatterCreated = true
@@ -148,27 +148,27 @@ func TestCreateFormatterByName(t *testing.T) {
 			return &mockFormatter{name: "xml-instance"}, nil
 		},
 	}
-	
+
 	err = manager.RegisterFormatterPlugin(plugin)
 	if err != nil {
 		t.Fatalf("Failed to register plugin: %v", err)
 	}
-	
+
 	// Create formatter
 	config := map[string]interface{}{"pretty": true, "indent": "  "}
 	formatter, err := integration.CreateFormatterByName("xml", config)
 	if err != nil {
 		t.Fatalf("CreateFormatterByName failed: %v", err)
 	}
-	
+
 	if formatter == nil {
 		t.Fatal("Formatter is nil")
 	}
-	
+
 	if !formatterCreated {
 		t.Error("Formatter creation function was not called")
 	}
-	
+
 	// Check captured config
 	if capturedConfig["pretty"] != true {
 		t.Error("pretty config not passed correctly")
@@ -182,19 +182,19 @@ func TestCreateFormatterByName(t *testing.T) {
 func TestCreateFilterByType(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test with no registered plugins
 	_, err := integration.CreateFilterByType("rate-limit", nil)
 	if err == nil {
 		t.Error("Expected error for unregistered filter")
 	}
-	
+
 	// Register a test filter plugin
 	filterCreated := false
 	var capturedConfig map[string]interface{}
-	
+
 	plugin := &mockFilterPlugin{
-		name: "rate-limiter",
+		name:       "rate-limiter",
 		filterType: "rate-limit",
 		createFilterFunc: func(config map[string]interface{}) (types.FilterFunc, error) {
 			filterCreated = true
@@ -204,27 +204,27 @@ func TestCreateFilterByType(t *testing.T) {
 			}, nil
 		},
 	}
-	
+
 	err = manager.RegisterFilterPlugin(plugin)
 	if err != nil {
 		t.Fatalf("Failed to register plugin: %v", err)
 	}
-	
+
 	// Create filter
 	config := map[string]interface{}{"rate": 100, "window": "1m"}
 	filter, err := integration.CreateFilterByType("rate-limit", config)
 	if err != nil {
 		t.Fatalf("CreateFilterByType failed: %v", err)
 	}
-	
+
 	if filter == nil {
 		t.Fatal("Filter is nil")
 	}
-	
+
 	if !filterCreated {
 		t.Error("Filter creation function was not called")
 	}
-	
+
 	// Check captured config
 	if capturedConfig["rate"] != 100 {
 		t.Error("rate config not passed correctly")
@@ -232,7 +232,7 @@ func TestCreateFilterByType(t *testing.T) {
 	if capturedConfig["window"] != "1m" {
 		t.Error("window config not passed correctly")
 	}
-	
+
 	// Test the filter function
 	if !filter(1, "test", nil) {
 		t.Error("Filter function should return true")
@@ -243,17 +243,17 @@ func TestCreateFilterByType(t *testing.T) {
 func TestShutdownAll(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test with no plugins
 	err := integration.ShutdownAll(context.Background())
 	if err != nil {
 		t.Errorf("ShutdownAll with no plugins failed: %v", err)
 	}
-	
+
 	// Register multiple plugins
 	shutdownCounts := make(map[string]int)
 	var mu sync.Mutex
-	
+
 	for i := 0; i < 3; i++ {
 		name := fmt.Sprintf("plugin-%d", i)
 		plugin := &mockPlugin{
@@ -267,16 +267,16 @@ func TestShutdownAll(t *testing.T) {
 		}
 		manager.loaded[name] = plugin
 	}
-	
+
 	// Shutdown all
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	err = integration.ShutdownAll(ctx)
 	if err != nil {
 		t.Errorf("ShutdownAll failed: %v", err)
 	}
-	
+
 	// Verify all plugins were shut down
 	for i := 0; i < 3; i++ {
 		name := fmt.Sprintf("plugin-%d", i)
@@ -290,7 +290,7 @@ func TestShutdownAll(t *testing.T) {
 func TestShutdownAllWithErrors(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Register plugins with different behaviors
 	plugin1 := &mockPlugin{
 		name: "success-plugin",
@@ -298,31 +298,31 @@ func TestShutdownAllWithErrors(t *testing.T) {
 			return nil
 		},
 	}
-	
+
 	plugin2 := &mockPlugin{
 		name: "error-plugin",
 		shutdownFunc: func(ctx context.Context) error {
 			return errors.New("shutdown failed")
 		},
 	}
-	
+
 	plugin3 := &mockPlugin{
 		name: "another-success",
 		shutdownFunc: func(ctx context.Context) error {
 			return nil
 		},
 	}
-	
+
 	manager.loaded["success-plugin"] = plugin1
 	manager.loaded["error-plugin"] = plugin2
 	manager.loaded["another-success"] = plugin3
-	
+
 	// Shutdown all
 	err := integration.ShutdownAll(context.Background())
 	if err == nil {
 		t.Error("Expected error when one plugin fails")
 	}
-	
+
 	// Error should mention the failing plugin
 	if err.Error() == "" || !contains(err.Error(), "error-plugin") {
 		t.Error("Error should mention the failing plugin")
@@ -333,32 +333,32 @@ func TestShutdownAllWithErrors(t *testing.T) {
 func TestGetAvailableBackends(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Initially should be empty
 	backends := integration.GetAvailableBackends()
 	if len(backends) != 0 {
 		t.Errorf("Expected 0 backends initially, got %d", len(backends))
 	}
-	
+
 	// Register backend plugins
 	plugin1 := &mockBackendPlugin{
-		name: "http-backend",
-		schemes:    []string{"http", "https"},
+		name:    "http-backend",
+		schemes: []string{"http", "https"},
 	}
 	manager.RegisterBackendPlugin(plugin1)
-	
+
 	plugin2 := &mockBackendPlugin{
-		name: "ftp-backend",
-		schemes:    []string{"ftp", "sftp"},
+		name:    "ftp-backend",
+		schemes: []string{"ftp", "sftp"},
 	}
 	manager.RegisterBackendPlugin(plugin2)
-	
+
 	// Get available backends
 	backends = integration.GetAvailableBackends()
 	if len(backends) != 4 {
 		t.Errorf("Expected 4 backends, got %d", len(backends))
 	}
-	
+
 	// Check that all schemes are present
 	expected := []string{"http", "https", "ftp", "sftp"}
 	for _, scheme := range expected {
@@ -379,29 +379,29 @@ func TestGetAvailableBackends(t *testing.T) {
 func TestGetAvailableFormatters(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Initially should be empty
 	formatters := integration.GetAvailableFormatters()
 	if len(formatters) != 0 {
 		t.Errorf("Expected 0 formatters initially, got %d", len(formatters))
 	}
-	
+
 	// Register formatter plugins
 	formats := []string{"xml", "yaml", "csv"}
 	for _, format := range formats {
 		plugin := &mockFormatterPlugin{
-			name: format + "-formatter",
+			name:       format + "-formatter",
 			formatName: format,
 		}
 		manager.RegisterFormatterPlugin(plugin)
 	}
-	
+
 	// Get available formatters
 	formatters = integration.GetAvailableFormatters()
 	if len(formatters) != 3 {
 		t.Errorf("Expected 3 formatters, got %d", len(formatters))
 	}
-	
+
 	// Check that all formats are present
 	for _, format := range formats {
 		found := false
@@ -421,29 +421,29 @@ func TestGetAvailableFormatters(t *testing.T) {
 func TestGetAvailableFilters(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Initially should be empty
 	filters := integration.GetAvailableFilters()
 	if len(filters) != 0 {
 		t.Errorf("Expected 0 filters initially, got %d", len(filters))
 	}
-	
+
 	// Register filter plugins
 	filterTypes := []string{"rate-limit", "level", "regex"}
 	for _, filterType := range filterTypes {
 		plugin := &mockFilterPlugin{
-			name: filterType + "-filter",
+			name:       filterType + "-filter",
 			filterType: filterType,
 		}
 		manager.RegisterFilterPlugin(plugin)
 	}
-	
+
 	// Get available filters
 	filters = integration.GetAvailableFilters()
 	if len(filters) != 3 {
 		t.Errorf("Expected 3 filters, got %d", len(filters))
 	}
-	
+
 	// Check that all filter types are present
 	for _, filterType := range filterTypes {
 		found := false
@@ -463,7 +463,7 @@ func TestGetAvailableFilters(t *testing.T) {
 func TestValidatePluginHealth(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test with healthy plugins
 	healthyBackend := &mockBackendPlugin{
 		name:    "healthy-backend",
@@ -471,47 +471,47 @@ func TestValidatePluginHealth(t *testing.T) {
 		schemes: []string{"test"},
 	}
 	manager.RegisterBackendPlugin(healthyBackend)
-	
+
 	healthyFormatter := &mockFormatterPlugin{
-		name:    "healthy-formatter",
-		version: "1.0.0",
+		name:       "healthy-formatter",
+		version:    "1.0.0",
 		formatName: "test",
 	}
 	manager.RegisterFormatterPlugin(healthyFormatter)
-	
+
 	healthyFilter := &mockFilterPlugin{
-		name:    "healthy-filter",
-		version: "1.0.0",
+		name:       "healthy-filter",
+		version:    "1.0.0",
 		filterType: "test",
 	}
 	manager.RegisterFilterPlugin(healthyFilter)
-	
+
 	err := integration.ValidatePluginHealth()
 	if err != nil {
 		t.Errorf("ValidatePluginHealth failed for healthy plugins: %v", err)
 	}
-	
+
 	// Add unhealthy plugin with empty name
 	unhealthyPlugin := &mockPlugin{
 		name:    "", // Empty name
 		version: "1.0.0",
 	}
 	manager.loaded["unhealthy"] = unhealthyPlugin
-	
+
 	err = integration.ValidatePluginHealth()
 	if err == nil {
 		t.Error("Expected error for plugin with empty name")
 	}
-	
+
 	// Fix the name but add empty version
 	unhealthyPlugin.name = "unhealthy"
 	unhealthyPlugin.version = ""
-	
+
 	err = integration.ValidatePluginHealth()
 	if err == nil {
 		t.Error("Expected error for plugin with empty version")
 	}
-	
+
 	// Add backend with no schemes
 	badBackend := &mockBackendPlugin{
 		name:    "bad-backend",
@@ -519,12 +519,12 @@ func TestValidatePluginHealth(t *testing.T) {
 		schemes: []string{}, // No schemes
 	}
 	manager.loaded["bad-backend"] = badBackend
-	
+
 	err = integration.ValidatePluginHealth()
 	if err == nil {
 		t.Error("Expected error for backend with no schemes")
 	}
-	
+
 	// Add formatter with empty format name
 	badFormatter := &mockFormatterPlugin{
 		name:       "bad-formatter",
@@ -532,12 +532,12 @@ func TestValidatePluginHealth(t *testing.T) {
 		formatName: "", // Empty format name
 	}
 	manager.loaded["bad-formatter"] = badFormatter
-	
+
 	err = integration.ValidatePluginHealth()
 	if err == nil {
 		t.Error("Expected error for formatter with empty format name")
 	}
-	
+
 	// Add filter with empty filter type
 	badFilter := &mockFilterPlugin{
 		name:       "bad-filter",
@@ -545,7 +545,7 @@ func TestValidatePluginHealth(t *testing.T) {
 		filterType: "", // Empty filter type
 	}
 	manager.loaded["bad-filter"] = badFilter
-	
+
 	err = integration.ValidatePluginHealth()
 	if err == nil {
 		t.Error("Expected error for filter with empty filter type")
@@ -556,7 +556,7 @@ func TestValidatePluginHealth(t *testing.T) {
 func TestGetCapabilities(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Initially should have empty capabilities
 	caps := integration.GetCapabilities()
 	if caps.PluginCount != 0 {
@@ -571,32 +571,32 @@ func TestGetCapabilities(t *testing.T) {
 	if len(caps.FilterTypes) != 0 {
 		t.Errorf("Expected 0 filter types, got %d", len(caps.FilterTypes))
 	}
-	
+
 	// Register various plugins
 	backendPlugin := &mockBackendPlugin{
-		name: "multi-backend",
-		schemes:    []string{"http", "https", "ws", "wss"},
+		name:    "multi-backend",
+		schemes: []string{"http", "https", "ws", "wss"},
 	}
 	manager.RegisterBackendPlugin(backendPlugin)
-	
+
 	formatterPlugin1 := &mockFormatterPlugin{
-		name: "xml-formatter",
+		name:       "xml-formatter",
 		formatName: "xml",
 	}
 	manager.RegisterFormatterPlugin(formatterPlugin1)
-	
+
 	formatterPlugin2 := &mockFormatterPlugin{
-		name: "yaml-formatter",
+		name:       "yaml-formatter",
 		formatName: "yaml",
 	}
 	manager.RegisterFormatterPlugin(formatterPlugin2)
-	
+
 	filterPlugin := &mockFilterPlugin{
-		name: "rate-filter",
+		name:       "rate-filter",
 		filterType: "rate-limit",
 	}
 	manager.RegisterFilterPlugin(filterPlugin)
-	
+
 	// Get capabilities
 	caps = integration.GetCapabilities()
 	if caps.PluginCount != 4 {
@@ -617,7 +617,7 @@ func TestGetCapabilities(t *testing.T) {
 func TestIsSupportedMethods(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Initially nothing should be supported
 	if integration.IsBackendSupported("http") {
 		t.Error("http should not be supported initially")
@@ -628,26 +628,26 @@ func TestIsSupportedMethods(t *testing.T) {
 	if integration.IsFilterSupported("rate-limit") {
 		t.Error("rate-limit should not be supported initially")
 	}
-	
+
 	// Register plugins
 	backendPlugin := &mockBackendPlugin{
-		name: "http-backend",
-		schemes:    []string{"http", "https"},
+		name:    "http-backend",
+		schemes: []string{"http", "https"},
 	}
 	manager.RegisterBackendPlugin(backendPlugin)
-	
+
 	formatterPlugin := &mockFormatterPlugin{
-		name: "xml-formatter",
+		name:       "xml-formatter",
 		formatName: "xml",
 	}
 	manager.RegisterFormatterPlugin(formatterPlugin)
-	
+
 	filterPlugin := &mockFilterPlugin{
-		name: "rate-filter",
+		name:       "rate-filter",
 		filterType: "rate-limit",
 	}
 	manager.RegisterFilterPlugin(filterPlugin)
-	
+
 	// Now they should be supported
 	if !integration.IsBackendSupported("http") {
 		t.Error("http should be supported")
@@ -658,14 +658,14 @@ func TestIsSupportedMethods(t *testing.T) {
 	if integration.IsBackendSupported("ftp") {
 		t.Error("ftp should not be supported")
 	}
-	
+
 	if !integration.IsFormatterSupported("xml") {
 		t.Error("xml should be supported")
 	}
 	if integration.IsFormatterSupported("yaml") {
 		t.Error("yaml should not be supported")
 	}
-	
+
 	if !integration.IsFilterSupported("rate-limit") {
 		t.Error("rate-limit should be supported")
 	}
@@ -681,13 +681,13 @@ func TestCreateDestinationConfig(t *testing.T) {
 	if len(config) != 0 {
 		t.Error("Expected empty config")
 	}
-	
+
 	// Test with single option
 	config = CreateDestinationConfig(WithBatchSize(1000))
 	if config["batch_size"] != 1000 {
 		t.Errorf("Expected batch_size=1000, got %v", config["batch_size"])
 	}
-	
+
 	// Test with multiple options
 	config = CreateDestinationConfig(
 		WithBatchSize(500),
@@ -696,7 +696,7 @@ func TestCreateDestinationConfig(t *testing.T) {
 		WithTimeout(30),
 		WithCustomConfig("custom_key", "custom_value"),
 	)
-	
+
 	if config["batch_size"] != 500 {
 		t.Errorf("Expected batch_size=500, got %v", config["batch_size"])
 	}
@@ -718,7 +718,7 @@ func TestCreateDestinationConfig(t *testing.T) {
 func TestConcurrentIntegrationOperations(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Register plugins for all types
 	for i := 0; i < 5; i++ {
 		backendPlugin := &mockBackendPlugin{
@@ -726,60 +726,60 @@ func TestConcurrentIntegrationOperations(t *testing.T) {
 			schemes: []string{fmt.Sprintf("scheme%d", i)},
 		}
 		manager.RegisterBackendPlugin(backendPlugin)
-		
+
 		formatterPlugin := &mockFormatterPlugin{
 			name:       fmt.Sprintf("formatter-%d", i),
 			formatName: fmt.Sprintf("format%d", i),
 		}
 		manager.RegisterFormatterPlugin(formatterPlugin)
-		
+
 		filterPlugin := &mockFilterPlugin{
 			name:       fmt.Sprintf("filter-%d", i),
 			filterType: fmt.Sprintf("type%d", i),
 		}
 		manager.RegisterFilterPlugin(filterPlugin)
 	}
-	
+
 	var wg sync.WaitGroup
-	
+
 	// Concurrent reads
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			// Get available plugins
 			backends := integration.GetAvailableBackends()
 			if len(backends) != 5 {
 				t.Errorf("Expected 5 backends, got %d", len(backends))
 			}
-			
+
 			formatters := integration.GetAvailableFormatters()
 			if len(formatters) != 5 {
 				t.Errorf("Expected 5 formatters, got %d", len(formatters))
 			}
-			
+
 			filters := integration.GetAvailableFilters()
 			if len(filters) != 5 {
 				t.Errorf("Expected 5 filters, got %d", len(filters))
 			}
-			
+
 			// Check support
 			scheme := fmt.Sprintf("scheme%d", id%5)
 			if !integration.IsBackendSupported(scheme) {
 				t.Errorf("Expected %s to be supported", scheme)
 			}
-			
+
 			format := fmt.Sprintf("format%d", id%5)
 			if !integration.IsFormatterSupported(format) {
 				t.Errorf("Expected %s to be supported", format)
 			}
-			
+
 			filterType := fmt.Sprintf("type%d", id%5)
 			if !integration.IsFilterSupported(filterType) {
 				t.Errorf("Expected %s to be supported", filterType)
 			}
-			
+
 			// Get capabilities
 			caps := integration.GetCapabilities()
 			if caps.PluginCount != 15 { // 5 of each type
@@ -787,7 +787,7 @@ func TestConcurrentIntegrationOperations(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
 }
 
@@ -795,36 +795,36 @@ func TestConcurrentIntegrationOperations(t *testing.T) {
 func TestCreateBackendFromURIWithMultipleValues(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	var capturedConfig map[string]interface{}
-	
+
 	plugin := &mockBackendPlugin{
-		name: "test-backend",
-		schemes:    []string{"test"},
+		name:    "test-backend",
+		schemes: []string{"test"},
 		createBackendFunc: func(uri string, config map[string]interface{}) (Backend, error) {
 			capturedConfig = config
 			return &mockBackend{}, nil
 		},
 	}
-	
+
 	manager.RegisterBackendPlugin(plugin)
-	
+
 	// URI with multiple values for same parameter
 	_, err := integration.CreateBackendFromURI("test://localhost?param=value1&param=value2&param=value3")
 	if err != nil {
 		t.Fatalf("CreateBackendFromURI failed: %v", err)
 	}
-	
+
 	// Should capture as array
 	params, ok := capturedConfig["param"].([]string)
 	if !ok {
 		t.Fatal("Expected param to be []string")
 	}
-	
+
 	if len(params) != 3 {
 		t.Errorf("Expected 3 values, got %d", len(params))
 	}
-	
+
 	expected := []string{"value1", "value2", "value3"}
 	for i, val := range params {
 		if val != expected[i] {
@@ -837,18 +837,18 @@ func TestCreateBackendFromURIWithMultipleValues(t *testing.T) {
 func TestIntegrationErrorPropagation(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Test formatter creation error
 	formatterErr := errors.New("formatter creation failed")
 	formatterPlugin := &mockFormatterPlugin{
-		name: "error-formatter",
+		name:       "error-formatter",
 		formatName: "error",
 		createFormatterFunc: func(config map[string]interface{}) (Formatter, error) {
 			return nil, formatterErr
 		},
 	}
 	manager.RegisterFormatterPlugin(formatterPlugin)
-	
+
 	_, err := integration.CreateFormatterByName("error", nil)
 	if err == nil {
 		t.Error("Expected error from formatter creation")
@@ -856,18 +856,18 @@ func TestIntegrationErrorPropagation(t *testing.T) {
 	if !contains(err.Error(), "create formatter") {
 		t.Error("Error should mention formatter creation")
 	}
-	
+
 	// Test filter creation error
 	filterErr := errors.New("filter creation failed")
 	filterPlugin := &mockFilterPlugin{
-		name: "error-filter",
+		name:       "error-filter",
 		filterType: "error",
 		createFilterFunc: func(config map[string]interface{}) (types.FilterFunc, error) {
 			return nil, filterErr
 		},
 	}
 	manager.RegisterFilterPlugin(filterPlugin)
-	
+
 	_, err = integration.CreateFilterByType("error", nil)
 	if err == nil {
 		t.Error("Expected error from filter creation")
@@ -879,16 +879,16 @@ func TestIntegrationErrorPropagation(t *testing.T) {
 
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && s != "" && substr != "" && 
-		(s == substr || (len(s) >= len(substr) && (s[:len(substr)] == substr || 
-		contains(s[1:], substr))))
+	return len(s) > 0 && len(substr) > 0 && s != "" && substr != "" &&
+		(s == substr || (len(s) >= len(substr) && (s[:len(substr)] == substr ||
+			contains(s[1:], substr))))
 }
 
 // TestURIEdgeCases tests edge cases in URI parsing
 func TestURIEdgeCases(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	tests := []struct {
 		name        string
 		uri         string
@@ -902,17 +902,17 @@ func TestURIEdgeCases(t *testing.T) {
 		{"User info", "test://user:pass@localhost", false},
 		{"IPv6", "test://[::1]:8080", false},
 	}
-	
+
 	// Register a test backend
 	plugin := &mockBackendPlugin{
-		name: "test-backend",
-		schemes:    []string{"test"},
+		name:    "test-backend",
+		schemes: []string{"test"},
 		createBackendFunc: func(uri string, config map[string]interface{}) (Backend, error) {
 			return &mockBackend{}, nil
 		},
 	}
 	manager.RegisterBackendPlugin(plugin)
-	
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := integration.CreateBackendFromURI(test.uri)
@@ -929,7 +929,7 @@ func TestURIEdgeCases(t *testing.T) {
 func TestShutdownTimeout(t *testing.T) {
 	manager := NewManager()
 	integration := NewIntegration(manager)
-	
+
 	// Register a plugin that takes too long to shutdown
 	plugin := &mockPlugin{
 		name: "slow-plugin",
@@ -943,19 +943,19 @@ func TestShutdownTimeout(t *testing.T) {
 		},
 	}
 	manager.loaded["slow-plugin"] = plugin
-	
+
 	// Shutdown with short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	
+
 	start := time.Now()
 	err := integration.ShutdownAll(ctx)
 	elapsed := time.Since(start)
-	
+
 	if err == nil {
 		t.Error("Expected error due to timeout")
 	}
-	
+
 	// Should complete quickly due to context timeout
 	if elapsed > 500*time.Millisecond {
 		t.Error("Shutdown took too long despite timeout")

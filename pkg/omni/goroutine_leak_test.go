@@ -54,10 +54,10 @@ func TestNoGoroutineLeakOnShutdown(t *testing.T) {
 
 	// Check final goroutine count
 	finalGoroutines := runtime.NumGoroutine()
-	
+
 	// Allow for some variance (test framework goroutines)
 	if finalGoroutines > initialGoroutines+5 {
-		t.Errorf("Potential goroutine leak: started with %d, ended with %d goroutines", 
+		t.Errorf("Potential goroutine leak: started with %d, ended with %d goroutines",
 			initialGoroutines, finalGoroutines)
 	}
 }
@@ -122,9 +122,9 @@ func TestCompressionWorkersNoLeak(t *testing.T) {
 	// Queue some files for compression
 	// queueForCompression is not available
 	/*
-	for i := 0; i < 10; i++ {
-		logger.queueForCompression(filepath.Join(dir, "dummy.log"))
-	}
+		for i := 0; i < 10; i++ {
+			logger.queueForCompression(filepath.Join(dir, "dummy.log"))
+		}
 	*/
 
 	// Stop compression workers
@@ -212,10 +212,10 @@ func TestCleanupOldLogsTimeout(t *testing.T) {
 	// Start cleanup in goroutine
 	// cleanupOldLogs is not available
 	/*
-	done := make(chan error, 1)
-	go func() {
-		done <- logger.cleanupOldLogs()
-	}()
+		done := make(chan error, 1)
+		go func() {
+			done <- logger.cleanupOldLogs()
+		}()
 	*/
 	done := make(chan error, 1)
 	go func() {
@@ -251,14 +251,14 @@ func TestRecoveryManagerCleanup(t *testing.T) {
 	// Set recovery configuration
 	// SetRecoveryConfig is not available
 	/*
-	logger.SetRecoveryConfig(&RecoveryConfig{
-		FallbackPath: fallbackFile,
-		MaxRetries:   3,
-		RetryDelay:   100 * time.Millisecond,
-	})
+		logger.SetRecoveryConfig(&RecoveryConfig{
+			FallbackPath: fallbackFile,
+			MaxRetries:   3,
+			RetryDelay:   100 * time.Millisecond,
+		})
 
-	// Trigger recovery by closing the destination file
-	logger.defaultDest.File.Close()
+		// Trigger recovery by closing the destination file
+		logger.defaultDest.File.Close()
 	*/
 
 	// Try to log, which should use recovery

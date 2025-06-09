@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/internal/buffer"
 )
 
@@ -22,7 +22,7 @@ func TestBufferPoolDefensive(t *testing.T) {
 
 	// Write some data
 	buf1.WriteString("test data")
-	
+
 	// Put it back
 	pool.Put(buf1)
 
@@ -118,7 +118,7 @@ func TestMetricsWithNilValues(t *testing.T) {
 
 	// GetMetrics should handle nil values gracefully
 	metrics := logger.GetMetrics()
-	
+
 	// Should not have panic'd and should have skipped nil values
 	if _, exists := metrics.MessagesLogged[LevelInfo]; exists {
 		t.Error("Nil value should have been skipped in messages")
@@ -156,15 +156,15 @@ func TestDestinationWithNilWriter(t *testing.T) {
 	// Try to flush it - should not panic
 	// FlushDestination is not available
 	/*
-	err = logger.FlushDestination(dest)
-	if err != nil {
-		t.Errorf("Unexpected error flushing destination with nil writer: %v", err)
-	}
+		err = logger.FlushDestination(dest)
+		if err != nil {
+			t.Errorf("Unexpected error flushing destination with nil writer: %v", err)
+		}
 	*/
 
 	// Try to log - should not panic
 	logger.Info("Test message to nil writer")
-	
+
 	// Wait for processing
 	time.Sleep(100 * time.Millisecond)
 }

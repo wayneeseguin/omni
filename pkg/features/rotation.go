@@ -27,10 +27,10 @@ type RotationManager struct {
 	cleanupWg       sync.WaitGroup
 	errorHandler    func(source, dest, msg string, err error)
 	metricsHandler  func(string) // Function to track rotation metrics
-	
+
 	// Compression callback
 	compressionCallback func(path string)
-	
+
 	// Current log paths being managed
 	logPaths []string
 	pathsMu  sync.RWMutex
@@ -68,7 +68,7 @@ func (r *RotationManager) SetMetricsHandler(handler func(string)) {
 func (r *RotationManager) AddLogPath(path string) {
 	r.pathsMu.Lock()
 	defer r.pathsMu.Unlock()
-	
+
 	// Check if path already exists
 	for _, existing := range r.logPaths {
 		if existing == path {
@@ -82,7 +82,7 @@ func (r *RotationManager) AddLogPath(path string) {
 func (r *RotationManager) RemoveLogPath(path string) {
 	r.pathsMu.Lock()
 	defer r.pathsMu.Unlock()
-	
+
 	for i, existing := range r.logPaths {
 		if existing == path {
 			r.logPaths = append(r.logPaths[:i], r.logPaths[i+1:]...)
@@ -162,7 +162,7 @@ func (r *RotationManager) startCleanupRoutine() {
 				paths := make([]string, len(r.logPaths))
 				copy(paths, r.logPaths)
 				r.pathsMu.RUnlock()
-				
+
 				// Clean up each managed log path
 				for _, path := range paths {
 					if err := r.RunCleanup(path); err != nil && r.errorHandler != nil {
@@ -221,7 +221,7 @@ func (r *RotationManager) RotateFile(path string, writer *bufio.Writer) (string,
 
 	// Clean the path to prevent directory traversal
 	cleanPath := filepath.Clean(path)
-	
+
 	// Generate timestamp for rotation (always use UTC for consistency)
 	timestamp := time.Now().UTC().Format(RotationTimeFormat)
 	rotatedPath := fmt.Sprintf("%s.%s", cleanPath, timestamp)
@@ -236,11 +236,11 @@ func (r *RotationManager) RotateFile(path string, writer *bufio.Writer) (string,
 	compressionCallback := r.compressionCallback
 	metricsHandler := r.metricsHandler
 	r.mu.RUnlock()
-	
+
 	if compressionCallback != nil {
 		compressionCallback(rotatedPath)
 	}
-	
+
 	// Track rotation metric
 	if metricsHandler != nil {
 		metricsHandler("rotation_completed")
@@ -330,7 +330,7 @@ func (r *RotationManager) CleanupOldFiles(logPath string) error {
 	r.mu.RLock()
 	maxFiles := r.maxFiles
 	r.mu.RUnlock()
-	
+
 	if maxFiles <= 0 {
 		return nil // No file count limit
 	}

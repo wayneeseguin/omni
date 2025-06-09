@@ -242,7 +242,7 @@ func (rm *RecoveryManager) bufferMessage(message interface{}) {
 		// Buffer full - drop oldest message
 		copy(rm.buffer, rm.buffer[1:])
 		rm.buffer[len(rm.buffer)-1] = message
-		
+
 		if rm.metricsHandler != nil {
 			rm.metricsHandler("buffer_overflow")
 		}
@@ -312,7 +312,7 @@ func (rm *RecoveryManager) GetConfig() *RecoveryConfig {
 func (rm *RecoveryManager) UpdateConfig(config *RecoveryConfig) {
 	if config != nil {
 		rm.config = config
-		
+
 		// Resize buffer if needed
 		if config.BufferSize != cap(rm.buffer) {
 			rm.bufferMu.Lock()

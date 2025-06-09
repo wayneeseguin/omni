@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/internal/buffer"
 	"github.com/wayneeseguin/omni/internal/metrics"
 	"github.com/wayneeseguin/omni/pkg/backends"
@@ -63,7 +63,7 @@ func (w *pluginBackendWrapper) Sync() error {
 func (w *pluginBackendWrapper) GetStats() backends.BackendStats {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	
+
 	return backends.BackendStats{
 		Path:         w.uri,
 		WriteCount:   w.writeCount,
@@ -78,7 +78,7 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 	// Create backend instance
 	var backend backends.Backend
 	var err error
-	
+
 	switch backendType {
 	case BackendFlock:
 		backend, err = backends.NewFileBackend(uri)
@@ -87,7 +87,7 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 		network, address := "unix", "/dev/log" // defaults
 		tag := "omni"
 		priority := 16 // local0.info (facility 16, severity 6)
-		
+
 		// Parse syslog URI: syslog://address or syslog:///path
 		if strings.HasPrefix(uri, "syslog://") {
 			address = strings.TrimPrefix(uri, "syslog://")
@@ -116,7 +116,7 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 				}
 			}
 		}
-		
+
 		backend, err = backends.NewSyslogBackend(network, address, priority, tag)
 	default:
 		// Try plugin backends
@@ -127,18 +127,18 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 				// Wrap the plugin backend
 				backend = &pluginBackendWrapper{
 					pluginBackend: pluginBackend,
-					uri:          uri,
+					uri:           uri,
 				}
 			}
 		} else {
 			return nil, fmt.Errorf("unsupported backend type: %d", backendType)
 		}
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create destination
 	dest := &Destination{
 		URI:     uri,
@@ -146,10 +146,10 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 		Done:    make(chan struct{}),
 		Enabled: true,
 	}
-	
+
 	// Set backend using thread-safe method
 	dest.SetBackend(backend)
-	
+
 	// For file backends, set additional fields
 	if fileBackend, ok := backend.(*backends.FileBackendImpl); ok {
 		dest.File = fileBackend.GetFile()
@@ -157,7 +157,7 @@ func (f *Omni) createDestination(uri string, backendType int) (*Destination, err
 		dest.Lock = fileBackend.GetLock()
 		dest.Size = fileBackend.GetSize()
 	}
-	
+
 	return dest, nil
 }
 
@@ -168,10 +168,10 @@ func (f *Omni) SetRedaction(patterns []string, replace string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Initialize redaction manager if needed
 	if f.redactionManager == nil {
 		f.redactionManager = features.NewRedactionManager()
@@ -179,23 +179,23 @@ func (f *Omni) SetRedaction(patterns []string, replace string) error {
 			f.logError(source, dest, msg, err, ErrorLevelWarn)
 		})
 	}
-	
+
 	f.redactionManager.(*features.RedactionManager).SetCustomRedactor(redactor)
-	
+
 	// Configure redaction manager to enable built-in redaction
 	config := &features.RedactionConfig{
 		EnableBuiltInPatterns: true,
 		EnableFieldRedaction:  true,
 		EnableDataPatterns:    true,
-		MaxCacheSize:         1000,
+		MaxCacheSize:          1000,
 	}
 	f.redactionManager.(*features.RedactionManager).SetConfig(config)
-	
+
 	// Also set the legacy redactor field for backward compatibility
 	f.redactor = redactor
 	f.redactionPatterns = patterns
 	f.redactionReplace = replace
-	
+
 	return nil
 }
 
@@ -230,9 +230,9 @@ func (f *Omni) startCompressionWorkers() {
 		})
 		f.compressionManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	f.compressionManager.Start()
-	
+
 	// Set compression callback for rotation manager
 	if f.rotationManager != nil {
 		f.rotationManager.SetCompressionCallback(func(path string) {
@@ -257,7 +257,7 @@ func (f *Omni) startCleanupRoutine() {
 		})
 		f.rotationManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	// Add all log paths to rotation manager
 	f.mu.RLock()
 	for _, dest := range f.Destinations {
@@ -266,7 +266,7 @@ func (f *Omni) startCleanupRoutine() {
 		}
 	}
 	f.mu.RUnlock()
-	
+
 	f.rotationManager.Start()
 }
 
@@ -313,14 +313,14 @@ func (f *Omni) WithError(err error) Logger {
 func (f *Omni) SetFormat(format int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Validate format
 	if format < FormatText || format > FormatJSON {
 		return fmt.Errorf("invalid format: %d", format)
 	}
-	
+
 	f.format = format
-	
+
 	// Update formatter based on format
 	switch format {
 	case FormatJSON:
@@ -328,7 +328,7 @@ func (f *Omni) SetFormat(format int) error {
 	case FormatText:
 		f.formatter = formatters.NewTextFormatter()
 	}
-	
+
 	return nil
 }
 
@@ -346,7 +346,7 @@ func (f *Omni) SetCompression(compressionType int) error {
 		})
 		f.compressionManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	return f.compressionManager.SetCompression(features.CompressionType(compressionType))
 }
 
@@ -354,7 +354,7 @@ func (f *Omni) SetMaxAge(duration time.Duration) error {
 	f.mu.Lock()
 	f.maxAge = duration
 	f.mu.Unlock()
-	
+
 	if f.rotationManager == nil {
 		f.rotationManager = features.NewRotationManager()
 		f.rotationManager.SetErrorHandler(func(source, dest, msg string, err error) {
@@ -362,7 +362,7 @@ func (f *Omni) SetMaxAge(duration time.Duration) error {
 		})
 		f.rotationManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	return f.rotationManager.SetMaxAge(duration)
 }
 
@@ -376,11 +376,11 @@ func (f *Omni) SetDestinationEnabled(index int, enabled bool) error {
 	}
 	dest := f.Destinations[index]
 	f.mu.RUnlock()
-	
+
 	dest.mu.Lock()
 	dest.Enabled = enabled
 	dest.mu.Unlock()
-	
+
 	return nil
 }
 
@@ -390,7 +390,7 @@ func (f *Omni) AddDestination(uri string) error {
 	if strings.HasPrefix(uri, "syslog://") {
 		backendType = BackendSyslog
 	}
-	
+
 	return f.AddDestinationWithBackend(uri, backendType)
 }
 
@@ -399,71 +399,71 @@ func (f *Omni) AddDestinationWithBackend(uri string, backendType int) error {
 	if err != nil {
 		return err
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Check if destination already exists
 	for _, existing := range f.Destinations {
 		if existing.URI == uri {
 			return fmt.Errorf("destination already exists: %s", uri)
 		}
 	}
-	
+
 	f.Destinations = append(f.Destinations, dest)
-	
+
 	// If it's a file destination, add to rotation manager
 	if backendType == BackendFlock && f.rotationManager != nil {
 		f.rotationManager.AddLogPath(uri)
 	}
-	
+
 	return nil
 }
 
 func (f *Omni) RemoveDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for i, dest := range f.Destinations {
 		if dest.URI == name {
 			// Close the destination using thread-safe method
 			_ = dest.Close() // Best effort close
-			
+
 			// Remove from rotation manager
 			if dest.Backend == BackendFlock && f.rotationManager != nil {
 				f.rotationManager.RemoveLogPath(name)
 			}
-			
+
 			// Clear defaultDest if this is the default destination
 			if f.defaultDest == dest {
 				f.defaultDest = nil
 			}
-			
+
 			// Remove from slice
 			f.Destinations = append(f.Destinations[:i], f.Destinations[i+1:]...)
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("destination not found: %s", name)
 }
 
 func (f *Omni) ListDestinations() []string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	names := make([]string, len(f.Destinations))
 	for i, dest := range f.Destinations {
 		names[i] = dest.URI
 	}
-	
+
 	return names
 }
 
 func (f *Omni) EnableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for _, dest := range f.Destinations {
 		if dest.URI == name {
 			dest.mu.Lock()
@@ -472,14 +472,14 @@ func (f *Omni) EnableDestination(name string) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("destination not found: %s", name)
 }
 
 func (f *Omni) DisableDestination(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for _, dest := range f.Destinations {
 		if dest.URI == name {
 			dest.mu.Lock()
@@ -488,7 +488,7 @@ func (f *Omni) DisableDestination(name string) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("destination not found: %s", name)
 }
 
@@ -507,7 +507,7 @@ func (f *Omni) FlushAll() error {
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
 	f.mu.RUnlock()
-	
+
 	var errs []error
 	for _, dest := range destinations {
 		// Use the thread-safe Flush method
@@ -515,11 +515,11 @@ func (f *Omni) FlushAll() error {
 			errs = append(errs, fmt.Errorf("flush %s: %w", dest.URI, err))
 		}
 	}
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("flush errors: %v", errs)
 	}
-	
+
 	return nil
 }
 
@@ -531,7 +531,7 @@ func (f *Omni) Sync() error {
 		Timestamp: time.Now(),
 		SyncDone:  syncDone,
 	}
-	
+
 	// Send sync message through the channel
 	select {
 	case f.msgChan <- syncMsg:
@@ -540,13 +540,13 @@ func (f *Omni) Sync() error {
 	default:
 		// Channel is full or closed, continue with flush
 	}
-	
+
 	// Now sync all destinations
 	f.mu.RLock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
 	f.mu.RUnlock()
-	
+
 	var errs []error
 	for _, dest := range destinations {
 		backend := dest.GetBackend()
@@ -558,11 +558,11 @@ func (f *Omni) Sync() error {
 			}
 		}
 	}
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("sync errors: %v", errs)
 	}
-	
+
 	return nil
 }
 
@@ -574,56 +574,56 @@ func (f *Omni) Close() error {
 	}
 	f.closed = true
 	f.mu.Unlock()
-	
+
 	// Close message channel to stop dispatcher
 	close(f.msgChan)
-	
+
 	// Wait for dispatcher to finish
 	f.workerWg.Wait()
-	
+
 	// Stop managers
 	f.stopCompressionWorkers()
 	f.stopCleanupRoutine()
-	
+
 	// Close recovery manager
 	if f.recoveryManager != nil {
 		_ = f.recoveryManager.Close() // Best effort close
 	}
-	
+
 	// Close all destinations
 	f.mu.RLock()
 	destinations := make([]*Destination, len(f.Destinations))
 	copy(destinations, f.Destinations)
 	f.mu.RUnlock()
-	
+
 	var errs []error
 	for _, dest := range destinations {
 		if err := dest.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close %s: %w", dest.URI, err))
 		}
 	}
-	
+
 	// Clear the destinations
 	f.mu.Lock()
 	f.Destinations = nil
 	f.defaultDest = nil
 	f.mu.Unlock()
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("close errors: %v", errs)
 	}
-	
+
 	return nil
 }
 
 func (f *Omni) Shutdown(ctx context.Context) error {
 	// Graceful shutdown with context
 	done := make(chan error, 1)
-	
+
 	go func() {
 		done <- f.Close()
 	}()
-	
+
 	select {
 	case err := <-done:
 		return err
@@ -643,9 +643,9 @@ func (f *Omni) GetMetrics() LoggerMetrics {
 	if f.metricsCollector == nil {
 		return LoggerMetrics{}
 	}
-	
+
 	stats := f.metricsCollector.GetStats()
-	
+
 	// Convert internal metrics to LoggerMetrics
 	messagesByLevel := make(map[int]uint64)
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
@@ -656,7 +656,7 @@ func (f *Omni) GetMetrics() LoggerMetrics {
 		}
 		return true
 	})
-	
+
 	// Count active destinations
 	f.mu.RLock()
 	activeCount := 0
@@ -671,7 +671,7 @@ func (f *Omni) GetMetrics() LoggerMetrics {
 		dest.mu.RUnlock()
 	}
 	f.mu.RUnlock()
-	
+
 	// Get error counts by source
 	errorsBySource := make(map[string]uint64)
 	if f.metricsCollector != nil {
@@ -679,7 +679,7 @@ func (f *Omni) GetMetrics() LoggerMetrics {
 		metrics := f.metricsCollector.GetMetrics(0, 0, nil)
 		errorsBySource = metrics.ErrorsBySource
 	}
-	
+
 	return LoggerMetrics{
 		MessagesLogged:       stats.WriteCount,
 		MessagesDropped:      stats.DroppedCount,
@@ -697,7 +697,7 @@ func (f *Omni) ResetMetrics() {
 	if f.metricsCollector != nil {
 		f.metricsCollector.ResetMetrics()
 	}
-	
+
 	// Reset message counters by clearing each key
 	f.messagesByLevel.Range(func(key, value interface{}) bool {
 		f.messagesByLevel.Delete(key)
@@ -717,7 +717,7 @@ func (f *Omni) GetErrors() <-chan LogError {
 func (f *Omni) AddFilter(filter FilterFunc) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if f.filterManager == nil {
 		f.filterManager = features.NewFilterManager()
 		f.filterManager.SetErrorHandler(func(source, dest, msg string, err error) {
@@ -725,18 +725,18 @@ func (f *Omni) AddFilter(filter FilterFunc) error {
 		})
 		f.filterManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	if f.filterNames == nil {
 		f.filterNames = make(map[string]FilterFunc)
 	}
-	
+
 	// Generate unique name for the filter
 	f.filterCounter++
 	filterName := fmt.Sprintf("filter_%d", f.filterCounter)
-	
+
 	// Store the mapping
 	f.filterNames[filterName] = filter
-	
+
 	// Convert to features.FilterFunc and add with name
 	featuresFilter := features.FilterFunc(filter)
 	return f.filterManager.AddNamedFilter(filterName, "", featuresFilter, 0)
@@ -745,11 +745,11 @@ func (f *Omni) AddFilter(filter FilterFunc) error {
 func (f *Omni) RemoveFilter(filter FilterFunc) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if f.filterManager == nil || f.filterNames == nil {
 		return fmt.Errorf("no filters to remove")
 	}
-	
+
 	// Find the filter name by function reference
 	var filterName string
 	for name, storedFilter := range f.filterNames {
@@ -758,14 +758,14 @@ func (f *Omni) RemoveFilter(filter FilterFunc) error {
 			break
 		}
 	}
-	
+
 	if filterName == "" {
 		return fmt.Errorf("filter not found")
 	}
-	
+
 	// Remove from mapping
 	delete(f.filterNames, filterName)
-	
+
 	// Remove from filter manager
 	return f.filterManager.RemoveFilter(filterName)
 }
@@ -773,11 +773,11 @@ func (f *Omni) RemoveFilter(filter FilterFunc) error {
 func (f *Omni) ClearFilters() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if f.filterManager != nil {
 		f.filterManager.ClearFilters()
 	}
-	
+
 	// Clear the mapping
 	if f.filterNames != nil {
 		f.filterNames = make(map[string]FilterFunc)
@@ -795,12 +795,12 @@ func (f *Omni) SetSampling(strategy int, rate float64) error {
 		})
 		f.samplingManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	f.mu.Lock()
 	f.samplingStrategy = strategy
 	f.samplingRate = rate
 	f.mu.Unlock()
-	
+
 	return f.samplingManager.SetStrategy(features.SamplingStrategy(strategy), rate)
 }
 
@@ -867,7 +867,7 @@ func (f *Omni) shouldLog(level int, format string, fields map[string]interface{}
 	if !f.IsLevelEnabled(level) {
 		return false
 	}
-	
+
 	// Check filters
 	if f.filterManager != nil {
 		if !f.filterManager.ApplyFilters(level, format, fields) {
@@ -875,7 +875,7 @@ func (f *Omni) shouldLog(level int, format string, fields map[string]interface{}
 			return false
 		}
 	}
-	
+
 	// Check sampling
 	if f.samplingManager != nil {
 		if !f.samplingManager.ShouldLog(level, format, fields) {
@@ -883,7 +883,7 @@ func (f *Omni) shouldLog(level int, format string, fields map[string]interface{}
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -903,13 +903,13 @@ func (f *Omni) logError(source, destination, message string, err error, level Er
 		Err:         err,
 		Level:       level,
 	}
-	
+
 	// Store last error
 	f.mu.Lock()
 	f.lastError = &logErr
 	f.errorCount++
 	f.mu.Unlock()
-	
+
 	// Send to error channel if available
 	if f.errorChannel != nil {
 		select {
@@ -918,12 +918,12 @@ func (f *Omni) logError(source, destination, message string, err error, level Er
 			// Channel full, don't block
 		}
 	}
-	
+
 	// Call error handler
 	if f.errorHandler != nil {
 		f.errorHandler(source, destination, message, err)
 	}
-	
+
 	// Track in metrics
 	if f.metricsCollector != nil {
 		f.metricsCollector.TrackError(source)
@@ -933,7 +933,7 @@ func (f *Omni) logError(source, destination, message string, err error, level Er
 func (f *Omni) trackMessageLogged(level int) {
 	// Update counter
 	f.messagesByLevel.Store(level, f.GetMessageCount(level)+1)
-	
+
 	// Track in metrics
 	if f.metricsCollector != nil {
 		f.metricsCollector.TrackMessage(level)
@@ -971,7 +971,7 @@ func (f *Omni) recursiveRedact(fields map[string]interface{}) {
 	if f.redactionManager == nil {
 		return
 	}
-	
+
 	// Redact fields in place
 	features.RecursiveRedact(fields, "", nil, nil)
 }
@@ -988,7 +988,7 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 	if dest.Backend != BackendFlock {
 		return nil // Only file destinations support rotation
 	}
-	
+
 	if f.rotationManager == nil {
 		f.rotationManager = features.NewRotationManager()
 		f.rotationManager.SetErrorHandler(func(source, dest, msg string, err error) {
@@ -996,7 +996,7 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 		})
 		f.rotationManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	// Get writer from backend using thread-safe method
 	var writer *bufio.Writer
 	backend := dest.GetBackend()
@@ -1006,18 +1006,18 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 			writer = fileBackend.GetWriter()
 		}
 	}
-	
+
 	rotatedPath, err := f.rotationManager.RotateFile(dest.URI, writer)
 	if err != nil {
 		return err
 	}
-	
+
 	// Re-open the file
 	newDest, err := f.createDestination(dest.URI, dest.Backend)
 	if err != nil {
 		return err
 	}
-	
+
 	// Update destination using thread-safe method
 	dest.SetBackend(newDest.GetBackend())
 	dest.mu.Lock()
@@ -1026,19 +1026,19 @@ func (f *Omni) rotateDestination(dest *Destination) error {
 	dest.Lock = newDest.Lock
 	dest.Size = 0
 	dest.mu.Unlock()
-	
+
 	// Queue for compression if enabled
 	if f.compressionManager != nil && f.compression != CompressionNone {
 		f.compressionManager.QueueFile(rotatedPath)
 	}
-	
+
 	// Run cleanup after rotation to enforce maxFiles limit
 	if f.rotationManager != nil {
 		if err := f.rotationManager.CleanupOldFiles(dest.URI); err != nil {
 			f.logError("cleanup", dest.URI, "Failed to cleanup old files after rotation", err, ErrorLevelLow)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1076,13 +1076,13 @@ func (d *Destination) trackWrite(size int64, duration time.Duration) {
 
 func formatJSONEntry(entry *LogEntry) ([]byte, error) {
 	formatter := formatters.NewJSONFormatter()
-	
+
 	// Convert LogEntry to LogMessage for formatter
 	msg := LogMessage{
 		Entry:     entry,
 		Timestamp: time.Now(),
 	}
-	
+
 	return formatter.Format(msg)
 }
 
@@ -1090,11 +1090,11 @@ func (f *Omni) formatTimestamp(t time.Time) string {
 	f.mu.RLock()
 	format := f.formatOptions.TimestampFormat
 	f.mu.RUnlock()
-	
+
 	if format == "" {
 		format = time.RFC3339
 	}
-	
+
 	return t.Format(format)
 }
 
@@ -1119,12 +1119,12 @@ func addMetadataFields(entry *LogEntry, f *Omni) {
 	if entry.Fields == nil {
 		entry.Fields = make(map[string]interface{})
 	}
-	
+
 	// Add metadata fields if configured
 	if f.formatOptions.IncludeSource {
 		entry.Fields["source"] = "omni"
 	}
-	
+
 	if f.formatOptions.IncludeHost {
 		if hostname, err := GetHostname(); err == nil {
 			entry.Fields["host"] = hostname
@@ -1140,12 +1140,12 @@ func (f *Omni) RecoverFromError(err error, msg LogMessage, dest *Destination) {
 		})
 		f.recoveryManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	// Create a write function for retry
 	writeFunc := func() error {
 		return f.processMessage(msg, dest)
 	}
-	
+
 	f.recoveryManager.HandleError(err, msg, dest.URI, writeFunc)
 }
 
@@ -1186,7 +1186,7 @@ func (f *Omni) initializeManagers() {
 func (f *Omni) getDestinationStats() map[string]backends.BackendStats {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	stats := make(map[string]backends.BackendStats)
 	for _, dest := range f.Destinations {
 		backend := dest.GetBackend()
@@ -1194,7 +1194,7 @@ func (f *Omni) getDestinationStats() map[string]backends.BackendStats {
 			stats[dest.URI] = backend.GetStats()
 		}
 	}
-	
+
 	return stats
 }
 
@@ -1218,7 +1218,7 @@ func (f *Omni) DebugWithFields(msg string, fields map[string]interface{}) {
 	}
 	entry := &LogEntry{
 		Timestamp: f.formatTimestamp(time.Now()),
-		Level:     "DEBUG", 
+		Level:     "DEBUG",
 		Message:   msg,
 		Fields:    fields,
 	}
@@ -1269,29 +1269,29 @@ func (f *Omni) logStructured(level int, entry *LogEntry) {
 	if !f.shouldLog(level, entry.Message, entry.Fields) {
 		return
 	}
-	
+
 	// Sanitize fields to prevent circular references
 	if entry.Fields != nil {
 		entry.Fields = f.sanitizeFields(entry.Fields)
 	}
-	
+
 	// Apply redaction
 	if f.redactionManager != nil && entry.Fields != nil {
 		redactedMsg, redactedFields := f.redactionManager.(*features.RedactionManager).RedactMessage(level, entry.Message, entry.Fields)
 		entry.Message = redactedMsg
 		entry.Fields = redactedFields
 	}
-	
+
 	// Add metadata
 	addMetadataFields(entry, f)
-	
+
 	// Create LogMessage with structured entry
 	msg := LogMessage{
 		Level:     level,
 		Timestamp: time.Now(),
 		Entry:     entry,
 	}
-	
+
 	f.trackMessageLogged(level)
 	f.dispatchMessage(msg)
 }
@@ -1312,7 +1312,7 @@ func (f *Omni) sanitizeFieldsRecursive(data interface{}, visited map[uintptr]boo
 	if depth > maxDepth {
 		return "[max depth exceeded]"
 	}
-	
+
 	switch v := data.(type) {
 	case map[string]interface{}:
 		// Check for circular reference using map's address safely
@@ -1326,20 +1326,20 @@ func (f *Omni) sanitizeFieldsRecursive(data interface{}, visited map[uintptr]boo
 		}
 		visited[mapAddr] = true
 		defer delete(visited, mapAddr)
-		
+
 		sanitized := make(map[string]interface{})
 		for k, val := range v {
 			sanitized[k] = f.sanitizeFieldsRecursive(val, visited, depth+1, maxDepth)
 		}
 		return sanitized
-		
+
 	case []interface{}:
 		sanitized := make([]interface{}, len(v))
 		for i, val := range v {
 			sanitized[i] = f.sanitizeFieldsRecursive(val, visited, depth+1, maxDepth)
 		}
 		return sanitized
-		
+
 	case map[interface{}]interface{}:
 		// Convert generic map to string-keyed map
 		sanitized := make(map[string]interface{})
@@ -1348,7 +1348,7 @@ func (f *Omni) sanitizeFieldsRecursive(data interface{}, visited map[uintptr]boo
 			sanitized[keyStr] = f.sanitizeFieldsRecursive(val, visited, depth+1, maxDepth)
 		}
 		return sanitized
-		
+
 	default:
 		// For primitive types and other safe types, return as-is
 		return data
@@ -1390,7 +1390,7 @@ func (f *Omni) formatMessage(msg LogMessage) ([]byte, error) {
 	if formatter != nil {
 		return formatter.Format(msg)
 	}
-	
+
 	// Fallback to default formatting based on format type
 	switch f.format {
 	case FormatJSON:
@@ -1415,14 +1415,14 @@ func (f *Omni) StructuredLog(level int, message string, fields map[string]interf
 	if !f.IsLevelEnabled(level) {
 		return
 	}
-	
+
 	entry := &LogEntry{
 		Timestamp: f.formatTimestamp(time.Now()),
 		Level:     levelToString(level),
 		Message:   message,
 		Fields:    fields,
 	}
-	
+
 	f.logStructured(level, entry)
 }
 

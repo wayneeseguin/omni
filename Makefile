@@ -112,35 +112,35 @@ test: test-unit
 # Run unit tests
 test-unit:
 	@echo "Running unit tests..."
-	@CGO_ENABLED=0 $(GOTEST) -v -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /examples/)
+	@OMNI_UNIT_TESTS_ONLY=true CGO_ENABLED=0 $(GOTEST) -v -short -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /examples/)
 
 # Run tests without linker warnings (CGO disabled)
 test-clean:
 	@echo "Running tests without linker warnings (CGO disabled)..."
-	@CGO_ENABLED=0 $(GOTEST) ./...
+	@OMNI_UNIT_TESTS_ONLY=true CGO_ENABLED=0 $(GOTEST) -short ./...
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@CGO_ENABLED=0 $(GOTEST) -v -coverprofile=$(COVERAGE_FILE) -covermode=atomic $(shell go list ./... | grep -v /examples/)
+	@OMNI_UNIT_TESTS_ONLY=true CGO_ENABLED=0 $(GOTEST) -v -short -coverprofile=$(COVERAGE_FILE) -covermode=atomic $(shell go list ./... | grep -v /examples/)
 
 # Run tests with race detector
 test-race:
 	@echo "Running tests with race detector..."
 	@echo "Note: LC_DYSYMTAB warnings on macOS are a known Go issue and can be safely ignored"
-	@$(GOTEST) -v -race -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /examples/)
+	@OMNI_UNIT_TESTS_ONLY=true $(GOTEST) -v -short -race -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /examples/)
 
 # Run integration tests
 test-integration:
 	@echo "Running integration tests..."
 	@$(GOCLEAN) -testcache
-	@$(GOTEST) -v -tags=integration -timeout=10m ./...
+	@OMNI_RUN_INTEGRATION_TESTS=true $(GOTEST) -v -tags=integration -timeout=10m ./...
 
 # Run integration tests with verbose output
 test-integration-verbose:
 	@echo "Running integration tests with verbose output..."
 	@$(GOCLEAN) -testcache
-	@VERBOSE=1 $(GOTEST) -v -tags=integration -timeout=10m ./...
+	@VERBOSE=1 OMNI_RUN_INTEGRATION_TESTS=true $(GOTEST) -v -tags=integration -timeout=10m ./...
 
 # Run all NATS tests with verbose output
 test-nats:
@@ -204,7 +204,7 @@ integration-vault:
 
 integration-syslog:
 	@echo "Running Syslog integration tests..."
-	@./scripts/integration --syslog-only
+	@OMNI_RUN_INTEGRATION_TESTS=true ./scripts/integration --syslog-only
 
 integration-diskfull:
 	@echo "Running disk full integration tests..."

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 func TestConcurrentOperations(t *testing.T) {
@@ -240,12 +242,12 @@ func TestConcurrentOperations(t *testing.T) {
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
-		
+
 		// Ensure all writes are synced to disk
 		if err := logger.Sync(); err != nil {
 			t.Errorf("Sync failed: %v", err)
 		}
-		
+
 		// Give a small delay to ensure rotation completes
 		time.Sleep(100 * time.Millisecond)
 
@@ -412,9 +414,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 // TestRaceConditions specifically tests for race conditions using -race flag
 func TestRaceConditions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping race condition tests in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping race condition tests in unit mode")
 
 	t.Run("concurrent map access", func(t *testing.T) {
 		tempDir := t.TempDir()

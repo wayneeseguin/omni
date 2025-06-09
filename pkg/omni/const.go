@@ -2,9 +2,9 @@ package omni
 
 const (
 	// defaultMaxSize defines the default maximum size for a log file before rotation (100 MB).
-	defaultMaxSize    = 100 * 1024 * 1024 // 100 MB
+	defaultMaxSize = 100 * 1024 * 1024 // 100 MB
 	// defaultMaxFiles defines the default maximum number of rotated log files to keep.
-	defaultMaxFiles   = 10
+	defaultMaxFiles = 10
 	// defaultBufferSize defines the default size for internal buffers (32 KB).
 	defaultBufferSize = 32 * 1024 // 32 KB
 
@@ -21,20 +21,20 @@ const (
 	LevelDebug = 1
 	// LevelInfo represents informational messages about normal program operation.
 	// Use for general informational messages about application state and progress.
-	LevelInfo  = 2
+	LevelInfo = 2
 	// LevelWarn represents warning messages for potentially problematic situations.
 	// Use for recoverable issues that might need attention.
-	LevelWarn  = 3
+	LevelWarn = 3
 	// LevelError represents error messages for serious problems.
 	// Use for errors that prevent normal operation but don't crash the application.
 	LevelError = 4
 
 	// FormatText specifies plain text output format.
 	// Messages are formatted as human-readable text with configurable field separators.
-	FormatText   = 0
+	FormatText = 0
 	// FormatJSON specifies JSON output format.
 	// Messages are formatted as JSON objects with structured fields.
-	FormatJSON   = 1
+	FormatJSON = 1
 	// FormatCustom specifies a custom output format provided by a plugin.
 	// Requires a custom formatter implementation to be registered.
 	FormatCustom = 2
@@ -46,13 +46,13 @@ const (
 	CompressionGzip = 1
 
 	// SamplingNone disables log sampling - all messages are logged.
-	SamplingNone       = 0
+	SamplingNone = 0
 	// SamplingRandom randomly samples log messages based on a probability.
 	// Use to reduce log volume while maintaining statistical representation.
-	SamplingRandom     = 1
+	SamplingRandom = 1
 	// SamplingHash samples based on a hash of the message content.
 	// Ensures consistent sampling of identical messages.
-	SamplingHash       = 2
+	SamplingHash = 2
 	// SamplingConsistent uses consistent sampling based on message content.
 	// Similar messages are consistently included or excluded from sampling.
 	SamplingConsistent = 3
@@ -67,7 +67,7 @@ const (
 
 	// BackendFlock specifies the default file backend with Unix file locking.
 	// Provides process-safe file logging using flock for synchronization.
-	BackendFlock  = 0
+	BackendFlock = 0
 	// BackendSyslog specifies the syslog backend for local or remote syslog.
 	// Integrates with system logging infrastructure.
 	BackendSyslog = 1
@@ -87,7 +87,7 @@ const (
 	// SeverityCritical represents fatal errors that require immediate attention.
 	// Use for errors that may cause data loss or system failure.
 	SeverityCritical
-	
+
 	// FormatOptionTimestampFormat controls the timestamp format in log messages.
 	// Accepts time format strings like "2006-01-02 15:04:05" or "RFC3339".
 	FormatOptionTimestampFormat FormatOption = iota
@@ -112,7 +112,7 @@ const (
 	// FormatOptionIncludeTime controls whether to include timestamps in output.
 	// When disabled, messages are logged without time information.
 	FormatOptionIncludeTime
-	
+
 	// LevelFormatName formats the level as its name (e.g., "INFO", "ERROR").
 	// This is the default format for log levels.
 	LevelFormatName LevelFormat = iota
@@ -127,10 +127,9 @@ const (
 	LevelFormatSymbol
 
 	// Plugin types
-	PluginTypeBackend   = iota
+	PluginTypeBackend = iota
 	PluginTypeFormatter
 	PluginTypeFilter
-
 
 	// File permissions
 	DefaultFileMode = 0644

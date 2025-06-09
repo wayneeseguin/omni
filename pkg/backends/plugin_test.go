@@ -28,14 +28,14 @@ type mockBackendPlugin struct {
 
 // mockBackend implements plugins.Backend for testing
 type mockBackend struct {
-	name         string
-	version      string
-	data         []byte
-	closed       bool
-	flushCount   int
-	writeCount   int
+	name          string
+	version       string
+	data          []byte
+	closed        bool
+	flushCount    int
+	writeCount    int
 	atomicSupport bool
-	mu           sync.RWMutex
+	mu            sync.RWMutex
 }
 
 func newMockBackendPlugin(name, version string, schemes []string) *mockBackendPlugin {
@@ -83,13 +83,13 @@ func (m *mockBackendPlugin) Health() plugins.HealthStatus {
 func (m *mockBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (plugins.Backend, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	backend := &mockBackend{
 		name:          m.name + "-backend",
 		version:       m.version,
 		atomicSupport: true,
 	}
-	
+
 	m.backends[uri] = backend
 	return backend, nil
 }
@@ -127,11 +127,11 @@ func (m *mockBackend) Version() string { return m.version }
 func (m *mockBackend) Write(entry []byte) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if m.closed {
 		return 0, fmt.Errorf("backend is closed")
 	}
-	
+
 	m.data = append(m.data, entry...)
 	m.writeCount++
 	return len(entry), nil
@@ -140,11 +140,11 @@ func (m *mockBackend) Write(entry []byte) (int, error) {
 func (m *mockBackend) Flush() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	if m.closed {
 		return fmt.Errorf("backend is closed")
 	}
-	
+
 	m.flushCount++
 	return nil
 }
@@ -152,7 +152,7 @@ func (m *mockBackend) Flush() error {
 func (m *mockBackend) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	m.closed = true
 	return nil
 }
@@ -291,7 +291,7 @@ func (m *mockFilterPlugin) CreateFilter(config map[string]interface{}) (types.Fi
 // TestPluginBackendImpl_NewPluginBackend tests plugin backend creation
 func TestPluginBackendImpl_NewPluginBackend(t *testing.T) {
 	mockPlugin := newMockBackendPlugin("test-plugin", "1.0.0", []string{"mock"})
-	
+
 	tests := []struct {
 		name        string
 		uri         string
@@ -596,11 +596,11 @@ func TestPluginManager_NewPluginManager(t *testing.T) {
 func TestPluginManager_RegisterPlugins(t *testing.T) {
 	// Clear any existing plugins before starting
 	backends.ClearRegisteredPlugins()
-	
+
 	// Test backend plugin registration
 	t.Run("register_backend_plugin", func(t *testing.T) {
 		backendPlugin := newMockBackendPlugin("test-backend", "1.0.0", []string{"test", "mock"})
-		
+
 		err := backends.RegisterBackendPlugin(backendPlugin)
 		if err != nil {
 			t.Fatalf("Failed to register backend plugin: %v", err)
@@ -625,7 +625,7 @@ func TestPluginManager_RegisterPlugins(t *testing.T) {
 
 	t.Run("register_formatter_plugin", func(t *testing.T) {
 		formatterPlugin := newMockFormatterPlugin("test-formatter", "1.0.0", "test-format")
-		
+
 		err := backends.RegisterFormatterPlugin(formatterPlugin)
 		if err != nil {
 			t.Fatalf("Failed to register formatter plugin: %v", err)
@@ -644,7 +644,7 @@ func TestPluginManager_RegisterPlugins(t *testing.T) {
 
 	t.Run("register_filter_plugin", func(t *testing.T) {
 		filterPlugin := newMockFilterPlugin("test-filter", "1.0.0", "test-filter-type")
-		
+
 		err := backends.RegisterFilterPlugin(filterPlugin)
 		if err != nil {
 			t.Fatalf("Failed to register filter plugin: %v", err)
@@ -666,7 +666,7 @@ func TestPluginManager_RegisterPlugins(t *testing.T) {
 func TestPluginManager_GetPluginInfo(t *testing.T) {
 	// Clear any existing plugins before starting
 	backends.ClearRegisteredPlugins()
-	
+
 	// Register test plugins
 	backendPlugin := newMockBackendPlugin("info-backend", "2.0.0", []string{"info"})
 	formatterPlugin := newMockFormatterPlugin("info-formatter", "2.0.0", "info-format")
@@ -727,12 +727,12 @@ func TestPluginManager_GetPluginInfo(t *testing.T) {
 func TestPluginManager_InitializePlugin(t *testing.T) {
 	// Clear any existing plugins before starting
 	backends.ClearRegisteredPlugins()
-	
+
 	backendPlugin := newMockBackendPlugin("init-test", "1.0.0", []string{"init"})
 	backends.RegisterBackendPlugin(backendPlugin)
 
 	manager := backends.GetPluginManager()
-	
+
 	config := map[string]interface{}{
 		"setting1": "value1",
 		"setting2": 42,
@@ -754,7 +754,7 @@ func TestPluginManager_InitializePlugin(t *testing.T) {
 func TestPluginManager_ListPlugins(t *testing.T) {
 	// Clear any existing plugins before starting
 	backends.ClearRegisteredPlugins()
-	
+
 	// Register a test plugin
 	testPlugin := newMockBackendPlugin("list-test", "1.0.0", []string{"list"})
 	backends.RegisterBackendPlugin(testPlugin)
@@ -789,12 +789,12 @@ func TestPluginManager_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < operationsPerGoroutine; j++ {
 				// Register plugin
 				pluginName := fmt.Sprintf("concurrent-test-%d-%d", id, j)
 				plugin := newMockBackendPlugin(pluginName, "1.0.0", []string{pluginName})
-				
+
 				err := backends.RegisterBackendPlugin(plugin)
 				if err != nil {
 					t.Logf("Registration error (may be expected): %v", err)

@@ -53,12 +53,12 @@ type mockSyslogBackend struct {
 func (sb *mockSyslogBackend) Write(entry []byte) (int, error) {
 	// Format syslog message: <priority>tag: message
 	message := fmt.Sprintf("<%d>%s: %s", sb.priority, sb.tag, strings.TrimSpace(string(entry)))
-	
+
 	n, err := sb.writer.WriteString(message)
 	if err != nil {
 		return n, err
 	}
-	
+
 	// Add newline if not present
 	if !strings.HasSuffix(message, "\n") {
 		if _, err := sb.writer.WriteString("\n"); err != nil {
@@ -66,7 +66,7 @@ func (sb *mockSyslogBackend) Write(entry []byte) (int, error) {
 		}
 		n++
 	}
-	
+
 	return n, nil
 }
 
@@ -401,7 +401,7 @@ func TestProcessFileMessage(t *testing.T) {
 			var entry string
 			var entrySize int64
 			logger.processFileMessage(tt.message, dest, &entry, &entrySize)
-			
+
 			// Flush the writer to ensure all data is written
 			if dest.Writer != nil && !tt.flushError {
 				dest.Writer.Flush()

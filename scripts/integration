@@ -396,6 +396,9 @@ sub run_tests {
     
     log_info("Executing $service tests...");
     
+    # Set integration test flag
+    $ENV{OMNI_RUN_INTEGRATION_TESTS} = "true";
+    
     my $test_cmd = "go test -v -tags=integration";
     $test_cmd .= " -timeout=${config{timeout}}m";
     

@@ -26,9 +26,9 @@ type CompressionManager struct {
 	compressMinAge  int
 	compressWorkers int
 	compressCh      chan string
-	compressWg       sync.WaitGroup
-	errorHandler     func(source, dest, msg string, err error)
-	metricsHandler   func(string) // Function to track compression metrics
+	compressWg      sync.WaitGroup
+	errorHandler    func(source, dest, msg string, err error)
+	metricsHandler  func(string) // Function to track compression metrics
 }
 
 // NewCompressionManager creates a new compression manager
@@ -205,7 +205,7 @@ func (c *CompressionManager) compressFile(path string) error {
 func (c *CompressionManager) compressFileGzip(path string) error {
 	// Clean the path to prevent directory traversal
 	cleanPath := filepath.Clean(path)
-	
+
 	// Check if file exists
 	if _, err := os.Stat(cleanPath); os.IsNotExist(err) {
 		return nil // file doesn't exist, nothing to compress
@@ -284,19 +284,19 @@ func (c *CompressionManager) compressFileGzip(path string) error {
 func (c *CompressionManager) GetStatus() CompressionStatus {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	status := CompressionStatus{
-		Type:        c.compressionType,
-		MinAge:      c.compressMinAge,
-		Workers:     c.compressWorkers,
-		IsRunning:   c.compressCh != nil,
+		Type:      c.compressionType,
+		MinAge:    c.compressMinAge,
+		Workers:   c.compressWorkers,
+		IsRunning: c.compressCh != nil,
 	}
-	
+
 	if c.compressCh != nil {
 		status.QueueLength = len(c.compressCh)
 		status.QueueCapacity = cap(c.compressCh)
 	}
-	
+
 	return status
 }
 

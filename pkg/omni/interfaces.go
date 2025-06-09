@@ -85,13 +85,13 @@ type Manager interface {
 type DestinationInterface interface {
 	// Write writes a log entry to the destination
 	Write(entry []byte) (int, error)
-	
+
 	// Flush ensures all buffered data is written
 	Flush() error
-	
+
 	// Close closes the destination
 	Close() error
-	
+
 	// Info returns information about the destination
 	Info() DestinationInfo
 }
@@ -125,7 +125,7 @@ type SamplableLogger interface {
 // StructuredLogger provides enhanced structured logging capabilities
 type StructuredLogger interface {
 	Logger
-	
+
 	// Additional structured logging methods
 	WithValues(keysAndValues ...interface{}) Logger
 	WithName(name string) Logger
@@ -156,10 +156,10 @@ type Closeable interface {
 type LoggerFactory interface {
 	// Create a logger with default configuration
 	Create(path string) (Logger, error)
-	
+
 	// Create a logger with options
 	CreateWithOptions(options ...Option) (Logger, error)
-	
+
 	// Create a logger with config
 	CreateWithConfig(config *Config) (Logger, error)
 }
@@ -192,4 +192,3 @@ var (
 	_ ErrorReporter    = (*Omni)(nil)
 	_ Closeable        = (*Omni)(nil)
 )
-

@@ -249,7 +249,7 @@ func TestChannelFullFallback(t *testing.T) {
 
 	// This test is tricky because the worker processes messages quickly
 	// We need to ensure messages are actually dropped
-	
+
 	// Set very small channel size
 	oldSize := os.Getenv("OMNI_CHANNEL_SIZE")
 	os.Setenv("OMNI_CHANNEL_SIZE", "2")
@@ -267,25 +267,25 @@ func TestChannelFullFallback(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 	defer logger.Close()
-	
+
 	// Send many messages rapidly to ensure some are dropped
 	// We send more messages than the channel can hold
 	const messageCount = 100
-	
+
 	for i := 0; i < messageCount; i++ {
 		// Send message without any delay
 		logger.Debug("rapid message %d", i)
 	}
-	
+
 	// Wait for worker to process what it can
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Check metrics
 	metrics := logger.GetMetrics()
 	t.Logf("Messages dropped: %d", metrics.MessagesDropped)
 	t.Logf("Messages logged: %d", metrics.MessagesLogged)
 	t.Logf("Total attempted: %d", messageCount)
-	
+
 	// With a small channel and rapid sends, we should have some drops
 	// But this is timing-dependent, so we'll make it a warning rather than a failure
 	if metrics.MessagesDropped == 0 {

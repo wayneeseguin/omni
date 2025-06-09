@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/pkg/omni"
 )
 
@@ -16,10 +16,10 @@ type ContextKey string
 
 // Common context keys for structured logging
 const (
-	ContextKeyRequestID   ContextKey = "request_id"    // HTTP request ID for tracing
-	ContextKeyTraceID     ContextKey = "trace_id"      // Distributed trace ID
-	ContextKeyUserID      ContextKey = "user_id"       // User ID for audit trails
-	ContextKeySessionID   ContextKey = "session_id"    // Session ID for user sessions
+	ContextKeyRequestID   ContextKey = "request_id"     // HTTP request ID for tracing
+	ContextKeyTraceID     ContextKey = "trace_id"       // Distributed trace ID
+	ContextKeyUserID      ContextKey = "user_id"        // User ID for audit trails
+	ContextKeySessionID   ContextKey = "session_id"     // Session ID for user sessions
 	ContextKeyCorrelation ContextKey = "correlation_id" // Correlation ID for event tracking
 	ContextKeyComponent   ContextKey = "component"      // Component/service name
 	ContextKeyOperation   ContextKey = "operation"      // Operation being performed
@@ -58,7 +58,7 @@ const (
 //	logger.WithFields(fields).Info("Processing request")
 func ExtractContextFields(ctx context.Context, keys ...ContextKey) map[string]interface{} {
 	fields := make(map[string]interface{})
-	
+
 	// If no specific keys provided, extract common ones
 	if len(keys) == 0 {
 		keys = []ContextKey{
@@ -76,14 +76,14 @@ func ExtractContextFields(ctx context.Context, keys ...ContextKey) map[string]in
 			ContextKeyVersion,
 		}
 	}
-	
+
 	// Extract requested fields
 	for _, key := range keys {
 		if value := ctx.Value(key); value != nil {
 			fields[string(key)] = value
 		}
 	}
-	
+
 	return fields
 }
 
@@ -103,13 +103,13 @@ func MergeContextFields(ctx context.Context, additionalFields map[string]interfa
 	for k, v := range additionalFields {
 		merged[k] = v
 	}
-	
+
 	// Override with context fields
 	contextFields := ExtractContextFields(ctx, keys...)
 	for k, v := range contextFields {
 		merged[k] = v
 	}
-	
+
 	return merged
 }
 
@@ -227,18 +227,18 @@ func ErrorContext(ctx context.Context, err error) context.Context {
 	if err == nil {
 		return ctx
 	}
-	
+
 	fields := map[ContextKey]interface{}{
 		ContextKeyError: err.Error(),
 	}
-	
+
 	// Add stack trace for debugging
 	buf := make([]byte, 4096)
 	n := runtime.Stack(buf, false)
 	if n > 0 {
 		fields["stack_trace"] = string(buf[:n])
 	}
-	
+
 	return WithContextFields(ctx, fields)
 }
 
@@ -263,17 +263,17 @@ func DurationContext(ctx context.Context, operation string, fn func() error) (co
 	start := time.Now()
 	err := fn()
 	duration := time.Since(start)
-	
+
 	ctx = WithContextFields(ctx, map[ContextKey]interface{}{
 		ContextKeyOperation: operation,
 		ContextKeyDuration:  duration,
 		ContextKeyStatus:    getStatus(err),
 	})
-	
+
 	if err != nil {
 		ctx = ErrorContext(ctx, err)
 	}
-	
+
 	return ctx, err
 }
 
@@ -376,12 +376,12 @@ func FormatContextFields(ctx context.Context, keys ...ContextKey) string {
 	if len(fields) == 0 {
 		return "no context fields"
 	}
-	
+
 	var parts []string
 	for k, v := range fields {
 		parts = append(parts, fmt.Sprintf("%s=%v", k, v))
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -498,7 +498,7 @@ func (cl *ContextLogger) WithFields(fields map[string]interface{}) omni.Logger {
 	for k, v := range fields {
 		newFields[k] = v
 	}
-	
+
 	return &ContextLogger{
 		logger: cl.logger,
 		ctx:    cl.ctx,

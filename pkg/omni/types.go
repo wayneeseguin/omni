@@ -62,7 +62,6 @@ type BackendFactory interface {
 
 // ErrorLevel is defined in errors.go
 
-
 // FileBackend represents a file-based backend with flock
 type FileBackend struct {
 	mu       sync.Mutex
@@ -76,7 +75,7 @@ type FileBackend struct {
 func (fb *FileBackend) Write(data []byte) (int, error) {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.writer != nil {
 		return fb.writer.Write(data)
 	}
@@ -87,7 +86,7 @@ func (fb *FileBackend) Write(data []byte) (int, error) {
 func (fb *FileBackend) Flush() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	if fb.writer != nil {
 		return fb.writer.Flush()
 	}
@@ -98,9 +97,9 @@ func (fb *FileBackend) Flush() error {
 func (fb *FileBackend) Close() error {
 	fb.mu.Lock()
 	defer fb.mu.Unlock()
-	
+
 	var errs []error
-	
+
 	if fb.writer != nil {
 		if err := fb.writer.Flush(); err != nil {
 			errs = append(errs, fmt.Errorf("flush writer: %w", err))
@@ -116,7 +115,7 @@ func (fb *FileBackend) Close() error {
 			errs = append(errs, fmt.Errorf("unlock file: %w", err))
 		}
 	}
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("close errors: %v", errs)
 	}
@@ -139,7 +138,7 @@ type SyslogBackend struct {
 func (sb *SyslogBackend) Write(data []byte) (int, error) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	
+
 	if sb.writer != nil {
 		return sb.writer.Write(data)
 	}
@@ -156,7 +155,7 @@ func (sb *SyslogBackend) Flush() error {
 func (sb *SyslogBackend) Close() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	
+
 	if sb.conn != nil {
 		return sb.conn.Close()
 	}
@@ -170,16 +169,16 @@ func (sb *SyslogBackend) SupportsAtomic() bool {
 
 // Destination represents a log destination with a backend
 type Destination struct {
-	URI           string
-	Backend       int               // Backend type ID
-	backend       backends.Backend  // Backend implementation
-	File          *os.File      // For file-based destinations
-	Writer        *bufio.Writer // For buffered writing
-	Lock          *flock.Flock  // File lock for process safety
-	Size          int64         // Current file size
-	Done          chan struct{} // Done channel for shutdown
-	Enabled       bool          // Whether destination is enabled
-	mu            sync.RWMutex
+	URI            string
+	Backend        int              // Backend type ID
+	backend        backends.Backend // Backend implementation
+	File           *os.File         // For file-based destinations
+	Writer         *bufio.Writer    // For buffered writing
+	Lock           *flock.Flock     // File lock for process safety
+	Size           int64            // Current file size
+	Done           chan struct{}    // Done channel for shutdown
+	Enabled        bool             // Whether destination is enabled
+	mu             sync.RWMutex
 	isHealthy      bool
 	lastError      error
 	bytesWritten   uint64
@@ -188,12 +187,12 @@ type Destination struct {
 	writeCount     uint64
 	totalWriteTime time.Duration
 	maxWriteTime   time.Duration
-	
+
 	// Batch processing fields
-	batchEnabled   bool
-	batchMaxSize   int
-	batchMaxCount  int
-	batchWriter    interface{} // Generic batch writer
+	batchEnabled  bool
+	batchMaxSize  int
+	batchMaxCount int
+	batchWriter   interface{} // Generic batch writer
 }
 
 // GetBackend returns the backend for this destination
@@ -228,7 +227,7 @@ func (d *Destination) SetHealthy(healthy bool) {
 func (d *Destination) GetStats() BackendStats {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	
+
 	return BackendStats{
 		BytesWritten: d.bytesWritten,
 		ErrorCount:   d.errorCount,
@@ -239,11 +238,11 @@ func (d *Destination) GetStats() BackendStats {
 func (d *Destination) Write(data []byte) (int, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	if d.backend == nil {
 		return 0, nil
 	}
-	
+
 	n, err := d.backend.Write(data)
 	if err != nil {
 		d.errorCount++
@@ -251,7 +250,7 @@ func (d *Destination) Write(data []byte) (int, error) {
 		d.isHealthy = false
 		return n, err
 	}
-	
+
 	// Only add positive byte counts to prevent underflow
 	if n > 0 {
 		d.bytesWritten += uint64(n)
@@ -266,7 +265,7 @@ func (d *Destination) Flush() error {
 	d.mu.RLock()
 	backend := d.backend
 	d.mu.RUnlock()
-	
+
 	if backend != nil {
 		return backend.Flush()
 	}
@@ -277,7 +276,7 @@ func (d *Destination) Flush() error {
 func (d *Destination) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	
+
 	if d.backend != nil {
 		return d.backend.Close()
 	}

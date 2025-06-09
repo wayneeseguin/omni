@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 func TestRemoveDestination(t *testing.T) {
@@ -144,6 +146,15 @@ func TestCloseSyslogDestination(t *testing.T) {
 		return
 	}
 
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog test in unit mode")
+
+	// Skip unless integration tests are explicitly enabled
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping syslog test. Set OMNI_RUN_INTEGRATION_TESTS=true to run")
+		return
+	}
+
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
 
@@ -153,11 +164,17 @@ func TestCloseSyslogDestination(t *testing.T) {
 	}
 	defer logger.Close()
 
+	// Determine syslog address
+	syslogAddr := "syslog://localhost"
+	if addr := os.Getenv("OMNI_SYSLOG_TEST_ADDR"); addr != "" {
+		syslogAddr = "syslog://" + addr
+	}
+
 	// Add syslog destination
-	err = logger.AddDestination("syslog://localhost")
+	err = logger.AddDestination(syslogAddr)
 	if err != nil {
 		// If syslog connection fails, skip the test
-		t.Skip("Cannot connect to syslog, skipping test")
+		t.Skipf("Cannot connect to syslog at %s, skipping test: %v", syslogAddr, err)
 		return
 	}
 
@@ -166,7 +183,7 @@ func TestCloseSyslogDestination(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Close syslog destination
-	err = logger.RemoveDestination("syslog://localhost")
+	err = logger.RemoveDestination(syslogAddr)
 	if err != nil {
 		t.Errorf("Failed to close syslog destination: %v", err)
 	}
@@ -174,7 +191,7 @@ func TestCloseSyslogDestination(t *testing.T) {
 	// Verify syslog destination is gone
 	dests := logger.ListDestinations()
 	for _, dest := range dests {
-		if dest == "syslog://localhost" {
+		if dest == syslogAddr {
 			t.Error("Syslog destination still exists after close")
 		}
 	}

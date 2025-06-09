@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/pkg/features"
 )
 
@@ -87,56 +87,66 @@ func (f *Omni) processMessage(msg LogMessage, dest *Destination) error {
 		f.logError("process", "", "Attempted to process message for nil destination", nil, ErrorLevelHigh)
 		return fmt.Errorf("nil destination")
 	}
-	
+
+	// Apply redaction before formatting
+	if f.redactionManager != nil {
+		if msg.Entry != nil && msg.Entry.Fields != nil {
+			// Redact structured messages
+			redactedMsg, redactedFields := f.redactionManager.(*features.RedactionManager).RedactMessage(msg.Level, msg.Entry.Message, msg.Entry.Fields)
+			msg.Entry.Message = redactedMsg
+			msg.Entry.Fields = redactedFields
+		} else if msg.Format != "" {
+			// Redact simple formatted messages
+			message := fmt.Sprintf(msg.Format, msg.Args...)
+			redactedMsg, _ := f.redactionManager.(*features.RedactionManager).RedactMessage(msg.Level, message, nil)
+			// Update the message by changing format and args
+			msg.Format = "%s"
+			msg.Args = []interface{}{redactedMsg}
+		}
+	}
+
 	// Format the message using the configured formatter
 	data, err := f.formatMessage(msg)
 	if err != nil {
 		f.logError("format", dest.URI, "Failed to format message", err, ErrorLevelMedium)
 		return err
 	}
-	
-	// Apply redaction if configured
-	if f.redactionManager != nil && msg.Entry != nil && msg.Entry.Fields != nil {
-		redactedMsg, redactedFields := f.redactionManager.(*features.RedactionManager).RedactMessage(msg.Level, msg.Entry.Message, msg.Entry.Fields)
-		msg.Entry.Message = redactedMsg
-		msg.Entry.Fields = redactedFields
-	}
-	
+
 	// Write to backend using thread-safe method
 	backend := dest.GetBackend()
 	if backend != nil {
 		writeStart := time.Now()
 		n, err := backend.Write(data)
 		writeDuration := time.Since(writeStart)
-		
+
 		// Flush to ensure data is written to disk immediately
 		if err == nil {
 			if flushErr := backend.Flush(); flushErr != nil {
 				f.logError("flush", dest.URI, "Failed to flush backend", flushErr, ErrorLevelLow)
 			}
 		}
-		
+
 		if err != nil {
 			dest.trackError()
 			f.logError("write", dest.URI, "Failed to write to backend", err, ErrorLevelMedium)
-			
+
 			// Trigger recovery if configured
 			if f.recoveryManager != nil {
 				f.RecoverFromError(err, msg, dest)
 			}
 			return err
 		}
-		
+
 		// Track metrics
 		dest.trackWrite(int64(n), writeDuration)
 		f.trackWrite(int64(n), writeDuration)
-		
+
 		// Update size for file backends
 		dest.mu.Lock()
 		dest.Size += int64(n)
 		needsRotation := f.maxSize > 0 && dest.Size > f.maxSize
 		dest.mu.Unlock()
-		
+
 		// Check if rotation needed
 		if needsRotation && dest.Backend == BackendFlock {
 			if err := f.rotateDestination(dest); err != nil {
@@ -161,7 +171,7 @@ func (f *Omni) processMessage(msg LogMessage, dest *Destination) error {
 			return fmt.Errorf("unknown backend type: %d", dest.Backend)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -198,7 +208,7 @@ func (f *Omni) processCustomMessage(msg LogMessage, dest *Destination) {
 				f.recursiveRedact(entryCopy.Fields)
 				entryToFormat = &entryCopy
 			}
-			
+
 			// Use JSON format
 			data, _ := json.Marshal(entryToFormat)
 			entry = string(data) + "\n"
@@ -346,7 +356,7 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 		dest.mu.RLock()
 		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
 		dest.mu.RUnlock()
-		
+
 		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.URI, "Failed to rotate log file", err, ErrorLevelMedium)
@@ -384,7 +394,7 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 				f.recursiveRedact(entryCopy.Fields)
 				entryToFormat = &entryCopy
 			}
-			
+
 			// Process the JSON entry
 			data, err := formatJSONEntry(entryToFormat)
 			if err != nil {
@@ -420,7 +430,7 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 		dest.mu.RLock()
 		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
 		dest.mu.RUnlock()
-		
+
 		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.URI, "Failed to rotate log file", err, ErrorLevelMedium)
@@ -572,7 +582,7 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 		dest.mu.RLock()
 		needsRotation := maxSize > 0 && dest.Size+entrySize > maxSize
 		dest.mu.RUnlock()
-		
+
 		if needsRotation {
 			if err := f.rotateDestination(dest); err != nil {
 				f.logError("rotate", dest.URI, "Failed to rotate log file", err, ErrorLevelMedium)
@@ -648,7 +658,7 @@ func (f *Omni) processSyslogMessage(msg LogMessage, dest *Destination) {
 			f.recursiveRedact(entryCopy.Fields)
 			entryToFormat = &entryCopy
 		}
-		
+
 		// JSON entry
 		jsonData, err := formatJSONEntry(entryToFormat)
 		if err != nil {
@@ -721,7 +731,7 @@ func (f *Omni) processPluginMessage(msg LogMessage, dest *Destination) {
 				f.recursiveRedact(entryCopy.Fields)
 				entryToFormat = &entryCopy
 			}
-			
+
 			// Use JSON format
 			data, err := json.Marshal(entryToFormat)
 			if err != nil {
@@ -813,7 +823,7 @@ func (f *Omni) processPluginMessage(msg LogMessage, dest *Destination) {
 	writeStart := time.Now()
 	_, err := dest.backend.Write(entry)
 	writeDuration := time.Since(writeStart)
-	
+
 	if err != nil {
 		dest.trackError()
 		f.logError("plugin-write", dest.URI, "Failed to write to plugin backend", err, ErrorLevelMedium)

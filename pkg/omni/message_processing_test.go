@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-	
+
 	"github.com/wayneeseguin/omni/pkg/formatters"
 )
 
@@ -241,7 +241,7 @@ func TestProcessMessageErrors(t *testing.T) {
 
 		// Create destination with nil writer
 		dest := &Destination{
-			URI:    "nil-writer",
+			URI:     "nil-writer",
 			Backend: -1, // Custom backend
 			Writer:  nil,
 			Enabled: true,
@@ -267,7 +267,7 @@ func TestProcessMessageErrors(t *testing.T) {
 
 		// Create destination with invalid backend
 		dest := &Destination{
-			URI:    "invalid-backend",
+			URI:     "invalid-backend",
 			Backend: 999, // Invalid backend type
 			Enabled: true,
 		}

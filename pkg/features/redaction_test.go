@@ -12,24 +12,24 @@ func TestNewRedactor(t *testing.T) {
 		`\bpassword=\S+`,
 		`\btoken:\s*"[^"]+`,
 	}
-	
+
 	redactor, err := NewRedactor(patterns, "[REDACTED]")
 	if err != nil {
 		t.Fatalf("Failed to create redactor: %v", err)
 	}
-	
+
 	if redactor == nil {
 		t.Fatal("NewRedactor returned nil")
 	}
-	
+
 	if len(redactor.patterns) != 2 {
 		t.Errorf("Expected 2 patterns, got %d", len(redactor.patterns))
 	}
-	
+
 	if redactor.replace != "[REDACTED]" {
 		t.Errorf("Expected replace string '[REDACTED]', got '%s'", redactor.replace)
 	}
-	
+
 	// Test with invalid pattern
 	invalidPatterns := []string{`[`} // Invalid regex
 	_, err = NewRedactor(invalidPatterns, "[REDACTED]")
@@ -41,12 +41,12 @@ func TestNewRedactor(t *testing.T) {
 func TestRedactorRedact(t *testing.T) {
 	patterns := []string{
 		`password=\S+`,
-		`"token":\s*"[^"]+"`,  // Match JSON format with quotes
+		`"token":\s*"[^"]+"`, // Match JSON format with quotes
 		`api_key=\S+`,
 	}
-	
+
 	redactor, _ := NewRedactor(patterns, "[REDACTED]")
-	
+
 	tests := []struct {
 		name     string
 		input    string
@@ -78,7 +78,7 @@ func TestRedactorRedact(t *testing.T) {
 			expected: "This is a normal log message",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := redactor.Redact(tt.input)
@@ -91,26 +91,26 @@ func TestRedactorRedact(t *testing.T) {
 
 func TestRedactorCache(t *testing.T) {
 	redactor, _ := NewRedactor([]string{`secret=\w+`}, "[REDACTED]")
-	
+
 	// First call should cache
 	input := "secret=abc123"
 	result1 := redactor.Redact(input)
-	
+
 	// Second call should use cache
 	result2 := redactor.Redact(input)
-	
+
 	if result1 != result2 {
 		t.Error("Cache returned different results")
 	}
-	
+
 	// Clear cache
 	redactor.ClearCache()
-	
+
 	// Check cache was cleared
 	redactor.mu.RLock()
 	cacheSize := len(redactor.cache)
 	redactor.mu.RUnlock()
-	
+
 	if cacheSize != 0 {
 		t.Errorf("Expected empty cache after clear, got size %d", cacheSize)
 	}
@@ -141,7 +141,7 @@ func TestIsSensitiveKey(t *testing.T) {
 		{"timestamp", false},
 		{"", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			result := IsSensitiveKey(tt.key)
@@ -157,7 +157,7 @@ func TestRegexRedact(t *testing.T) {
 	customRedactor, _ := NewRedactor([]string{
 		`custom_secret=\w+`,
 	}, "[CUSTOM_REDACTED]")
-	
+
 	tests := []struct {
 		name     string
 		input    string
@@ -207,17 +207,17 @@ func TestRegexRedact(t *testing.T) {
 			absent:   []string{"mypass", "12345", "abc123"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := RegexRedact(tt.input, customRedactor)
-			
+
 			for _, expected := range tt.contains {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected result to contain '%s', got '%s'", expected, result)
 				}
 			}
-			
+
 			for _, unexpected := range tt.absent {
 				if strings.Contains(result, unexpected) {
 					t.Errorf("Expected '%s' to be redacted from result, but found it in: %s", unexpected, result)
@@ -297,14 +297,14 @@ func TestRecursiveRedact(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Make a copy to avoid modifying test data
 			inputCopy := deepCopyMap(tt.input)
-			
+
 			RecursiveRedact(inputCopy, "", nil, nil)
-			
+
 			// Compare results
 			if !mapsEqual(inputCopy, tt.expected) {
 				t.Errorf("RecursiveRedact result mismatch.\nGot: %+v\nExpected: %+v", inputCopy, tt.expected)
@@ -319,7 +319,7 @@ func TestFieldPathRedaction(t *testing.T) {
 		{Path: "payment.card_number", Replacement: "[CARD-REDACTED]"},
 		{Path: "users.*.email", Replacement: "[EMAIL-REDACTED]"},
 	}
-	
+
 	input := map[string]interface{}{
 		"user": map[string]interface{}{
 			"name": "John Doe",
@@ -340,18 +340,18 @@ func TestFieldPathRedaction(t *testing.T) {
 			},
 		},
 	}
-	
+
 	// Make a copy
 	inputCopy := deepCopyMap(input)
-	
+
 	RecursiveRedact(inputCopy, "", nil, fieldPathRules)
-	
+
 	// Check specific field path redactions
 	user := inputCopy.(map[string]interface{})["user"].(map[string]interface{})
 	if user["ssn"] != "[SSN-REDACTED]" {
 		t.Errorf("Expected user.ssn to be '[SSN-REDACTED]', got %v", user["ssn"])
 	}
-	
+
 	payment := inputCopy.(map[string]interface{})["payment"].(map[string]interface{})
 	if payment["card_number"] != "[CARD-REDACTED]" {
 		t.Errorf("Expected payment.card_number to be '[CARD-REDACTED]', got %v", payment["card_number"])
@@ -373,7 +373,7 @@ func TestMatchesPath(t *testing.T) {
 		{"config.cache.password", "config.*.password", true},
 		{"password", "*.password", true},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.path+"_"+tt.pattern, func(t *testing.T) {
 			result := MatchesPath(tt.path, tt.pattern)
@@ -387,23 +387,23 @@ func TestMatchesPath(t *testing.T) {
 func TestRedactSensitiveWithLevel(t *testing.T) {
 	config := &RedactionConfig{
 		EnableBuiltInPatterns: true,
-		SkipLevels:           []int{0}, // Skip DEBUG level
+		SkipLevels:            []int{0}, // Skip DEBUG level
 	}
-	
+
 	input := `{"password": "secret123", "debug": "info"}`
-	
+
 	// Test with DEBUG level (should skip)
 	result := RedactSensitiveWithLevel(input, 0, config, nil, nil)
 	if result != input {
 		t.Error("Expected no redaction for skipped level")
 	}
-	
+
 	// Test with INFO level (should redact)
 	result = RedactSensitiveWithLevel(input, 2, config, nil, nil)
 	if strings.Contains(result, "secret123") {
 		t.Error("Expected password to be redacted")
 	}
-	
+
 	// Test empty input
 	result = RedactSensitiveWithLevel("", 2, config, nil, nil)
 	if result != "" {
@@ -413,23 +413,23 @@ func TestRedactSensitiveWithLevel(t *testing.T) {
 
 func TestNewRedactionManager(t *testing.T) {
 	rm := NewRedactionManager()
-	
+
 	if rm == nil {
 		t.Fatal("NewRedactionManager returned nil")
 	}
-	
+
 	if rm.fieldPathRules == nil {
 		t.Error("fieldPathRules should be initialized")
 	}
-	
+
 	if rm.contextualRules == nil {
 		t.Error("contextualRules should be initialized")
 	}
-	
+
 	if rm.metrics == nil {
 		t.Error("metrics should be initialized")
 	}
-	
+
 	if rm.hashSalt == "" {
 		t.Error("hashSalt should be generated")
 	}
@@ -437,39 +437,39 @@ func TestNewRedactionManager(t *testing.T) {
 
 func TestRedactionManagerConfiguration(t *testing.T) {
 	rm := NewRedactionManager()
-	
+
 	// Test SetConfig
 	config := &RedactionConfig{
 		EnableBuiltInPatterns: true,
 		EnableFieldRedaction:  true,
-		MaxCacheSize:         100,
-		SkipLevels:           []int{0},
+		MaxCacheSize:          100,
+		SkipLevels:            []int{0},
 	}
-	
+
 	rm.SetConfig(config)
-	
+
 	rm.mu.RLock()
 	hasCache := rm.cache != nil
 	rm.mu.RUnlock()
-	
+
 	if !hasCache {
 		t.Error("Expected cache to be initialized when MaxCacheSize > 0")
 	}
-	
+
 	// Test error handler
 	rm.SetErrorHandler(func(source, dest, msg string, err error) {
 		// Error handler configured
 	})
-	
+
 	// Test metrics handler
 	metricsHandlerCalled := false
 	rm.SetMetricsHandler(func(event string) {
 		metricsHandlerCalled = true
 	})
-	
+
 	// Add a field path rule (should trigger metrics)
 	rm.AddFieldPathRule(FieldPathRule{Path: "test.path", Replacement: "[TEST]"})
-	
+
 	if !metricsHandlerCalled {
 		t.Error("Expected metrics handler to be called")
 	}
@@ -477,7 +477,7 @@ func TestRedactionManagerConfiguration(t *testing.T) {
 
 func TestContextualRules(t *testing.T) {
 	rm := NewRedactionManager()
-	
+
 	// Add contextual rule that redacts email for non-admin users
 	rule := ContextualRule{
 		Name: "non_admin_email",
@@ -491,9 +491,9 @@ func TestContextualRules(t *testing.T) {
 		RedactFields: []string{"email", "phone"},
 		Replacement:  "[RESTRICTED]",
 	}
-	
+
 	rm.AddContextualRule(rule)
-	
+
 	// Test with non-admin user
 	fields := map[string]interface{}{
 		"role":  "user",
@@ -501,30 +501,30 @@ func TestContextualRules(t *testing.T) {
 		"phone": "123-456-7890",
 		"name":  "John",
 	}
-	
+
 	_, redactedFields := rm.RedactMessage(2, "test message", fields)
-	
+
 	if redactedFields["email"] != "[RESTRICTED]" {
 		t.Errorf("Expected email to be redacted for non-admin, got %v", redactedFields["email"])
 	}
-	
+
 	if redactedFields["phone"] != "[RESTRICTED]" {
 		t.Errorf("Expected phone to be redacted for non-admin, got %v", redactedFields["phone"])
 	}
-	
+
 	if redactedFields["name"] != "John" {
 		t.Errorf("Expected name to remain unchanged, got %v", redactedFields["name"])
 	}
-	
+
 	// Test with admin user
 	adminFields := map[string]interface{}{
 		"role":  "admin",
 		"email": "admin@example.com",
 		"phone": "123-456-7890",
 	}
-	
+
 	_, redactedAdminFields := rm.RedactMessage(2, "test message", adminFields)
-	
+
 	if redactedAdminFields["email"] == "[RESTRICTED]" {
 		t.Error("Expected email NOT to be redacted for admin")
 	}
@@ -562,12 +562,12 @@ func TestCreateSpecializedRedactors(t *testing.T) {
 			shouldMatch: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			redactor := tt.createFunc()
 			result := redactor.Redact(tt.testInput)
-			
+
 			if tt.shouldMatch && result == tt.testInput {
 				t.Errorf("Expected redactor to match and redact input, but got: %s", result)
 			}
@@ -577,53 +577,53 @@ func TestCreateSpecializedRedactors(t *testing.T) {
 
 func TestConcurrentRedaction(t *testing.T) {
 	rm := NewRedactionManager()
-	
+
 	config := &RedactionConfig{
 		EnableBuiltInPatterns: true,
-		MaxCacheSize:         100,
+		MaxCacheSize:          100,
 	}
 	rm.SetConfig(config)
-	
+
 	// Add custom redactor
 	customRedactor, _ := NewRedactor([]string{`secret=\w+`}, "[REDACTED]")
 	rm.SetCustomRedactor(customRedactor)
-	
+
 	// Run concurrent redactions
 	var wg sync.WaitGroup
 	numGoroutines := 10
 	numOperations := 100
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(goroutine int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < numOperations; j++ {
 				message := "Processing secret=abc123 for user"
 				fields := map[string]interface{}{
 					"password": "pass123",
 					"index":    j,
 				}
-				
+
 				redactedMsg, redactedFields := rm.RedactMessage(2, message, fields)
-				
+
 				if strings.Contains(redactedMsg, "abc123") {
 					t.Error("Secret not redacted in message")
 				}
-				
+
 				if redactedFields["password"] != "[REDACTED]" {
 					t.Error("Password not redacted in fields")
 				}
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
-	
+
 	// Check metrics
 	metrics := rm.GetMetrics()
 	expectedTotal := uint64(numGoroutines * numOperations)
-	
+
 	if metrics.TotalProcessed != expectedTotal {
 		t.Errorf("Expected %d total processed, got %d", expectedTotal, metrics.TotalProcessed)
 	}
@@ -632,7 +632,7 @@ func TestConcurrentRedaction(t *testing.T) {
 func TestRedactionMasking(t *testing.T) {
 	rm := NewRedactionManager()
 	rm.preserveStructure = true
-	
+
 	tests := []struct {
 		input    string
 		expected string // Expected pattern (X for masked chars)
@@ -650,7 +650,7 @@ func TestRedactionMasking(t *testing.T) {
 			expected: "XXXX@XXXXXXX.XXX",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := rm.maskValue(tt.input)

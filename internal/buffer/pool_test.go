@@ -123,13 +123,13 @@ func TestBufferPool_Concurrent(t *testing.T) {
 					t.Errorf("goroutine %d: Get() returned nil", id)
 					return
 				}
-				
+
 				// Use the buffer
 				buf.WriteString("test")
 				if buf.Len() < 4 {
 					t.Errorf("goroutine %d: buffer write failed", id)
 				}
-				
+
 				// Return to pool
 				pool.Put(buf)
 			}
@@ -218,13 +218,13 @@ func TestStringBuilderPool_Concurrent(t *testing.T) {
 					t.Errorf("goroutine %d: Get() returned nil", id)
 					return
 				}
-				
+
 				// Use the builder
 				sb.WriteString("test")
 				if sb.Len() < 4 {
 					t.Errorf("goroutine %d: builder write failed", id)
 				}
-				
+
 				// Return to pool
 				pool.Put(sb)
 			}
@@ -236,11 +236,11 @@ func TestStringBuilderPool_Concurrent(t *testing.T) {
 
 func TestGlobalBufferPools(t *testing.T) {
 	tests := []struct {
-		name     string
-		getFunc  func() *bytes.Buffer
-		putFunc  func(*bytes.Buffer)
-		minCap   int
-		maxCap   int
+		name    string
+		getFunc func() *bytes.Buffer
+		putFunc func(*bytes.Buffer)
+		minCap  int
+		maxCap  int
 	}{
 		{
 			name:    "small buffer",
@@ -277,7 +277,7 @@ func TestGlobalBufferPools(t *testing.T) {
 
 			// Use buffer
 			buf.WriteString("test data")
-			
+
 			// Return to pool
 			tt.putFunc(buf)
 		})
@@ -295,7 +295,7 @@ func TestGlobalStringBuilderPool(t *testing.T) {
 
 	// Use builder
 	sb.WriteString("test string")
-	
+
 	// Return to pool
 	PutStringBuilder(sb)
 }
@@ -318,10 +318,10 @@ func TestPutBuffer_Routing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a buffer with specific capacity
 			buf := bytes.NewBuffer(make([]byte, 0, tt.capacity))
-			
+
 			// Put it back
 			PutBuffer(buf)
-			
+
 			// Get from appropriate pool and verify routing worked
 			var newBuf *bytes.Buffer
 			switch tt.pool {
@@ -332,7 +332,7 @@ func TestPutBuffer_Routing(t *testing.T) {
 			case "large":
 				newBuf = GetLargeBuffer()
 			}
-			
+
 			// Can't directly verify it's the same buffer, but we can
 			// check that the pool is working
 			if newBuf == nil {
@@ -356,7 +356,7 @@ func TestPutStringBuilder_Nil(t *testing.T) {
 func BenchmarkBufferPool_GetPut(b *testing.B) {
 	pool := NewBufferPool()
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		buf := pool.Get()
 		buf.WriteString("benchmark test data")
@@ -367,7 +367,7 @@ func BenchmarkBufferPool_GetPut(b *testing.B) {
 func BenchmarkBufferPool_Parallel(b *testing.B) {
 	pool := NewBufferPool()
 	b.ResetTimer()
-	
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			buf := pool.Get()
@@ -380,7 +380,7 @@ func BenchmarkBufferPool_Parallel(b *testing.B) {
 func BenchmarkStringBuilderPool_GetPut(b *testing.B) {
 	pool := NewStringBuilderPool()
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		sb := pool.Get()
 		sb.WriteString("benchmark test data")
@@ -390,7 +390,7 @@ func BenchmarkStringBuilderPool_GetPut(b *testing.B) {
 
 func BenchmarkNoPool_Buffer(b *testing.B) {
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		buf := bytes.NewBuffer(make([]byte, 0, 512))
 		buf.WriteString("benchmark test data")
@@ -400,7 +400,7 @@ func BenchmarkNoPool_Buffer(b *testing.B) {
 
 func BenchmarkNoPool_StringBuilder(b *testing.B) {
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		var sb strings.Builder
 		sb.Grow(256)

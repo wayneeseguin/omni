@@ -92,13 +92,13 @@
 //	ctx := omni.WithRequestID(context.Background(), "req-123")
 //	ctx = omni.WithUserID(ctx, "user-456")
 //
-//	logger.StructuredLogWithContext(ctx, omni.LevelInfo, 
+//	logger.StructuredLogWithContext(ctx, omni.LevelInfo,
 //		"Processing request", nil)
 //
 // Dynamic Configuration:
 //
 //	// Enable configuration watching
-//	err = logger.EnableDynamicConfig("/etc/myapp/logging.json", 
+//	err = logger.EnableDynamicConfig("/etc/myapp/logging.json",
 //		10 * time.Second)
 //
 //	// Configuration file can control:

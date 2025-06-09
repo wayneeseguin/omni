@@ -11,12 +11,12 @@ import (
 
 // mockWriter helps test error conditions
 type mockWriter struct {
-	buf       bytes.Buffer
-	failWrite bool
-	failFlush bool
+	buf        bytes.Buffer
+	failWrite  bool
+	failFlush  bool
 	writeCalls int
 	flushCalls int
-	mu        sync.Mutex
+	mu         sync.Mutex
 }
 
 func (m *mockWriter) Write(p []byte) (n int, err error) {
@@ -190,7 +190,7 @@ func TestBatchWriter_WriteClosed(t *testing.T) {
 	var buf bytes.Buffer
 	writer := bufio.NewWriter(&buf)
 	bw := NewBatchWriter(writer, 1024, 10, 0)
-	
+
 	// Close the writer
 	if err := bw.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
@@ -215,7 +215,7 @@ func TestBatchWriter_FlushError(t *testing.T) {
 
 	// Make write fail (since bufio.Writer doesn't expose flush errors directly)
 	mock.failWrite = true
-	
+
 	err := bw.Flush()
 	if err == nil {
 		t.Error("expected write error during flush, got nil")
@@ -230,10 +230,10 @@ func TestBatchWriter_WriteError(t *testing.T) {
 
 	// Write data to fill buffer
 	bw.Write([]byte("test1"))
-	
+
 	// Make write fail on flush
 	mock.failWrite = true
-	
+
 	// This should trigger a flush which will fail
 	_, err := bw.Write([]byte("test2"))
 	if err == nil {
@@ -368,7 +368,7 @@ func TestBatchWriter_ConcurrentWrites(t *testing.T) {
 	}
 
 	wg.Wait()
-	
+
 	// Flush remaining data
 	if err := bw.Flush(); err != nil {
 		t.Errorf("Flush() error = %v", err)

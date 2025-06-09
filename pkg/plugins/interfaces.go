@@ -2,7 +2,7 @@ package plugins
 
 import (
 	"context"
-	
+
 	"github.com/wayneeseguin/omni/pkg/types"
 )
 
@@ -10,22 +10,22 @@ import (
 type Backend interface {
 	// Write writes a log entry to the backend
 	Write(entry []byte) (int, error)
-	
+
 	// Flush ensures all buffered data is written
 	Flush() error
-	
+
 	// Close closes the backend
 	Close() error
-	
+
 	// SupportsAtomic returns whether the backend supports atomic writes
 	SupportsAtomic() bool
-	
+
 	// Name returns the plugin name
 	Name() string
-	
+
 	// Version returns the plugin version
 	Version() string
-	
+
 	// Configure configures the plugin with options
 	Configure(options map[string]interface{}) error
 }
@@ -34,10 +34,10 @@ type Backend interface {
 type Filter interface {
 	// ShouldLog determines if a message should be logged
 	ShouldLog(level int, message string, fields map[string]interface{}) bool
-	
+
 	// Name returns the filter name
 	Name() string
-	
+
 	// Configure configures the filter with options
 	Configure(options map[string]interface{}) error
 }
@@ -46,32 +46,31 @@ type Filter interface {
 type Formatter interface {
 	// Format formats a log message
 	Format(msg types.LogMessage) ([]byte, error)
-	
+
 	// Name returns the formatter name
 	Name() string
-	
+
 	// Configure configures the formatter with options
 	Configure(options map[string]interface{}) error
 }
-
 
 // Plugin represents a general plugin
 type Plugin interface {
 	// Name returns the plugin name
 	Name() string
-	
+
 	// Version returns the plugin version
 	Version() string
-	
+
 	// Description returns a description of what the plugin does
 	Description() string
-	
+
 	// Initialize initializes the plugin
 	Initialize(config map[string]interface{}) error
-	
+
 	// Shutdown gracefully shuts down the plugin
 	Shutdown(ctx context.Context) error
-	
+
 	// Health returns the health status of the plugin
 	Health() HealthStatus
 }
@@ -87,28 +86,28 @@ type HealthStatus struct {
 type ManagerInterface interface {
 	// RegisterBackend registers a backend plugin
 	RegisterBackend(name string, factory BackendFactory) error
-	
+
 	// RegisterFilter registers a filter plugin
 	RegisterFilter(name string, factory FilterFactory) error
-	
+
 	// RegisterFormatter registers a formatter plugin
 	RegisterFormatter(name string, factory FormatterFactory) error
-	
+
 	// GetBackend gets a backend plugin by name
 	GetBackend(name string) (Backend, error)
-	
+
 	// GetFilter gets a filter plugin by name
 	GetFilter(name string) (Filter, error)
-	
+
 	// GetFormatter gets a formatter plugin by name
 	GetFormatter(name string) (Formatter, error)
-	
+
 	// ListPlugins returns a list of all registered plugins
 	ListPlugins() []PluginInfo
-	
+
 	// LoadFromDirectory loads plugins from a directory
 	LoadFromDirectory(dir string) error
-	
+
 	// UnloadPlugin unloads a plugin by name
 	UnloadPlugin(name string) error
 }
@@ -132,10 +131,10 @@ type PluginInfo struct {
 type Discovery interface {
 	// DiscoverPlugins discovers plugins in the specified paths
 	DiscoverPlugins(paths []string) ([]PluginInfo, error)
-	
+
 	// LoadPlugin loads a plugin from a file
 	LoadPlugin(path string) (Plugin, error)
-	
+
 	// ValidatePlugin validates a plugin before loading
 	ValidatePlugin(path string) error
 }
@@ -144,10 +143,10 @@ type Discovery interface {
 type BackendPlugin interface {
 	Plugin
 	Backend
-	
+
 	// CreateBackend creates a new backend instance
 	CreateBackend(uri string, config map[string]interface{}) (Backend, error)
-	
+
 	// SupportedSchemes returns URI schemes this plugin supports
 	SupportedSchemes() []string
 }
@@ -156,10 +155,10 @@ type BackendPlugin interface {
 type FilterPlugin interface {
 	Plugin
 	Filter
-	
+
 	// CreateFilter creates a new filter instance
 	CreateFilter(config map[string]interface{}) (types.FilterFunc, error)
-	
+
 	// FilterType returns the filter type name
 	FilterType() string
 }
@@ -168,10 +167,10 @@ type FilterPlugin interface {
 type FormatterPlugin interface {
 	Plugin
 	Formatter
-	
+
 	// CreateFormatter creates a new formatter instance
 	CreateFormatter(config map[string]interface{}) (Formatter, error)
-	
+
 	// FormatName returns the format name (e.g., "xml", "protobuf")
 	FormatName() string
 }

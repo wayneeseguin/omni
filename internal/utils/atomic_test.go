@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 func TestAtomicInt64_BasicOperations(t *testing.T) {
@@ -136,9 +138,7 @@ func TestAtomicInt64_ConcurrentAccess(t *testing.T) {
 }
 
 func TestAtomicInt64_Performance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "skipping performance test in unit mode")
 
 	a := NewAtomicInt64(0)
 	const iterations = 10000000
@@ -434,7 +434,7 @@ func BenchmarkAtomicInt64_ConcurrentAdd(b *testing.B) {
 	a := NewAtomicInt64(0)
 	var wg sync.WaitGroup
 	numGoroutines := runtime.NumCPU()
-	
+
 	b.ResetTimer()
 	wg.Add(numGoroutines)
 	for i := 0; i < numGoroutines; i++ {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/gofrs/flock"
 	"github.com/wayneeseguin/omni/internal/metrics"
 	"github.com/wayneeseguin/omni/pkg/features"
@@ -31,15 +31,15 @@ var defaultChannelSize = getDefaultChannelSize()
 // Omni uses a background worker pattern with channels to ensure logging
 // doesn't block the main application flow.
 type Omni struct {
-	mu            sync.RWMutex
-	level         int
-	fileLock      *flock.Flock
-	
+	mu       sync.RWMutex
+	level    int
+	fileLock *flock.Flock
+
 	// File rotation fields
-	maxSize       int64
-	maxFiles      int
-	currentSize   int64
-	
+	maxSize     int64
+	maxFiles    int
+	currentSize int64
+
 	// Formatting fields
 	format        int
 	formatOptions FormatOptions
@@ -47,7 +47,7 @@ type Omni struct {
 	includeTrace  bool
 	stackSize     int
 	captureAll    bool
-	
+
 	// Compression fields
 	compression     int
 	compressMinAge  int
@@ -59,75 +59,75 @@ type Omni struct {
 	cleanupTicker   *time.Ticker
 	cleanupDone     chan struct{}
 	cleanupWg       sync.WaitGroup
-	
+
 	// Sampling fields
 	samplingStrategy int
 	samplingRate     float64
 	sampleCounter    uint64
 	sampleKeyFunc    func(int, string, map[string]interface{}) string
-	
+
 	// Non-blocking logging fields
 	msgChan     chan LogMessage
 	workerWg    sync.WaitGroup
 	channelSize int
-	
+
 	// Destinations
 	Destinations []*Destination
 	defaultDest  *Destination
 	messageQueue chan *LogMessage
-	
+
 	// Backend integration
 	backendFactory BackendFactory
 	file           *os.File
 	writer         *bufio.Writer
 	path           string
 	size           int64
-	
+
 	// Error handling
 	errorHandler func(source, destination, message string, err error)
 	errorCount   uint64
 	lastError    *LogError
-	
+
 	// Metrics
 	bytesWritten uint64
 	writeCount   uint64
-	
+
 	// Filtering
 	filters       []FilterFunc
 	filterNames   map[string]FilterFunc // Maps filter names to functions for removal
 	filterCounter int                   // Counter for generating unique filter names
-	
+
 	// Redaction fields
 	redactor          *Redactor
 	redactionPatterns []string
 	redactionReplace  string
 	redactionManager  interface{}
-	
+
 	// Plugin management
 	pluginManager *plugins.Manager
-	
+
 	// Global fields for structured logging
 	globalFields map[string]interface{}
-	
+
 	// State management
 	closed        bool
 	workerStarted bool
-	
+
 	// Manager instances for features
 	compressionManager *features.CompressionManager
 	recoveryManager    *features.RecoveryManager
 	rotationManager    *features.RotationManager
 	filterManager      *features.FilterManager
 	samplingManager    *features.SamplingManager
-	
+
 	// Metrics and tracking
 	metricsCollector *metrics.Collector
 	messagesByLevel  sync.Map
 	errorChannel     chan LogError
-	
+
 	// Lazy formatting
 	lazyFormatting bool
-	
+
 	// Formatter instances
 	jsonFormatter *formatters.JSONFormatter
 	textFormatter *formatters.TextFormatter
@@ -211,7 +211,7 @@ func NewWithBackend(uri string, backendType int) (*Omni, error) {
 	// Initialize the backend factory
 	// Import is added at the top of the file
 	f.backendFactory = nil // Will be set via option or default factory
-	
+
 	// Formatter will be set via option or remain nil for default formatting
 	f.formatter = nil
 
@@ -274,7 +274,7 @@ func (f *Omni) messageDispatcher() {
 			close(msg.SyncDone)
 			continue
 		}
-		
+
 		// Track that we've successfully received a message
 		if msg.Entry != nil {
 			// Convert level string to int
@@ -344,7 +344,7 @@ func (f *Omni) SetMaxFiles(count int) {
 	f.mu.Lock()
 	f.maxFiles = count
 	f.mu.Unlock()
-	
+
 	// Initialize rotation manager if needed
 	if f.rotationManager == nil {
 		f.rotationManager = features.NewRotationManager()
@@ -353,7 +353,7 @@ func (f *Omni) SetMaxFiles(count int) {
 		})
 		f.rotationManager.SetMetricsHandler(f.trackMetric)
 	}
-	
+
 	// Propagate the setting to rotation manager
 	f.rotationManager.SetMaxFiles(count)
 }
@@ -432,7 +432,7 @@ func (f *Omni) writeLogEntry(entry LogEntry) {
 			}
 		}
 	}
-	
+
 	// Create a message for the structured entry
 	msg := LogMessage{
 		Entry:     &entry,

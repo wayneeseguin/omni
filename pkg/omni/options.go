@@ -561,4 +561,3 @@ func WithFormatter(formatter Formatter) Option {
 		return nil
 	}
 }
-

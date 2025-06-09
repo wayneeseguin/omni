@@ -238,7 +238,6 @@ func TestUpdateConfig(t *testing.T) {
 }
 
 func TestConfigWithRedaction(t *testing.T) {
-	t.Skip("Skipping redaction test - needs refactoring to work with new redaction manager")
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "test.log")
 
@@ -254,26 +253,16 @@ func TestConfigWithRedaction(t *testing.T) {
 	}
 	defer logger.Close()
 
-	// Check if redactor was set
-	if logger.redactor == nil {
-		t.Fatal("Redactor was not set")
-	}
-	
-	// Check if redaction patterns were set
-	if len(logger.redactionPatterns) != 2 {
-		t.Errorf("Expected 2 redaction patterns, got %d", len(logger.redactionPatterns))
-	}
-
 	// Log message with sensitive data
 	logger.Info("Login with password=secret123 and token=abc456")
 
 	// Wait for message to be processed
 	time.Sleep(200 * time.Millisecond)
-	
+
 	// Force flush
 	logger.Sync()
 	logger.FlushAll()
-	
+
 	// Wait a bit more for file write
 	time.Sleep(100 * time.Millisecond)
 

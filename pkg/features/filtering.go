@@ -63,12 +63,12 @@ const (
 
 // FilterCache provides caching for filter decisions
 type FilterCache struct {
-	mu       sync.RWMutex
-	cache    map[string]filterCacheEntry
-	maxSize  int
-	ttl      time.Duration
-	hits     uint64
-	misses   uint64
+	mu        sync.RWMutex
+	cache     map[string]filterCacheEntry
+	maxSize   int
+	ttl       time.Duration
+	hits      uint64
+	misses    uint64
 	evictions uint64
 }
 
@@ -79,15 +79,15 @@ type filterCacheEntry struct {
 
 // FilterMetrics tracks filtering statistics
 type FilterMetrics struct {
-	TotalChecks       uint64
-	TotalPassed       uint64
-	TotalFiltered     uint64
-	FilterHits        map[string]uint64
-	ChainHits         map[string]uint64
-	CacheHits         uint64
-	CacheMisses       uint64
-	ProcessingTimeNs  int64
-	LastUpdate        time.Time
+	TotalChecks      uint64
+	TotalPassed      uint64
+	TotalFiltered    uint64
+	FilterHits       map[string]uint64
+	ChainHits        map[string]uint64
+	CacheHits        uint64
+	CacheMisses      uint64
+	ProcessingTimeNs int64
+	LastUpdate       time.Time
 }
 
 // NewFilterManager creates a new filter manager
@@ -121,14 +121,14 @@ func (f *FilterManager) SetMetricsHandler(handler func(string)) {
 func (f *FilterManager) EnableCache(maxSize int, ttl time.Duration) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.cacheEnabled = true
 	f.cache = &FilterCache{
 		cache:   make(map[string]filterCacheEntry),
 		maxSize: maxSize,
 		ttl:     ttl,
 	}
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler("filter_cache_enabled")
 	}
@@ -138,10 +138,10 @@ func (f *FilterManager) EnableCache(maxSize int, ttl time.Duration) {
 func (f *FilterManager) DisableCache() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.cacheEnabled = false
 	f.cache = nil
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler("filter_cache_disabled")
 	}
@@ -159,15 +159,15 @@ func (f *FilterManager) AddNamedFilter(name, description string, filter FilterFu
 	if filter == nil {
 		return ErrNilFilter
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	// Generate name if not provided
 	if name == "" {
 		name = fmt.Sprintf("filter_%d", len(f.filters))
 	}
-	
+
 	namedFilter := NamedFilter{
 		Name:        name,
 		Description: description,
@@ -175,7 +175,7 @@ func (f *FilterManager) AddNamedFilter(name, description string, filter FilterFu
 		Priority:    priority,
 		Enabled:     true,
 	}
-	
+
 	// Insert filter in priority order
 	inserted := false
 	for i, existing := range f.filters {
@@ -185,15 +185,15 @@ func (f *FilterManager) AddNamedFilter(name, description string, filter FilterFu
 			break
 		}
 	}
-	
+
 	if !inserted {
 		f.filters = append(f.filters, namedFilter)
 	}
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler(fmt.Sprintf("filter_added_%s", name))
 	}
-	
+
 	return nil
 }
 
@@ -201,7 +201,7 @@ func (f *FilterManager) AddNamedFilter(name, description string, filter FilterFu
 func (f *FilterManager) RemoveFilter(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for i, filter := range f.filters {
 		if filter.Name == name {
 			f.filters = append(f.filters[:i], f.filters[i+1:]...)
@@ -211,7 +211,7 @@ func (f *FilterManager) RemoveFilter(name string) error {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("filter not found: %s", name)
 }
 
@@ -219,14 +219,14 @@ func (f *FilterManager) RemoveFilter(name string) error {
 func (f *FilterManager) EnableFilter(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for i, filter := range f.filters {
 		if filter.Name == name {
 			f.filters[i].Enabled = true
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("filter not found: %s", name)
 }
 
@@ -234,14 +234,14 @@ func (f *FilterManager) EnableFilter(name string) error {
 func (f *FilterManager) DisableFilter(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	for i, filter := range f.filters {
 		if filter.Name == name {
 			f.filters[i].Enabled = false
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("filter not found: %s", name)
 }
 
@@ -250,20 +250,20 @@ func (f *FilterManager) AddFilterChain(chain *FilterChain) error {
 	if chain == nil {
 		return fmt.Errorf("chain cannot be nil")
 	}
-	
+
 	if chain.Name == "" {
 		return fmt.Errorf("chain name cannot be empty")
 	}
-	
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.chains[chain.Name] = chain
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler(fmt.Sprintf("filter_chain_added_%s", chain.Name))
 	}
-	
+
 	return nil
 }
 
@@ -271,17 +271,17 @@ func (f *FilterManager) AddFilterChain(chain *FilterChain) error {
 func (f *FilterManager) RemoveFilterChain(name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	if _, exists := f.chains[name]; !exists {
 		return fmt.Errorf("chain not found: %s", name)
 	}
-	
+
 	delete(f.chains, name)
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler(fmt.Sprintf("filter_chain_removed_%s", name))
 	}
-	
+
 	return nil
 }
 
@@ -292,12 +292,12 @@ func (f *FilterManager) ClearFilters() {
 	defer f.mu.Unlock()
 	f.filters = nil
 	f.chains = make(map[string]*FilterChain)
-	
+
 	// Clear cache
 	if f.cache != nil {
 		f.cache.Clear()
 	}
-	
+
 	if f.metricsHandler != nil {
 		f.metricsHandler("filters_cleared")
 	}
@@ -313,12 +313,12 @@ func (f *FilterManager) ApplyFilters(level int, message string, fields map[strin
 			atomic.AddInt64(&f.metrics.ProcessingTimeNs, elapsed)
 		}
 	}()
-	
+
 	// Track total checks
 	if f.metrics != nil {
 		atomic.AddUint64(&f.metrics.TotalChecks, 1)
 	}
-	
+
 	// Check cache first if enabled
 	if f.cacheEnabled && f.cache != nil {
 		cacheKey := f.generateCacheKey(level, message, fields)
@@ -327,28 +327,28 @@ func (f *FilterManager) ApplyFilters(level int, message string, fields map[strin
 			return decision
 		}
 	}
-	
+
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	// Apply individual filters first (AND logic by default)
 	for _, filter := range f.filters {
 		if !filter.Enabled {
 			continue
 		}
-		
+
 		decision := filter.Filter(level, message, fields)
 		if f.metrics != nil && f.metrics.FilterHits != nil {
 			f.metrics.FilterHits[filter.Name]++
 		}
-		
+
 		if !decision {
 			f.cacheDecision(level, message, fields, false)
 			f.updateMetrics(false, false)
 			return false
 		}
 	}
-	
+
 	// Apply filter chains
 	for _, chain := range f.chains {
 		decision := f.applyChain(chain, level, message, fields)
@@ -358,7 +358,7 @@ func (f *FilterManager) ApplyFilters(level int, message string, fields map[strin
 			return false
 		}
 	}
-	
+
 	// All filters passed
 	f.cacheDecision(level, message, fields, true)
 	f.updateMetrics(true, false)
@@ -370,12 +370,12 @@ func (f *FilterManager) applyChain(chain *FilterChain, level int, message string
 	if chain == nil || len(chain.Filters) == 0 {
 		return true
 	}
-	
+
 	// Track chain usage
 	if f.metrics != nil && f.metrics.ChainHits != nil {
 		f.metrics.ChainHits[chain.Name]++
 	}
-	
+
 	var result bool
 	switch chain.Mode {
 	case ChainModeAND:
@@ -387,12 +387,12 @@ func (f *FilterManager) applyChain(chain *FilterChain, level int, message string
 	default:
 		result = true
 	}
-	
+
 	// Apply inversion if needed
 	if chain.Inverted {
 		result = !result
 	}
-	
+
 	return result
 }
 
@@ -402,7 +402,7 @@ func (f *FilterManager) applyChainAND(chain *FilterChain, level int, message str
 		if !filter.Enabled {
 			continue
 		}
-		
+
 		if !filter.Filter(level, message, fields) {
 			return false
 		}
@@ -416,7 +416,7 @@ func (f *FilterManager) applyChainOR(chain *FilterChain, level int, message stri
 		if !filter.Enabled {
 			continue
 		}
-		
+
 		if filter.Filter(level, message, fields) {
 			if chain.StopOnMatch {
 				return true
@@ -433,7 +433,7 @@ func (f *FilterManager) applyChainXOR(chain *FilterChain, level int, message str
 		if !filter.Enabled {
 			continue
 		}
-		
+
 		if filter.Filter(level, message, fields) {
 			matches++
 			if matches > 1 {
@@ -467,7 +467,7 @@ func (f *FilterManager) cacheDecision(level int, message string, fields map[stri
 	if !f.cacheEnabled || f.cache == nil {
 		return
 	}
-	
+
 	key := f.generateCacheKey(level, message, fields)
 	f.cache.Set(key, decision)
 }
@@ -477,19 +477,19 @@ func (f *FilterManager) updateMetrics(passed bool, fromCache bool) {
 	if f.metrics == nil {
 		return
 	}
-	
+
 	if passed {
 		atomic.AddUint64(&f.metrics.TotalPassed, 1)
 	} else {
 		atomic.AddUint64(&f.metrics.TotalFiltered, 1)
 	}
-	
+
 	if fromCache {
 		atomic.AddUint64(&f.metrics.CacheHits, 1)
 	} else {
 		atomic.AddUint64(&f.metrics.CacheMisses, 1)
 	}
-	
+
 	f.metrics.LastUpdate = time.Now()
 }
 
@@ -596,14 +596,14 @@ func CreateMultiFieldFilter(fields ...string) FilterFunc {
 func (f *FilterManager) GetFilterCount() int {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	count := 0
 	for _, filter := range f.filters {
 		if filter.Enabled {
 			count++
 		}
 	}
-	
+
 	// Add chain filters
 	for _, chain := range f.chains {
 		for _, filter := range chain.Filters {
@@ -612,7 +612,7 @@ func (f *FilterManager) GetFilterCount() int {
 			}
 		}
 	}
-	
+
 	return count
 }
 
@@ -620,13 +620,13 @@ func (f *FilterManager) GetFilterCount() int {
 func (f *FilterManager) Get(name string) (*NamedFilter, bool) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	for _, filter := range f.filters {
 		if filter.Name == name {
 			return &filter, true
 		}
 	}
-	
+
 	return nil, false
 }
 
@@ -634,7 +634,7 @@ func (f *FilterManager) Get(name string) (*NamedFilter, bool) {
 func (f *FilterManager) List() []NamedFilter {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	result := make([]NamedFilter, len(f.filters))
 	copy(result, f.filters)
 	return result
@@ -644,7 +644,7 @@ func (f *FilterManager) List() []NamedFilter {
 func (f *FilterManager) ListChains() map[string]*FilterChain {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	result := make(map[string]*FilterChain)
 	for k, v := range f.chains {
 		result[k] = v
@@ -656,11 +656,11 @@ func (f *FilterManager) ListChains() map[string]*FilterChain {
 func (f *FilterManager) GetMetrics() FilterMetrics {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	if f.metrics == nil {
 		return FilterMetrics{}
 	}
-	
+
 	// Create a copy
 	metrics := FilterMetrics{
 		TotalChecks:      atomic.LoadUint64(&f.metrics.TotalChecks),
@@ -673,17 +673,17 @@ func (f *FilterManager) GetMetrics() FilterMetrics {
 		FilterHits:       make(map[string]uint64),
 		ChainHits:        make(map[string]uint64),
 	}
-	
+
 	// Copy filter hits
 	for k, v := range f.metrics.FilterHits {
 		metrics.FilterHits[k] = v
 	}
-	
+
 	// Copy chain hits
 	for k, v := range f.metrics.ChainHits {
 		metrics.ChainHits[k] = v
 	}
-	
+
 	return metrics
 }
 
@@ -691,7 +691,7 @@ func (f *FilterManager) GetMetrics() FilterMetrics {
 func (f *FilterManager) ResetMetrics() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	
+
 	f.metrics = &FilterMetrics{
 		FilterHits: make(map[string]uint64),
 		ChainHits:  make(map[string]uint64),
@@ -703,15 +703,15 @@ func (f *FilterManager) ResetMetrics() {
 func (f *FilterManager) GetStatus() FilterStatus {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	
+
 	status := FilterStatus{
-		FilterCount:      len(f.filters),
-		ChainCount:       len(f.chains),
-		CacheEnabled:     f.cacheEnabled,
-		ActiveFilters:    0,
-		DisabledFilters:  0,
+		FilterCount:     len(f.filters),
+		ChainCount:      len(f.chains),
+		CacheEnabled:    f.cacheEnabled,
+		ActiveFilters:   0,
+		DisabledFilters: 0,
 	}
-	
+
 	// Count active/disabled filters
 	for _, filter := range f.filters {
 		if filter.Enabled {
@@ -720,14 +720,14 @@ func (f *FilterManager) GetStatus() FilterStatus {
 			status.DisabledFilters++
 		}
 	}
-	
+
 	// Add cache status
 	if f.cache != nil {
 		status.CacheSize = len(f.cache.cache)
 		status.CacheMaxSize = f.cache.maxSize
 		status.CacheTTL = f.cache.ttl
 	}
-	
+
 	return status
 }
 
@@ -749,20 +749,20 @@ type FilterStatus struct {
 func (c *FilterCache) Get(key string) (bool, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	entry, exists := c.cache[key]
 	if !exists {
 		atomic.AddUint64(&c.misses, 1)
 		return false, false
 	}
-	
+
 	// Check TTL
 	if time.Since(entry.timestamp) > c.ttl {
 		// Expired
 		atomic.AddUint64(&c.misses, 1)
 		return false, false
 	}
-	
+
 	atomic.AddUint64(&c.hits, 1)
 	return entry.decision, true
 }
@@ -771,7 +771,7 @@ func (c *FilterCache) Get(key string) (bool, bool) {
 func (c *FilterCache) Set(key string, decision bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	// Check size limit
 	if len(c.cache) >= c.maxSize {
 		// Simple eviction - remove oldest entry
@@ -786,7 +786,7 @@ func (c *FilterCache) Set(key string, decision bool) {
 		delete(c.cache, oldestKey)
 		atomic.AddUint64(&c.evictions, 1)
 	}
-	
+
 	c.cache[key] = filterCacheEntry{
 		decision:  decision,
 		timestamp: time.Now(),
@@ -797,7 +797,7 @@ func (c *FilterCache) Set(key string, decision bool) {
 func (c *FilterCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	c.cache = make(map[string]filterCacheEntry)
 	atomic.StoreUint64(&c.hits, 0)
 	atomic.StoreUint64(&c.misses, 0)
@@ -850,12 +850,12 @@ func CreateFieldRangeFilter(field string, min, max float64) FilterFunc {
 		if fields == nil {
 			return false
 		}
-		
+
 		val, exists := fields[field]
 		if !exists {
 			return false
 		}
-		
+
 		// Try to convert to float64
 		var numVal float64
 		switch v := val.(type) {
@@ -872,7 +872,7 @@ func CreateFieldRangeFilter(field string, min, max float64) FilterFunc {
 		default:
 			return false
 		}
-		
+
 		return numVal >= min && numVal <= max
 	}
 }
@@ -895,28 +895,28 @@ func CreateRateLimitFilter(maxPerSecond float64) FilterFunc {
 	tokens := maxPerSecond
 	lastRefill := time.Now()
 	var mu sync.Mutex
-	
+
 	return func(level int, message string, fields map[string]interface{}) bool {
 		mu.Lock()
 		defer mu.Unlock()
-		
+
 		// Refill tokens
 		now := time.Now()
 		elapsed := now.Sub(lastRefill).Seconds()
 		tokensToAdd := elapsed * maxPerSecond
-		
+
 		tokens = tokens + tokensToAdd
 		if tokens > maxPerSecond {
 			tokens = maxPerSecond
 		}
 		lastRefill = now
-		
+
 		// Check if we have tokens
 		if tokens >= 1.0 {
 			tokens--
 			return true
 		}
-		
+
 		return false
 	}
 }
@@ -927,7 +927,7 @@ func CreateFieldPrefixFilter(prefix string) FilterFunc {
 		if fields == nil {
 			return false
 		}
-		
+
 		for key := range fields {
 			if strings.HasPrefix(key, prefix) {
 				return true

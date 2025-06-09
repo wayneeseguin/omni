@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
-	"sync"
 
 	"github.com/wayneeseguin/omni/pkg/omni"
 )

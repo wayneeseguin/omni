@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 	"github.com/wayneeseguin/omni/pkg/backends"
 )
 
@@ -273,6 +274,14 @@ func TestSetSyslogPriority(t *testing.T) {
 */
 
 func TestReconnectSyslog(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog reconnection test in unit mode")
+
+	// Skip unless integration tests are explicitly enabled
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping syslog reconnection test. Set OMNI_RUN_INTEGRATION_TESTS=true to run")
+	}
+
 	// Start a mock syslog server
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -364,6 +373,14 @@ func TestSyslogURIParsing(t *testing.T) {
 }
 
 func TestSyslogIntegration(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog integration test in unit mode")
+
+	// Check for integration test flag
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping syslog integration test. Set OMNI_RUN_INTEGRATION_TESTS=true to run")
+	}
+
 	var backend *backends.SyslogBackendImpl
 	var connectedPath string
 	var err error
@@ -405,7 +422,7 @@ func TestSyslogIntegration(t *testing.T) {
 	// Test different log messages
 	messages := []string{
 		"Debug message from omni test",
-		"Info message from omni test", 
+		"Info message from omni test",
 		"Warning message from omni test",
 		"Error message from omni test",
 	}
@@ -425,10 +442,13 @@ func TestSyslogIntegration(t *testing.T) {
 }
 
 func TestSyslogWithMultipleDestinations(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog integration test in unit mode")
+
 	// This test demonstrates creating multiple backends
 	tempDir := t.TempDir()
 	tempFile := tempDir + "/test.log"
-	
+
 	// Create file backend
 	fileBackend, err := backends.NewFileBackend(tempFile)
 	if err != nil {
@@ -436,12 +456,19 @@ func TestSyslogWithMultipleDestinations(t *testing.T) {
 	}
 	defer fileBackend.Close()
 
-	// Try to create syslog backend (may fail if no syslog available)
-	syslogBackend, err := backends.NewSyslogBackend("tcp", "localhost:514", 16, "test")
-	if err != nil {
-		t.Logf("Failed to create syslog backend (expected in test environment): %v", err)
+	// Skip syslog backend creation unless integration tests are enabled
+	var syslogBackend *backends.SyslogBackendImpl
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true" {
+		t.Log("Skipping syslog backend creation. Set OMNI_RUN_INTEGRATION_TESTS=true to test with syslog")
 	} else {
-		defer syslogBackend.Close()
+		// Try to create syslog backend (may fail if no syslog available)
+		var err error
+		syslogBackend, err = backends.NewSyslogBackend("tcp", "localhost:514", 16, "test")
+		if err != nil {
+			t.Logf("Failed to create syslog backend (expected in test environment): %v", err)
+		} else {
+			defer syslogBackend.Close()
+		}
 	}
 
 	// Write to file backend
@@ -462,33 +489,38 @@ func TestSyslogWithMultipleDestinations(t *testing.T) {
 		t.Error("Message not found in file destination")
 	}
 
-	// If syslog backend was created, write to it too
-	if syslogBackend != nil {
-		_, err = syslogBackend.Write([]byte(testMessage))
-		if err != nil {
-			t.Logf("Failed to write to syslog (may be expected): %v", err)
+	// If integration tests are enabled and syslog backend was created, write to it too
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") == "true" {
+		if syslogBackend != nil {
+			_, err = syslogBackend.Write([]byte(testMessage))
+			if err != nil {
+				t.Logf("Failed to write to syslog (may be expected): %v", err)
+			}
+			syslogBackend.Sync()
+			t.Log("Message written to both file and syslog backends")
+		} else {
+			t.Log("Syslog backend not available")
 		}
-		syslogBackend.Sync()
-		t.Log("Message written to both file and syslog backends")
-	} else {
-		t.Log("Only file backend available for test")
 	}
 }
 
 func TestSyslogErrorHandling(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog error handling test in unit mode")
+
 	// Test various error conditions
 
 	// Invalid address should fail
 	_, err := backends.NewSyslogBackend("", "", 16, "test")
+	if err != nil {
+		t.Logf("Empty address error (expected): %v", err)
+	}
 
 	// Test with definitely unreachable address
 	_, err2 := backends.NewSyslogBackend("tcp", "255.255.255.255:514", 16, "test")
-	// This should fail to connect
-
-	// These tests document the behavior rather than enforce it
-	// since error handling may vary based on implementation
-	t.Logf("Empty address error: %v", err)
-	t.Logf("Unreachable address error: %v", err2)
+	if err2 != nil {
+		t.Logf("Unreachable address error (expected): %v", err2)
+	}
 }
 
 // ===== ENHANCED SYSLOG BACKEND TESTS =====
@@ -508,7 +540,7 @@ func TestSyslogBackendImpl_NewSyslogBackend(t *testing.T) {
 			name:        "successful tcp connection",
 			network:     "tcp",
 			address:     "127.0.0.1:0", // Will be replaced with actual port
-			priority:    16,             // Local use facility, informational severity
+			priority:    16,            // Local use facility, informational severity
 			tag:         "test-app",
 			expectError: false,
 		},
@@ -537,7 +569,7 @@ func TestSyslogBackendImpl_NewSyslogBackend(t *testing.T) {
 			priority:    16,
 			tag:         "test",
 			expectError: true, // Will fail if no unix socket exists or wrong socket type
-			errorMsg:    "", // Accept any error message as different systems have different syslog setups
+			errorMsg:    "",   // Accept any error message as different systems have different syslog setups
 		},
 	}
 
@@ -582,6 +614,9 @@ func TestSyslogBackendImpl_NewSyslogBackend(t *testing.T) {
 
 // TestSyslogBackendImpl_Write tests writing to syslog backend
 func TestSyslogBackendImpl_Write(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog write test in unit mode")
+
 	// Start mock syslog server
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -651,6 +686,9 @@ func TestSyslogBackendImpl_Write(t *testing.T) {
 
 // TestSyslogBackendImpl_PriorityAndTag tests priority and tag functionality
 func TestSyslogBackendImpl_PriorityAndTag(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog priority/tag test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)
@@ -682,6 +720,9 @@ func TestSyslogBackendImpl_PriorityAndTag(t *testing.T) {
 
 // TestSyslogBackendImpl_FlushAndClose tests flushing and closing
 func TestSyslogBackendImpl_FlushAndClose(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog flush/close test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)
@@ -723,6 +764,9 @@ func TestSyslogBackendImpl_FlushAndClose(t *testing.T) {
 
 // TestSyslogBackendImpl_SupportsAtomic tests atomic support check
 func TestSyslogBackendImpl_SupportsAtomic(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog atomic support test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)
@@ -744,6 +788,9 @@ func TestSyslogBackendImpl_SupportsAtomic(t *testing.T) {
 
 // TestSyslogBackendImpl_Sync tests sync functionality
 func TestSyslogBackendImpl_Sync(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog sync test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)
@@ -772,6 +819,9 @@ func TestSyslogBackendImpl_Sync(t *testing.T) {
 
 // TestSyslogBackendImpl_GetStats tests getting backend statistics
 func TestSyslogBackendImpl_GetStats(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog stats test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)
@@ -801,6 +851,9 @@ func TestSyslogBackendImpl_GetStats(t *testing.T) {
 
 // TestSyslogBackendImpl_NetworkVsLocal tests network vs local syslog
 func TestSyslogBackendImpl_NetworkVsLocal(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog network vs local test in unit mode")
+
 	t.Run("network_tcp", func(t *testing.T) {
 		server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -839,6 +892,9 @@ func TestSyslogBackendImpl_NetworkVsLocal(t *testing.T) {
 
 // TestSyslogBackendImpl_ConcurrentWrites tests concurrent access
 func TestSyslogBackendImpl_ConcurrentWrites(t *testing.T) {
+	// Skip if running in unit mode
+	testhelpers.SkipIfUnit(t, "Skipping syslog concurrent writes test in unit mode")
+
 	server, err := startMockSyslogServer("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skipf("Cannot start mock server: %v", err)

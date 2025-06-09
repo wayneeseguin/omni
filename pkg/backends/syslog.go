@@ -57,15 +57,15 @@ func NewSyslogBackend(network, address string, priority int, tag string) (*Syslo
 func (sb *SyslogBackendImpl) Write(entry []byte) (int, error) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	
+
 	// Format syslog message: <priority>tag: message
 	message := fmt.Sprintf("<%d>%s: %s", sb.priority, sb.tag, strings.TrimSpace(string(entry)))
-	
+
 	n, err := sb.writer.WriteString(message)
 	if err != nil {
 		return n, err
 	}
-	
+
 	// Add newline if not present
 	if !strings.HasSuffix(message, "\n") {
 		if _, err := sb.writer.WriteString("\n"); err != nil {
@@ -73,7 +73,7 @@ func (sb *SyslogBackendImpl) Write(entry []byte) (int, error) {
 		}
 		n++
 	}
-	
+
 	return n, nil
 }
 
@@ -81,7 +81,7 @@ func (sb *SyslogBackendImpl) Write(entry []byte) (int, error) {
 func (sb *SyslogBackendImpl) Flush() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	
+
 	if sb.writer != nil {
 		return sb.writer.Flush()
 	}
@@ -92,23 +92,23 @@ func (sb *SyslogBackendImpl) Flush() error {
 func (sb *SyslogBackendImpl) Close() error {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
-	
+
 	var errs []error
-	
+
 	// Flush writer
 	if sb.writer != nil {
 		if err := sb.writer.Flush(); err != nil {
 			errs = append(errs, fmt.Errorf("flush: %w", err))
 		}
 	}
-	
+
 	// Close connection
 	if sb.conn != nil {
 		if err := sb.conn.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close conn: %w", err))
 		}
 	}
-	
+
 	if len(errs) > 0 {
 		return fmt.Errorf("close errors: %v", errs)
 	}

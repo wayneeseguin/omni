@@ -105,25 +105,25 @@ func TestFileBackendImpl_NewFileBackend_Errors(t *testing.T) {
 	t.Run("permission_denied_directory", func(t *testing.T) {
 		tempDir := t.TempDir()
 		restrictedDir := filepath.Join(tempDir, "restricted")
-		
+
 		// Create directory and remove write permission
 		err := os.MkdirAll(restrictedDir, 0755)
 		if err != nil {
 			t.Fatalf("Failed to create restricted directory: %v", err)
 		}
-		
+
 		// Remove write permission from parent directory
 		err = os.Chmod(restrictedDir, 0444)
 		if err != nil {
 			t.Fatalf("Failed to change directory permissions: %v", err)
 		}
-		
+
 		// Restore permissions after test
 		defer os.Chmod(restrictedDir, 0755)
-		
+
 		logPath := filepath.Join(restrictedDir, "subdir", "test.log")
 		_, err = backends.NewFileBackend(logPath)
-		
+
 		// Should fail on directory creation
 		if err == nil {
 			t.Error("Expected error when creating directory without permissions")
@@ -136,16 +136,16 @@ func TestFileBackendImpl_NewFileBackend_Errors(t *testing.T) {
 	t.Run("directory_as_file", func(t *testing.T) {
 		tempDir := t.TempDir()
 		dirPath := filepath.Join(tempDir, "existing_dir")
-		
+
 		// Create a directory
 		err := os.MkdirAll(dirPath, 0755)
 		if err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
-		
+
 		// Try to create file backend with directory path
 		_, err = backends.NewFileBackend(dirPath)
-		
+
 		// Should fail because it's a directory, not a file
 		if err == nil {
 			t.Error("Expected error when using directory as file path")
@@ -157,7 +157,7 @@ func TestFileBackendImpl_NewFileBackend_Errors(t *testing.T) {
 func TestFileBackendImpl_Write(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "write_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -194,7 +194,7 @@ func TestFileBackendImpl_Write(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			initialSize := backend.Size()
-			
+
 			n, err := backend.Write(tt.data)
 			if err != nil {
 				t.Fatalf("Write failed: %v", err)
@@ -224,7 +224,7 @@ func TestFileBackendImpl_Write(t *testing.T) {
 func TestFileBackendImpl_FlushAndSync(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "flush_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -291,7 +291,7 @@ func TestFileBackendImpl_FlushAndSync(t *testing.T) {
 func TestFileBackendImpl_Close(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "close_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -337,7 +337,7 @@ func TestFileBackendImpl_Close(t *testing.T) {
 func TestFileBackendImpl_SupportsAtomic(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "atomic_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -354,7 +354,7 @@ func TestFileBackendImpl_SupportsAtomic(t *testing.T) {
 func TestFileBackendImpl_GetStats(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "stats_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -395,7 +395,7 @@ func TestFileBackendImpl_GetStats(t *testing.T) {
 func TestFileBackendImpl_Rotate(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "rotate_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -415,7 +415,7 @@ func TestFileBackendImpl_Rotate(t *testing.T) {
 func TestFileBackendImpl_FileLocking(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "locking_test.log")
-	
+
 	// Create first backend
 	backend1, err := backends.NewFileBackend(logPath)
 	if err != nil {
@@ -456,7 +456,7 @@ func TestFileBackendImpl_FileLocking(t *testing.T) {
 func TestFileBackendImpl_ConcurrentWrites(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "concurrent_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -527,7 +527,7 @@ func TestFileBackendImpl_ConcurrentWrites(t *testing.T) {
 func TestFileBackendImpl_LargeFile(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "large_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -576,7 +576,7 @@ func TestFileBackendImpl_LargeFile(t *testing.T) {
 func TestFileBackendImpl_ExistingFileHandling(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "existing_test.log")
-	
+
 	// Create file with existing content
 	existingContent := "Existing log content\n"
 	err := os.WriteFile(logPath, []byte(existingContent), 0644)
@@ -633,7 +633,7 @@ func TestFileBackendImpl_ExistingFileHandling(t *testing.T) {
 func TestFileBackendImpl_ErrorRecovery(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "recovery_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -716,7 +716,7 @@ func TestFileBackendImpl_PathHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := tt.pathFunc(tempDir)
-			
+
 			backend, err := backends.NewFileBackend(path)
 
 			if tt.expectError {
@@ -749,7 +749,7 @@ func TestFileBackendImpl_PathHandling(t *testing.T) {
 func TestFileBackendImpl_BufferSizes(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "buffer_test.log")
-	
+
 	backend, err := backends.NewFileBackend(logPath)
 	if err != nil {
 		t.Fatalf("Failed to create file backend: %v", err)
@@ -772,7 +772,7 @@ func TestFileBackendImpl_BufferSizes(t *testing.T) {
 
 	// Without flush, data might not be on disk yet
 	contentBeforeFlush, _ := os.ReadFile(logPath)
-	
+
 	// Flush to ensure data hits disk
 	err = backend.Flush()
 	if err != nil {

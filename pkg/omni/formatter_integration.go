@@ -10,7 +10,7 @@ func (f *Omni) formatMessageWithFormatter(msg LogMessage) ([]byte, error) {
 	if formatter != nil {
 		return formatter.Format(msg)
 	}
-	
+
 	// Fallback to inline formatting for backward compatibility
 	// This preserves the existing behavior when no formatter is set
 	return nil, nil // Signal to use inline formatting

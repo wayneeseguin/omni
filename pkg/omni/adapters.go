@@ -115,7 +115,7 @@ func (a *LoggerAdapter) WithField(key string, value interface{}) Logger {
 		newFields[k] = v
 	}
 	newFields[key] = value
-	
+
 	return &LoggerAdapter{
 		logger: a.logger,
 		fields: newFields,
@@ -131,7 +131,7 @@ func (a *LoggerAdapter) WithFields(fields map[string]interface{}) Logger {
 	for k, v := range fields {
 		newFields[k] = v
 	}
-	
+
 	return &LoggerAdapter{
 		logger: a.logger,
 		fields: newFields,

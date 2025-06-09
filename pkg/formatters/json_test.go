@@ -474,7 +474,7 @@ func TestJSONFormatter_EmptyMessage(t *testing.T) {
 
 func TestJSONFormatter_TimeZone(t *testing.T) {
 	f := NewJSONFormatter()
-	
+
 	// Set timezone to EST
 	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {

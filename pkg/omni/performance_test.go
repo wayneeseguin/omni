@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/wayneeseguin/omni/internal/buffer"
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 func TestBufferPool(t *testing.T) {
@@ -211,12 +212,12 @@ func BenchmarkWithoutBufferPool(b *testing.B) {
 func BenchmarkBufferPoolVsBytes(b *testing.B) {
 	b.Run("WithPool", func(b *testing.B) {
 		// NewBufferPool is not available
-	// pool := NewBufferPool()
-	pool := &sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
+		// pool := NewBufferPool()
+		pool := &sync.Pool{
+			New: func() interface{} {
+				return new(bytes.Buffer)
+			},
+		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			buf := pool.Get().(*bytes.Buffer)
@@ -240,9 +241,7 @@ func BenchmarkBufferPoolVsBytes(b *testing.B) {
 
 // TestHighThroughputLogging tests logger performance under high message volume
 func TestHighThroughputLogging(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping high throughput test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping high throughput test in unit mode")
 
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "high_throughput.log")
@@ -258,7 +257,7 @@ func TestHighThroughputLogging(t *testing.T) {
 	message := "High throughput test message with some content to make it realistic"
 
 	start := time.Now()
-	
+
 	// Log messages as fast as possible
 	for i := 0; i < numMessages; i++ {
 		logger.Infof("%s %d", message, i)
@@ -267,7 +266,7 @@ func TestHighThroughputLogging(t *testing.T) {
 	// Shutdown to ensure all messages are processed
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	err = logger.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
@@ -295,15 +294,13 @@ func TestHighThroughputLogging(t *testing.T) {
 
 	// Check metrics
 	metrics := logger.GetMetrics()
-	t.Logf("Messages logged: %d, dropped: %d, errors: %d", 
+	t.Logf("Messages logged: %d, dropped: %d, errors: %d",
 		metrics.MessagesLogged, metrics.MessagesDropped, metrics.ErrorCount)
 }
 
 // TestConcurrentLoggingPerformance tests performance with multiple goroutines
 func TestConcurrentLoggingPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping concurrent performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping concurrent performance test in unit mode")
 
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "concurrent_perf.log")
@@ -336,11 +333,11 @@ func TestConcurrentLoggingPerformance(t *testing.T) {
 	}
 
 	wg.Wait()
-	
+
 	// Shutdown to ensure all messages are processed
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	err = logger.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
@@ -349,12 +346,12 @@ func TestConcurrentLoggingPerformance(t *testing.T) {
 	duration := time.Since(start)
 	messagesPerSecond := float64(messagesSent) / duration.Seconds()
 
-	t.Logf("Sent %d messages from %d goroutines in %v (%.2f msg/sec)", 
+	t.Logf("Sent %d messages from %d goroutines in %v (%.2f msg/sec)",
 		messagesSent, numGoroutines, duration, messagesPerSecond)
 
 	// Check metrics
 	metrics := logger.GetMetrics()
-	t.Logf("Messages logged: %d, dropped: %d, errors: %d", 
+	t.Logf("Messages logged: %d, dropped: %d, errors: %d",
 		metrics.MessagesLogged, metrics.MessagesDropped, metrics.ErrorCount)
 
 	// Verify file has reasonable content
@@ -372,9 +369,7 @@ func TestConcurrentLoggingPerformance(t *testing.T) {
 
 // TestMemoryPressurePerformance tests performance under memory constraints
 func TestMemoryPressurePerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping memory pressure test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping memory pressure test in unit mode")
 
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "memory_pressure.log")
@@ -390,7 +385,7 @@ func TestMemoryPressurePerformance(t *testing.T) {
 	defer logger.Close()
 
 	// Create very large messages to increase memory pressure
-	largeMessage := fmt.Sprintf("Large message: %s", 
+	largeMessage := fmt.Sprintf("Large message: %s",
 		string(make([]byte, 1024))) // 1KB message
 
 	numMessages := 10000
@@ -404,7 +399,7 @@ func TestMemoryPressurePerformance(t *testing.T) {
 	// Shutdown to ensure processing
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	err = logger.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
@@ -413,28 +408,26 @@ func TestMemoryPressurePerformance(t *testing.T) {
 	duration := time.Since(start)
 	messagesPerSecond := float64(numMessages) / duration.Seconds()
 
-	t.Logf("Logged %d large messages in %v (%.2f msg/sec)", 
+	t.Logf("Logged %d large messages in %v (%.2f msg/sec)",
 		numMessages, duration, messagesPerSecond)
 
 	// Check memory usage
 	var m runtime.MemStats
 	runtime.GC()
 	runtime.ReadMemStats(&m)
-	
-	t.Logf("Memory usage - Alloc: %d KB, Sys: %d KB", 
+
+	t.Logf("Memory usage - Alloc: %d KB, Sys: %d KB",
 		bToKb(m.Alloc), bToKb(m.Sys))
 
 	// Check metrics
 	metrics := logger.GetMetrics()
-	t.Logf("Messages logged: %d, dropped: %d, errors: %d", 
+	t.Logf("Messages logged: %d, dropped: %d, errors: %d",
 		metrics.MessagesLogged, metrics.MessagesDropped, metrics.ErrorCount)
 }
 
 // TestMultiDestinationPerformance tests performance with multiple destinations
 func TestMultiDestinationPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping multi-destination performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping multi-destination performance test in unit mode")
 
 	tmpDir := t.TempDir()
 	mainLogFile := filepath.Join(tmpDir, "main.log")
@@ -468,7 +461,7 @@ func TestMultiDestinationPerformance(t *testing.T) {
 	// Shutdown to ensure all messages are processed
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	err = logger.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
@@ -477,7 +470,7 @@ func TestMultiDestinationPerformance(t *testing.T) {
 	duration := time.Since(start)
 	messagesPerSecond := float64(numMessages) / duration.Seconds()
 
-	t.Logf("Logged %d messages to %d destinations in %v (%.2f msg/sec)", 
+	t.Logf("Logged %d messages to %d destinations in %v (%.2f msg/sec)",
 		numMessages, numDestinations+1, duration, messagesPerSecond)
 
 	// Verify all destinations have content
@@ -495,15 +488,13 @@ func TestMultiDestinationPerformance(t *testing.T) {
 
 	// Check metrics
 	metrics := logger.GetMetrics()
-	t.Logf("Messages logged: %d, dropped: %d, errors: %d", 
+	t.Logf("Messages logged: %d, dropped: %d, errors: %d",
 		metrics.MessagesLogged, metrics.MessagesDropped, metrics.ErrorCount)
 }
 
 // TestRotationPerformance tests performance with log rotation
 func TestRotationPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping rotation performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping rotation performance test in unit mode")
 
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "rotation_perf.log")
@@ -519,7 +510,7 @@ func TestRotationPerformance(t *testing.T) {
 	logger.SetMaxFiles(10)
 
 	numMessages := 100000
-	message := fmt.Sprintf("Rotation performance test: %s", 
+	message := fmt.Sprintf("Rotation performance test: %s",
 		string(make([]byte, 100))) // ~100 byte message
 
 	start := time.Now()
@@ -532,7 +523,7 @@ func TestRotationPerformance(t *testing.T) {
 	// Shutdown to ensure processing
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	err = logger.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
@@ -541,7 +532,7 @@ func TestRotationPerformance(t *testing.T) {
 	duration := time.Since(start)
 	messagesPerSecond := float64(numMessages) / duration.Seconds()
 
-	t.Logf("Logged %d messages with rotation in %v (%.2f msg/sec)", 
+	t.Logf("Logged %d messages with rotation in %v (%.2f msg/sec)",
 		numMessages, duration, messagesPerSecond)
 
 	// Check for rotated files
@@ -565,15 +556,13 @@ func TestRotationPerformance(t *testing.T) {
 
 	// Check metrics
 	metrics := logger.GetMetrics()
-	t.Logf("Messages logged: %d, dropped: %d, errors: %d", 
+	t.Logf("Messages logged: %d, dropped: %d, errors: %d",
 		metrics.MessagesLogged, metrics.MessagesDropped, metrics.ErrorCount)
 }
 
 // TestCompressionPerformance tests performance impact of compression
 func TestCompressionPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping compression performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping compression performance test in unit mode")
 
 	tmpDir := t.TempDir()
 
@@ -594,7 +583,7 @@ func TestCompressionPerformance(t *testing.T) {
 	logger2.SetMaxSize(1024 * 1024) // 1MB to trigger compression
 
 	numMessages := 50000
-	message := fmt.Sprintf("Compression test message: %s", 
+	message := fmt.Sprintf("Compression test message: %s",
 		string(make([]byte, 200))) // ~200 byte message
 
 	// Test without compression
@@ -628,9 +617,9 @@ func TestCompressionPerformance(t *testing.T) {
 	messagesPerSecond1 := float64(numMessages) / duration1.Seconds()
 	messagesPerSecond2 := float64(numMessages) / duration2.Seconds()
 
-	t.Logf("Without compression: %d messages in %v (%.2f msg/sec)", 
+	t.Logf("Without compression: %d messages in %v (%.2f msg/sec)",
 		numMessages, duration1, messagesPerSecond1)
-	t.Logf("With compression: %d messages in %v (%.2f msg/sec)", 
+	t.Logf("With compression: %d messages in %v (%.2f msg/sec)",
 		numMessages, duration2, messagesPerSecond2)
 
 	// Compare file sizes
@@ -638,9 +627,9 @@ func TestCompressionPerformance(t *testing.T) {
 	info2, _ := os.Stat(logFile2)
 
 	if info1 != nil && info2 != nil {
-		t.Logf("File sizes - No compression: %d bytes, With compression: %d bytes", 
+		t.Logf("File sizes - No compression: %d bytes, With compression: %d bytes",
 			info1.Size(), info2.Size())
-		
+
 		overhead := ((duration2.Seconds() - duration1.Seconds()) / duration1.Seconds()) * 100
 		t.Logf("Compression overhead: %.2f%%", overhead)
 	}
@@ -648,9 +637,7 @@ func TestCompressionPerformance(t *testing.T) {
 
 // TestChannelSizeImpact tests how channel size affects performance
 func TestChannelSizeImpact(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping channel size impact test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping channel size impact test in unit mode")
 
 	channelSizes := []int{10, 100, 1000, 10000}
 	numMessages := 100000
@@ -689,7 +676,7 @@ func TestChannelSizeImpact(t *testing.T) {
 
 			metrics := logger.GetMetrics()
 
-			t.Logf("Channel size %d: %d messages in %v (%.2f msg/sec), dropped: %d", 
+			t.Logf("Channel size %d: %d messages in %v (%.2f msg/sec), dropped: %d",
 				channelSize, numMessages, duration, messagesPerSecond, metrics.MessagesDropped)
 		})
 	}
@@ -697,9 +684,7 @@ func TestChannelSizeImpact(t *testing.T) {
 
 // TestLevelFilteringPerformance tests performance impact of level filtering
 func TestLevelFilteringPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping level filtering performance test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping level filtering performance test in unit mode")
 
 	tmpDir := t.TempDir()
 
@@ -777,9 +762,9 @@ func TestLevelFilteringPerformance(t *testing.T) {
 	metrics1 := logger1.GetMetrics()
 	metrics2 := logger2.GetMetrics()
 
-	t.Logf("All levels - logged: %d, dropped: %d", 
+	t.Logf("All levels - logged: %d, dropped: %d",
 		metrics1.MessagesLogged, metrics1.MessagesDropped)
-	t.Logf("Filtered - logged: %d, dropped: %d", 
+	t.Logf("Filtered - logged: %d, dropped: %d",
 		metrics2.MessagesLogged, metrics2.MessagesDropped)
 
 	// Filtering should improve performance
@@ -804,9 +789,7 @@ func abs(n int64) int64 {
 
 // TestResourceLeakDetection tests for resource leaks during high load
 func TestResourceLeakDetection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping resource leak test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping resource leak test in unit mode")
 
 	// Get initial resource usage
 	var m1 runtime.MemStats
@@ -819,7 +802,7 @@ func TestResourceLeakDetection(t *testing.T) {
 	// Create and destroy many loggers
 	for i := 0; i < 100; i++ {
 		logFile := filepath.Join(tmpDir, fmt.Sprintf("leak_test_%d.log", i))
-		
+
 		logger, err := New(logFile)
 		if err != nil {
 			t.Fatalf("Failed to create logger %d: %v", i, err)
@@ -855,9 +838,9 @@ func TestResourceLeakDetection(t *testing.T) {
 	}
 	goroutineIncrease := finalGoroutines - initialGoroutines
 
-	t.Logf("Initial memory: %d KB, Final memory: %d KB, Increase: %d KB", 
+	t.Logf("Initial memory: %d KB, Final memory: %d KB, Increase: %d KB",
 		bToKb(m1.Alloc), bToKb(m2.Alloc), bToKb(uint64(abs(memoryIncrease))))
-	t.Logf("Initial goroutines: %d, Final goroutines: %d, Increase: %d", 
+	t.Logf("Initial goroutines: %d, Final goroutines: %d, Increase: %d",
 		initialGoroutines, finalGoroutines, goroutineIncrease)
 
 	// Allow for some reasonable resource usage, but detect leaks
@@ -875,9 +858,9 @@ func TestResourceLeakDetection(t *testing.T) {
 // BenchmarkBaseline establishes performance baseline before optimizations
 func BenchmarkBaseline(b *testing.B) {
 	benchmarks := []struct {
-		name      string
-		parallel  int
-		msgSize   int
+		name       string
+		parallel   int
+		msgSize    int
 		structured bool
 	}{
 		{"Serial/Small", 1, 100, false},
@@ -1088,12 +1071,12 @@ func BenchmarkOptimizedBufferPool(b *testing.B) {
 			// Simulate formatting without pool
 			// LogEntry and formatJSON are not available
 			/*
-			entry := &LogEntry{
-				Level:     "INFO",
-				Message:   "Test message",
-				Timestamp: time.Now().Format(time.RFC3339),
-			}
-			data, _ := formatJSON(entry, false)
+				entry := &LogEntry{
+					Level:     "INFO",
+					Message:   "Test message",
+					Timestamp: time.Now().Format(time.RFC3339),
+				}
+				data, _ := formatJSON(entry, false)
 			*/
 			data := []byte("{}")
 			_ = data
@@ -1105,7 +1088,7 @@ func BenchmarkOptimizedBufferPool(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			// Use the optimized version with pool
 			entry := &LogEntry{
-				Level:     "INFO", 
+				Level:     "INFO",
 				Message:   "Test message",
 				Timestamp: time.Now().Format(time.RFC3339),
 			}
@@ -1140,7 +1123,7 @@ func BenchmarkOptimizedLocking(b *testing.B) {
 				logger.mu.RLock()
 				destinations := logger.Destinations
 				logger.mu.RUnlock()
-				
+
 				for _, dest := range destinations {
 					dest.mu.RLock()
 					_ = dest.Enabled
@@ -1178,10 +1161,10 @@ func BenchmarkBatchedWrites(b *testing.B) {
 			// Configure batching
 			// SetFlushSize and SetFlushInterval are not available
 			/*
-			if cfg.batchSize > 0 {
-				logger.SetFlushSize(0, cfg.batchSize)
-				logger.SetFlushInterval(0, cfg.flushInterval)
-			}
+				if cfg.batchSize > 0 {
+					logger.SetFlushSize(0, cfg.batchSize)
+					logger.SetFlushInterval(0, cfg.flushInterval)
+				}
 			*/
 
 			b.ResetTimer()
@@ -1283,11 +1266,11 @@ func BenchmarkMemoryEfficiency(b *testing.B) {
 // BenchmarkOptimizationComparison provides a side-by-side comparison
 func BenchmarkOptimizationComparison(b *testing.B) {
 	scenarios := []struct {
-		name         string
-		bufferPool   bool
-		rwMutex      bool
-		batching     bool
-		atomicOps    bool
+		name       string
+		bufferPool bool
+		rwMutex    bool
+		batching   bool
+		atomicOps  bool
 	}{
 		{"Baseline", false, false, false, false},
 		{"BufferPool", true, false, false, false},
@@ -1310,10 +1293,10 @@ func BenchmarkOptimizationComparison(b *testing.B) {
 			// Apply optimizations based on scenario
 			// SetFlushSize and SetFlushInterval are not available
 			/*
-			if scenario.batching {
-				logger.SetFlushSize(0, 8192)
-				logger.SetFlushInterval(0, 100*time.Millisecond)
-			}
+				if scenario.batching {
+					logger.SetFlushSize(0, 8192)
+					logger.SetFlushInterval(0, 100*time.Millisecond)
+				}
 			*/
 
 			b.ResetTimer()
@@ -1373,7 +1356,7 @@ func percentile(latencies []time.Duration, p float64) time.Duration {
 	if len(latencies) == 0 {
 		return 0
 	}
-	
+
 	// Simple percentile calculation (not fully accurate but good enough for benchmarks)
 	index := int(float64(len(latencies)) * p)
 	if index >= len(latencies) {

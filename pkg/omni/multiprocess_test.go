@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	testhelpers "github.com/wayneeseguin/omni/internal/testing"
 )
 
 // TestMultiProcessConcurrentWrites tests multiple processes writing to the same log file
@@ -172,10 +174,10 @@ func TestMultiProcessRotation(t *testing.T) {
 	// some messages may be lost. We should have at least some messages from each process.
 	// With the current implementation, we're seeing about 20 messages total which is reasonable.
 	expectedMinLines := 15 // Allow for significant message loss during rotation
-	if totalLines < expectedMinLines { 
+	if totalLines < expectedMinLines {
 		t.Errorf("Expected at least %d total lines across all files, got %d", expectedMinLines, totalLines)
 	}
-	
+
 	// More importantly, verify we have files from rotation
 	if len(files) < 2 {
 		t.Errorf("Expected multiple files due to rotation, got %d", len(files))
@@ -184,9 +186,7 @@ func TestMultiProcessRotation(t *testing.T) {
 
 // TestMultiProcessLocking tests that file locking prevents corruption
 func TestMultiProcessLocking(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping multi-process locking test in short mode")
-	}
+	testhelpers.SkipIfUnit(t, "Skipping multi-process locking test in unit mode")
 
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "locking.log")
@@ -298,7 +298,7 @@ func TestMultiProcessRecovery(t *testing.T) {
 
 	// Flush to ensure messages are written
 	logger1.FlushAll()
-	
+
 	// Small delay to ensure lock state is stable
 	time.Sleep(50 * time.Millisecond)
 
