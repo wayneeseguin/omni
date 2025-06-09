@@ -35,22 +35,29 @@ This directory contains examples demonstrating various features and use cases of
    - Buffer optimization
    - Metrics monitoring
 
+6. **disk-full-handling** - Automatic disk full recovery
+   - Disk full detection and handling
+   - Automatic log rotation on disk full
+   - Cleanup of old logs to free space
+   - Retry mechanism for failed writes
+   - Production-ready error monitoring
+
 ### Real-World Examples
 
-6. **web-service** - HTTP web service with comprehensive logging
+7. **web-service** - HTTP web service with comprehensive logging
    - Request/response logging middleware
    - Structured logging for web requests
    - Performance monitoring
    - Graceful shutdown
    - Metrics endpoint
 
-7. **cli-application** - Command-line application logging
+8. **cli-application** - Command-line application logging
    - Verbose/debug modes
    - Progress tracking
    - File processing with detailed logs
    - User-friendly console output
 
-8. **microservice** - Microservice with distributed tracing
+9. **microservice** - Microservice with distributed tracing
    - Trace context propagation
    - Service mesh integration
    - Adaptive sampling
@@ -64,6 +71,10 @@ Each example can be run directly:
 ```bash
 # Basic example
 cd basic
+go run main.go
+
+# Disk full handling demonstration
+cd disk-full-handling
 go run main.go
 
 # Web service (runs on port 8080)

@@ -18,7 +18,7 @@ COVERAGE_HTML=coverage.html
 # Default target - show help
 .DEFAULT_GOAL := help
 
-.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all integration integration-nats integration-vault integration-syslog integration-debug bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools
+.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all test-diskfull integration integration-nats integration-vault integration-syslog integration-debug integration-diskfull bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools
 
 # Show help with version
 help:
@@ -40,6 +40,7 @@ help:
 	@printf "  \033[36m%-25s\033[0m %s\n" "test-integration"    "Run Docker-based integration tests"
 	@printf "  \033[36m%-25s\033[0m %s\n" "test-nats"           "Run all NATS tests (unit + integration)"
 	@printf "  \033[36m%-25s\033[0m %s\n" "test-vault"          "Run all Vault tests (unit + integration)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "test-diskfull"       "Run disk full tests with Docker"
 	@printf "  \033[36m%-25s\033[0m %s\n" "test-all"            "Run all test targets"
 	@echo ""
 	@echo "Integration Testing:"
@@ -47,6 +48,7 @@ help:
 	@printf "  \033[36m%-25s\033[0m %s\n" "integration-nats"    "Run NATS integration tests only"
 	@printf "  \033[36m%-25s\033[0m %s\n" "integration-vault"   "Run Vault integration tests only"
 	@printf "  \033[36m%-25s\033[0m %s\n" "integration-syslog"  "Run Syslog integration tests only"
+	@printf "  \033[36m%-25s\033[0m %s\n" "integration-diskfull" "Run disk full integration tests"
 	@printf "  \033[36m%-25s\033[0m %s\n" "integration-debug"   "Run integration tests (keep containers)"
 	@echo ""
 	@echo "Code Quality:"
@@ -172,8 +174,19 @@ test-vault:
 	@docker rm omni-test-vault > /dev/null 2>&1 || true
 	@echo "All Vault tests completed!"
 
+# Run disk full tests with Docker
+test-diskfull:
+	@echo "Building disk full test image..."
+	@docker build -t omni/diskfull-test:latest -f docker/Dockerfile.diskfull .
+	@echo "Running disk full integration tests..."
+	@docker run --rm \
+		--privileged \
+		--cap-add SYS_ADMIN \
+		-e OMNI_DISKFULL_TEST_PATH=/test-logs \
+		omni/diskfull-test:latest
+
 # Run all test targets
-test-all: test-verbose test-race integration
+test-all: test-verbose test-race integration test-diskfull
 	@echo "All tests completed!"
 
 # Integration testing targets
@@ -192,6 +205,15 @@ integration-vault:
 integration-syslog:
 	@echo "Running Syslog integration tests..."
 	@./scripts/integration --syslog-only
+
+integration-diskfull:
+	@echo "Running disk full integration tests..."
+	@docker build -t omni/diskfull-test:latest -f docker/Dockerfile.diskfull .
+	@docker run --rm \
+		--privileged \
+		--cap-add SYS_ADMIN \
+		-e OMNI_DISKFULL_TEST_PATH=/test-logs \
+		omni/diskfull-test:latest
 
 integration-debug:
 	@echo "Running integration tests with containers kept alive..."

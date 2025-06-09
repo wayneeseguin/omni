@@ -413,7 +413,8 @@ sub run_tests {
         }
     } elsif ($service eq 'syslog') {
         # Set environment variable for syslog tests to use Docker container
-        $ENV{OMNI_SYSLOG_TEST_ADDR} = "localhost:$containers{syslog}{port}";
+        # Use explicit IPv4 address to avoid IPv6 connection issues
+        $ENV{OMNI_SYSLOG_TEST_ADDR} = "127.0.0.1:$containers{syslog}{port}";
         $ENV{OMNI_SYSLOG_TEST_PROTO} = "tcp";
         
         # Run syslog-specific tests

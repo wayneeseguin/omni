@@ -215,6 +215,18 @@ jobs:
       run: |
         go test -v -run TestMultiProcess -timeout=5m ./...
 
+    - name: Build disk full test image
+      run: |
+        docker build -t omni/diskfull-test:latest -f docker/Dockerfile.diskfull .
+
+    - name: Run disk full integration tests
+      run: |
+        docker run --rm \
+          --privileged \
+          --cap-add SYS_ADMIN \
+          -e OMNI_DISKFULL_TEST_PATH=/test-logs \
+          omni/diskfull-test:latest
+
     - name: Cleanup
       if: always()
       run: |

@@ -8,6 +8,11 @@ Omni is a flexible, high-performance logging library for Go with support for mul
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [API Reference](#api-reference)
+  - [Logger Creation](#logger-creation)
+  - [Logging Methods](#logging-methods)
+  - [Destination Management](#destination-management)
+  - [Backend Types](#backend-types)
+  - [Features](#features)
 - [Advanced Features](#advanced-features)
 - [Configuration](#configuration)
 - [Best Practices](#best-practices)
@@ -18,9 +23,13 @@ Omni is a flexible, high-performance logging library for Go with support for mul
 go get github.com/wayneeseguin/omni
 ```
 
-Import the package in your code:
+Import the packages:
 ```go
-import "github.com/wayneeseguin/omni/pkg/omni"
+import (
+    "github.com/wayneeseguin/omni/pkg/omni"
+    "github.com/wayneeseguin/omni/pkg/backends"
+    "github.com/wayneeseguin/omni/pkg/features"
+)
 ```
 
 ## Quick Start
@@ -33,17 +42,19 @@ import (
 )
 
 func main() {
-    // Create a new logger with default settings
-    logger, err := omni.NewOmni()
+    // Create a simple file logger
+    logger, err := omni.New("app.log")
     if err != nil {
         panic(err)
     }
     defer logger.Close()
 
-    // Log messages at different levels
+    // Log messages
     logger.Info("Application started")
-    logger.Debug("Debug information", "user", "john", "action", "login")
-    logger.Error("An error occurred", "error", err)
+    logger.ErrorWithFields("Database error", map[string]interface{}{
+        "error": "connection timeout",
+        "retry": 3,
+    })
 }
 ```
 
@@ -51,15 +62,13 @@ func main() {
 
 ### Log Levels
 
-Omni supports four log levels:
-- `DEBUG` - Detailed information for debugging
-- `INFO` - Informational messages
-- `WARN` - Warning messages
-- `ERROR` - Error messages
+- `LevelDebug` (0) - Detailed debugging information
+- `LevelInfo` (1) - Informational messages
+- `LevelWarn` (2) - Warning messages
+- `LevelError` (3) - Error messages
 
 ### Package Structure
 
-Omni is organized into the following packages:
 - `pkg/omni` - Core logger functionality
 - `pkg/backends` - Backend implementations (file, syslog, plugin)
 - `pkg/features` - Feature modules (compression, filtering, rotation, etc.)
@@ -67,295 +76,313 @@ Omni is organized into the following packages:
 - `pkg/plugins` - Plugin system for extensibility
 - `pkg/types` - Common types and interfaces
 
-### Destinations
-
-A destination represents where logs are written. Omni supports multiple concurrent destinations:
-- **File**: Write to files with rotation and compression
-- **Syslog**: System log integration
-- **Custom**: Implement your own destination
-
-### Structured Logging
-
-Omni supports structured logging with key-value pairs:
-
-```go
-logger.InfoWithFields("User action", map[string]interface{}{
-    "user_id": 123,
-    "action": "purchase",
-    "amount": 99.99,
-    "currency": "USD",
-})
-```
-
 ## API Reference
 
-### Creating a Logger
+### Logger Creation
 
-#### NewOmni()
-```go
-func NewOmni() (*Omni, error)
-```
-Creates a new logger with default configuration.
+#### New(path string) (*Omni, error)
+Creates a new logger with a file destination.
 
-#### NewOmniWithConfig()
 ```go
-func NewOmniWithConfig(config Config) (*Omni, error)
+logger, err := omni.New("/var/log/app.log")
 ```
-Creates a new logger with custom configuration.
+
+#### NewSyslog(address, tag string) (*Omni, error)
+Creates a new logger with syslog destination.
+
+```go
+logger, err := omni.NewSyslog("localhost:514", "myapp")
+```
+
+#### NewBuilder() *Builder
+Creates a new builder for advanced configuration.
+
+```go
+logger, err := omni.NewBuilder().
+    WithLevel(omni.LevelDebug).
+    WithJSON().
+    WithDestination("/var/log/app.log").
+    WithRotation(10*1024*1024, 5).
+    Build()
+```
 
 ### Logging Methods
 
 #### Basic Logging
-```go
-func (f *Omni) Debug(args ...interface{})
-func (f *Omni) Info(args ...interface{})
-func (f *Omni) Warn(args ...interface{})
-func (f *Omni) Error(args ...interface{})
-```
 
-#### Formatted Logging
 ```go
-func (f *Omni) Debugf(format string, args ...interface{})
-func (f *Omni) Infof(format string, args ...interface{})
-func (f *Omni) Warnf(format string, args ...interface{})
-func (f *Omni) Errorf(format string, args ...interface{})
+// Log at different levels
+logger.Debug(message string, args ...interface{})
+logger.Info(message string, args ...interface{})
+logger.Warn(message string, args ...interface{})
+logger.Error(message string, args ...interface{})
 ```
 
 #### Structured Logging
+
 ```go
-func (f *Omni) DebugWithFields(message string, fields map[string]interface{})
-func (f *Omni) InfoWithFields(message string, fields map[string]interface{})
-func (f *Omni) WarnWithFields(message string, fields map[string]interface{})
-func (f *Omni) ErrorWithFields(message string, fields map[string]interface{})
+// Log with fields
+logger.DebugWithFields(message string, fields map[string]interface{})
+logger.InfoWithFields(message string, fields map[string]interface{})
+logger.WarnWithFields(message string, fields map[string]interface{})
+logger.ErrorWithFields(message string, fields map[string]interface{})
+
+// Example
+logger.InfoWithFields("User login", map[string]interface{}{
+    "user_id": 123,
+    "ip": "192.168.1.1",
+    "timestamp": time.Now(),
+})
+```
+
+#### Error Logging
+
+```go
+// Log with error object
+logger.ErrorWithError(message string, err error)
+
+// Log with error and severity
+logger.ErrorWithErrorAndSeverity(message string, err error, severity int)
+
+// Wrap error with context
+wrappedErr := logger.WrapError(err, "additional context")
 ```
 
 ### Destination Management
 
-#### AddDestination()
-```go
-func (f *Omni) AddDestination(name string, config DestinationConfig) error
-```
-Adds a new log destination.
+#### AddDestination(path string) error
+Adds a new destination to the logger.
 
-#### RemoveDestination()
 ```go
-func (f *Omni) RemoveDestination(name string) error
-```
-Removes a log destination.
-
-#### SetLogLevel()
-```go
-func (f *Omni) SetLogLevel(level LogLevel)
-```
-Sets the minimum log level.
-
-### Configuration
-
-#### Config Structure
-```go
-type Config struct {
-    // Channel size for async logging
-    ChannelSize int
-    
-    // Default log level
-    DefaultLevel LogLevel
-    
-    // Default format (JSON or Text)
-    DefaultFormat Format
-    
-    // Enable metrics collection
-    EnableMetrics bool
-    
-    // Redaction settings
-    Redaction RedactionConfig
-    
-    // Sampling configuration
-    Sampling SamplingConfig
-}
+logger.AddDestination("/var/log/errors.log")
+logger.AddDestination("syslog://localhost:514")
+logger.AddDestination("stdout")
 ```
 
-#### DestinationConfig
+#### RemoveDestination(index int) error
+Removes a destination by index.
+
 ```go
-type DestinationConfig struct {
-    // Backend type (File, Syslog, Plugin)
-    Backend string
-    
-    // File-specific settings
-    FilePath    string
-    MaxSize     int64  // Max file size before rotation
-    MaxBackups  int    // Number of backups to keep
-    Compress    bool   // Compress rotated files
-    
-    // Format for this destination
-    Format Format
-    
-    // Minimum log level
-    MinLevel LogLevel
-    
-    // Filters for this destination
-    Filters []Filter
-}
+logger.RemoveDestination(1)
+```
+
+#### SetDestinationEnabled(index int, enabled bool) error
+Enables or disables a specific destination.
+
+```go
+logger.SetDestinationEnabled(0, false) // Disable first destination
+```
+
+### Backend Types
+
+#### File Backend
+
+Standard file backend with basic functionality:
+
+```go
+backend, err := backends.NewFileBackend("/var/log/app.log")
+```
+
+#### File Backend with Rotation (Disk Full Handling)
+
+Enhanced file backend with automatic disk full recovery:
+
+```go
+// Create rotation manager
+rotMgr := features.NewRotationManager()
+rotMgr.SetMaxFiles(5)     // Keep only 5 rotated files
+rotMgr.SetMaxAge(7 * 24 * time.Hour) // 7 days retention
+
+// Create backend with disk full handling
+backend, err := backends.NewFileBackendWithRotation("/var/log/app.log", rotMgr)
+backend.SetMaxRetries(3)  // Retry up to 3 times on disk full
+
+// Set error handler for monitoring
+backend.SetErrorHandler(func(source, dest, msg string, err error) {
+    if strings.Contains(msg, "disk full") {
+        // Alert operations team
+        alertOps("Disk full on " + dest)
+    }
+})
+
+// Disk full behavior:
+// 1. Detects disk full errors (ENOSPC, "no space left", etc.)
+// 2. Automatically rotates current log file
+// 3. Removes oldest rotated logs to free space
+// 4. Retries the failed write operation
+// 5. Continues normal operation after recovery
+```
+
+#### Syslog Backend
+
+```go
+backend, err := backends.NewSyslogBackend("tcp", "localhost:514", "myapp")
+```
+
+### Features
+
+#### Rotation
+
+```go
+// Set rotation parameters
+logger.SetMaxSize(50 * 1024 * 1024)        // 50MB per file
+logger.SetMaxFiles(10)                      // Keep 10 files
+logger.SetMaxAge(7 * 24 * time.Hour)       // 7 days retention
+
+// Manual rotation
+logger.Rotate()
+```
+
+#### Compression
+
+```go
+// Enable compression
+logger.SetCompression(omni.CompressionGzip)
+logger.SetCompressMinAge(2)                 // Compress after 2 rotations
+logger.SetCompressWorkers(3)                // 3 compression workers
+```
+
+#### Filtering
+
+```go
+// Add custom filter
+logger.AddFilter(func(level int, message string, fields map[string]interface{}) bool {
+    // Return true to log, false to skip
+    return level >= omni.LevelWarn
+})
+
+// Content-based filtering
+logger.SetContentFilter([]string{"password", "secret", "token"})
+```
+
+#### Sampling
+
+```go
+// Configure sampling strategies
+logger.SetSampling(omni.SamplingInterval, 10)    // Every 10th message
+logger.SetSampling(omni.SamplingRandom, 0.1)     // 10% randomly
+logger.SetSampling(omni.SamplingConsistent, 0.2) // 20% consistently by key
+```
+
+#### Redaction
+
+```go
+// Enable API redaction
+logger.EnableRedaction(true)
+
+// Add custom redaction patterns
+logger.AddRedactionPattern(`\b\d{4}-\d{4}-\d{4}-\d{4}\b`, "[CARD]")
+logger.AddRedactionPattern(`\b\d{3}-\d{2}-\d{4}\b`, "[SSN]")
 ```
 
 ## Advanced Features
 
-### Log Rotation
-
-Automatic log rotation based on file size:
+### Context-Aware Logging
 
 ```go
-config := DestinationConfig{
-    Backend:    "file",
-    FilePath:   "/var/log/app.log",
-    MaxSize:    100 * 1024 * 1024, // 100MB
-    MaxBackups: 5,
-    Compress:   true,
-}
+// Create context-aware logger
+ctx := context.Background()
+ctxLogger := logger.WithContext(ctx)
+
+// Use with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+logger.InfoContext(ctx, "Operation started")
 ```
 
-### Sampling
-
-Reduce log volume with sampling:
+### Performance Optimization
 
 ```go
-config := Config{
-    Sampling: SamplingConfig{
-        Enabled:     true,
-        Rate:        0.1,  // Log 10% of messages
-        BurstSize:   100,  // Allow bursts of 100 messages
-        BurstWindow: time.Minute,
-    },
-}
+// Adjust channel buffer size
+os.Setenv("OMNI_CHANNEL_SIZE", "10000")
+
+// Enable batch processing
+logger.SetBatchSize(100)
+logger.SetFlushInterval(time.Second)
 ```
 
-### Filtering
-
-Filter messages based on criteria:
+### Error Recovery
 
 ```go
-filter := NewFieldFilter("user_id", "123")
-config.Filters = append(config.Filters, filter)
-```
+// Enable panic recovery
+logger.EnablePanicRecovery(true)
 
-### Redaction
-
-Automatically redact sensitive data:
-
-```go
-config := Config{
-    Redaction: RedactionConfig{
-        Enabled: true,
-        Patterns: []string{
-            `\b\d{16}\b`,           // Credit card numbers
-            `\b\d{3}-\d{2}-\d{4}\b`, // SSN
-        },
-        Fields: []string{"password", "api_key", "token"},
-    },
-}
+// Safe goroutine execution
+logger.SafeGo(func() {
+    // This function runs with panic recovery
+    riskyOperation()
+})
 ```
 
 ### Metrics
 
-Track logging performance:
-
 ```go
-metrics := logger.GetMetrics()
-fmt.Printf("Total messages: %d\n", metrics.TotalMessages)
-fmt.Printf("Dropped messages: %d\n", metrics.DroppedMessages)
-fmt.Printf("Average latency: %v\n", metrics.AverageLatency)
+// Get logger statistics
+stats := logger.GetStats()
+fmt.Printf("Messages logged: %d\n", stats.MessagesLogged)
+fmt.Printf("Bytes written: %d\n", stats.BytesWritten)
+fmt.Printf("Errors: %d\n", stats.Errors)
 ```
 
-### Error Handling
+## Configuration
 
-Enhanced error logging with stack traces:
+### Environment Variables
+
+- `OMNI_CHANNEL_SIZE` - Message channel buffer size (default: 1000)
+- `OMNI_FLUSH_INTERVAL` - Flush interval for buffered writes
+- `OMNI_DEFAULT_LEVEL` - Default log level
+
+### Builder Pattern
 
 ```go
-err := someFunction()
-if err != nil {
-    logger.ErrorWithStack("Operation failed", err)
-}
+logger, err := omni.NewBuilder().
+    WithLevel(omni.LevelDebug).
+    WithFormatter(formatters.NewJSONFormatter()).
+    WithDestination("/var/log/app.log").
+    WithRotation(10*1024*1024, 5).
+    WithCompression(true).
+    WithFilter(customFilter).
+    WithSampling(omni.SamplingRandom, 0.1).
+    Build()
 ```
 
 ## Best Practices
 
-### 1. Use Structured Logging
+1. **Always defer Close()**: Ensure proper cleanup
+   ```go
+   logger, err := omni.New("app.log")
+   if err != nil {
+       return err
+   }
+   defer logger.Close()
+   ```
 
-Instead of:
-```go
-logger.Info(fmt.Sprintf("User %s performed action %s", userID, action))
-```
+2. **Use structured logging**: Include context as fields
+   ```go
+   logger.InfoWithFields("Order processed", map[string]interface{}{
+       "order_id": orderID,
+       "user_id": userID,
+       "amount": amount,
+   })
+   ```
 
-Use:
-```go
-logger.Info("User action", "user_id", userID, "action", action)
-```
+3. **Handle disk full scenarios**: Use rotation backend for critical logs
+   ```go
+   rotMgr := features.NewRotationManager()
+   backend, _ := backends.NewFileBackendWithRotation(path, rotMgr)
+   ```
 
-### 2. Set Appropriate Log Levels
+4. **Monitor errors**: Set up error handlers
+   ```go
+   logger.SetErrorHandler(func(err error) {
+       // Alert monitoring system
+   })
+   ```
 
-- Use DEBUG for detailed debugging information
-- Use INFO for general application flow
-- Use WARN for recoverable issues
-- Use ERROR for failures requiring attention
-
-### 3. Context Propagation
-
-Pass context through your application:
-```go
-func HandleRequest(ctx context.Context, req Request) {
-    logger.InfoContext(ctx, "Processing request", "request_id", req.ID)
-    // ... process request
-}
-```
-
-### 4. Configure Sampling for High-Volume Logs
-
-For high-traffic applications:
-```go
-config.Sampling = SamplingConfig{
-    Enabled:   true,
-    Rate:      0.01,  // Log 1% of debug messages
-    Levels:    []LogLevel{DEBUG},
-}
-```
-
-### 5. Use Lazy Evaluation for Expensive Operations
-
-```go
-logger.Debug("Complex calculation", "result", Lazy(func() interface{} {
-    return expensiveCalculation()
-}))
-```
-
-### 6. Proper Cleanup
-
-Always close the logger:
-```go
-defer logger.Close()
-```
-
-Or use context for automatic cleanup:
-```go
-ctx, cancel := context.WithCancel(context.Background())
-defer cancel()
-logger.Start(ctx)
-```
-
-## Performance Considerations
-
-- Omni uses buffered channels to prevent blocking
-- File operations use OS-level locking for process safety
-- Object pooling reduces GC pressure
-- Lazy evaluation defers expensive computations
-
-## Thread Safety
-
-Omni is thread-safe and can be used concurrently from multiple goroutines.
-
-## Environment Variables
-
-- `OMNI_CHANNEL_SIZE`: Override default channel size (default: 1000)
-- `OMNI_MIN_LEVEL`: Set minimum log level (DEBUG, INFO, WARN, ERROR)
-
-## Migration Guide
-
-See [Migration Guide](./MIGRATION.md) for moving from other logging libraries.
+5. **Use appropriate log levels**: Reserve ERROR for actual errors
+   ```go
+   logger.Debug("Detailed trace information")
+   logger.Info("Normal operation events")
+   logger.Warn("Warning conditions")
+   logger.Error("Error conditions requiring attention")
+   ```

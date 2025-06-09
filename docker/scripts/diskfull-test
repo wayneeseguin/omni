@@ -1,0 +1,88 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use POSIX qw(WIFEXITED WEXITSTATUS);
+
+# Print header
+print "=== Disk Full Test Environment ===\n";
+print "Setting up limited filesystem for disk full testing...\n";
+
+# Create tmpfs with 1MB limit
+print "\nMounting tmpfs with 1MB limit at /test-logs...\n";
+my $mount_cmd = "mount -t tmpfs -o size=1M tmpfs /test-logs";
+my $mount_result = system($mount_cmd);
+
+if ($mount_result != 0) {
+    die "Failed to mount tmpfs: $!\n";
+}
+
+# Show filesystem info
+print "\nInitial filesystem status:\n";
+system("df -h /test-logs");
+
+# Export environment variable for tests
+$ENV{'OMNI_DISKFULL_TEST_PATH'} = '/test-logs';
+
+# Run the pre-compiled test binary with all disk full tests
+print "\n";
+print "Running disk full tests...\n";
+print "==========================\n";
+
+# Execute the test binary
+my @test_cmd = (
+    '/diskfull-test',
+    '-test.v',
+    '-test.run=TestFileBackendDiskFull|TestFileBackendDiskFullWithRotation'
+);
+
+# Run tests and capture exit code
+my $test_result = system(@test_cmd);
+my $exit_code = 0;
+
+# Check if the command was executed successfully
+if ($test_result == -1) {
+    print "Failed to execute test binary: $!\n";
+    $exit_code = 1;
+} elsif (WIFEXITED($test_result)) {
+    $exit_code = WEXITSTATUS($test_result);
+    if ($exit_code != 0) {
+        print "\nTests failed with exit code: $exit_code\n";
+    }
+} else {
+    print "\nTest process terminated abnormally\n";
+    $exit_code = 1;
+}
+
+# Show final disk usage
+print "\n";
+print "Final disk usage:\n";
+system("df -h /test-logs");
+
+print "\n";
+print "Files in test directory:\n";
+
+# List files in test directory
+if (opendir(my $dh, '/test-logs')) {
+    my @files = grep { $_ ne '.' && $_ ne '..' } readdir($dh);
+    closedir($dh);
+    
+    if (@files) {
+        foreach my $file (sort @files) {
+            my $filepath = "/test-logs/$file";
+            if (-e $filepath) {
+                my @stat = stat($filepath);
+                my $size = $stat[7];
+                my $perms = sprintf("%04o", $stat[2] & 07777);
+                printf("  %-40s %8d bytes  (mode: %s)\n", $file, $size, $perms);
+            }
+        }
+    } else {
+        print "  (empty)\n";
+    }
+} else {
+    print "  Error: Could not open directory: $!\n";
+}
+
+# Exit with the same code as the test binary
+exit($exit_code);

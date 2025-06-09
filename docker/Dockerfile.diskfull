@@ -1,0 +1,25 @@
+# docker/Dockerfile.diskfull
+FROM golang:1.24.4-alpine
+
+# Install necessary tools (Perl is included in alpine by default)
+RUN apk add --no-cache gcc musl-dev perl
+
+# Create mount point and test directory
+RUN mkdir -p /test-logs /app
+
+# Copy go.mod and go.sum first for better caching
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build test binary for faster execution
+RUN go test -c -tags=integration ./pkg/backends -o /diskfull-test
+
+# Script to set up limited filesystem and run tests
+COPY docker/scripts/diskfull-test /
+RUN chmod +x /diskfull-test
+
+ENTRYPOINT ["/diskfull-test"]

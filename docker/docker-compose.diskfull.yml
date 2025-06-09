@@ -1,0 +1,15 @@
+# docker/docker-compose.diskfull.yml
+version: '3.8'
+
+services:
+  diskfull-test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.diskfull
+    container_name: omni-diskfull-test
+    privileged: true  # Required for mounting tmpfs
+    cap_add:
+      - SYS_ADMIN  # Required for mount operations
+    environment:
+      - OMNI_DISKFULL_TEST_PATH=/test-logs
+    command: ["-test.v", "-test.run=TestFileBackendDiskFull"]

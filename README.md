@@ -16,6 +16,7 @@ Omni is a high-performance, extensible logging library for Go applications with 
 
 ### Advanced Features
 - **📦 Log Management**: Automatic rotation, compression, and cleanup based on size/age
+- **💾 Disk Full Recovery**: Automatic log rotation and cleanup when disk space is exhausted
 - **🎚️ Flexible Filtering**: Content-based, regex, and custom filtering logic
 - **📈 Smart Sampling**: Reduce log volume with interval, random, or consistent sampling
 - **🚨 Enhanced Error Handling**: Stack traces, error wrapping, panic recovery, and severity levels
@@ -194,6 +195,34 @@ logger.SetMaxAge(7 * 24 * time.Hour)       // 7 days retention
 logger.SetCompression(omni.CompressionGzip)
 logger.SetCompressMinAge(2)                 // Compress after 2 rotations
 logger.SetCompressWorkers(3)                // 3 compression workers
+```
+
+### Disk Full Handling
+
+Omni provides automatic disk full recovery through intelligent log rotation:
+
+```go
+// Create rotation manager with aggressive cleanup
+rotMgr := features.NewRotationManager()
+rotMgr.SetMaxFiles(5)                       // Keep only 5 rotated files
+
+// Create file backend with automatic disk full handling
+backend, err := backends.NewFileBackendWithRotation("/var/log/app.log", rotMgr)
+backend.SetMaxRetries(3)                    // Retry up to 3 times on disk full
+
+// When disk is full, Omni will:
+// 1. Detect the disk full condition
+// 2. Rotate the current log file
+// 3. Remove oldest logs to free space
+// 4. Retry the write operation
+
+// Optional: Set custom error handler for monitoring
+backend.SetErrorHandler(func(source, dest, msg string, err error) {
+    // Alert when disk space issues occur
+    if strings.Contains(msg, "disk full") {
+        alertOps("Disk full condition detected", dest)
+    }
+})
 ```
 
 ### Plugin System
