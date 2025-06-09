@@ -63,7 +63,7 @@ func getDefaultErrorHandler() ErrorHandler {
 // getDefaultChannelSize retrieves the default channel size from an environment variable or uses the default value
 func getDefaultChannelSize() int {
 	if value, exists := os.LookupEnv("OMNI_CHANNEL_SIZE"); exists {
-		if size, err := strconv.Atoi(value); err == nil && size > 0 {
+		if size, err := strconv.Atoi(value); err == nil && size > 0 && size <= 2147483647 {
 			return size
 		}
 	}

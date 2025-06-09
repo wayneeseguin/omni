@@ -1,0 +1,910 @@
+package omni
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/wayneeseguin/omni/pkg/formatters"
+)
+
+func TestNewWithOptionsEnhanced(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "options.log")
+
+	t.Run("BasicOptionsCreation", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithLevel(LevelInfo),
+			WithJSON(),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with options: %v", err)
+		}
+		defer logger.Close()
+
+		if logger.GetLevel() != LevelInfo {
+			t.Errorf("Expected level %d, got %d", LevelInfo, logger.GetLevel())
+		}
+
+		// Test logging
+		logger.Info("test message")
+		time.Sleep(50 * time.Millisecond)
+
+		content, err := os.ReadFile(logFile)
+		if err != nil {
+			t.Fatalf("Failed to read log file: %v", err)
+		}
+
+		if !strings.Contains(string(content), "test message") {
+			t.Error("Expected message not found in log")
+		}
+	})
+
+	t.Run("NoOptionsProvided", func(t *testing.T) {
+		logger, err := NewWithOptions()
+		if err != nil {
+			t.Fatalf("Failed to create logger with no options: %v", err)
+		}
+		defer logger.Close()
+
+		// Should use defaults
+		if logger.GetLevel() != LevelInfo {
+			t.Errorf("Expected default level %d, got %d", LevelInfo, logger.GetLevel())
+		}
+	})
+
+	t.Run("InvalidOption", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(""), // Invalid empty path
+		)
+		if err == nil {
+			t.Error("Expected error for invalid path option")
+		}
+	})
+}
+
+func TestWithPath(t *testing.T) {
+	t.Run("ValidPath", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logFile := filepath.Join(tmpDir, "valid.log")
+
+		logger, err := NewWithOptions(WithPath(logFile))
+		if err != nil {
+			t.Fatalf("Failed to create logger with valid path: %v", err)
+		}
+		defer logger.Close()
+
+		logger.Info("path test")
+		time.Sleep(50 * time.Millisecond)
+
+		if _, err := os.Stat(logFile); os.IsNotExist(err) {
+			t.Error("Log file was not created")
+		}
+	})
+
+	t.Run("EmptyPath", func(t *testing.T) {
+		_, err := NewWithOptions(WithPath(""))
+		if err == nil {
+			t.Error("Expected error for empty path")
+		}
+		if !strings.Contains(err.Error(), "path cannot be empty") {
+			t.Errorf("Expected 'path cannot be empty' error, got: %v", err)
+		}
+	})
+}
+
+func TestWithLevel(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "level.log")
+
+	t.Run("ValidLevels", func(t *testing.T) {
+		validLevels := []int{LevelTrace, LevelDebug, LevelInfo, LevelWarn, LevelError}
+		
+		for _, level := range validLevels {
+			logger, err := NewWithOptions(
+				WithPath(logFile),
+				WithLevel(level),
+			)
+			if err != nil {
+				t.Fatalf("Failed to create logger with level %d: %v", level, err)
+			}
+			
+			if logger.GetLevel() != level {
+				t.Errorf("Expected level %d, got %d", level, logger.GetLevel())
+			}
+			
+			logger.Close()
+		}
+	})
+
+	t.Run("InvalidLevels", func(t *testing.T) {
+		invalidLevels := []int{-1, 999, LevelError + 1}
+		
+		for _, level := range invalidLevels {
+			_, err := NewWithOptions(
+				WithPath(logFile),
+				WithLevel(level),
+			)
+			if err == nil {
+				t.Errorf("Expected error for invalid level %d", level)
+			}
+		}
+	})
+}
+
+func TestWithFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "format.log")
+
+	t.Run("TextFormat", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithFormat(FormatText),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with text format: %v", err)
+		}
+		defer logger.Close()
+
+		if logger.GetFormat() != FormatText {
+			t.Errorf("Expected format %d, got %d", FormatText, logger.GetFormat())
+		}
+	})
+
+	t.Run("JSONFormat", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithFormat(FormatJSON),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with JSON format: %v", err)
+		}
+		defer logger.Close()
+
+		if logger.GetFormat() != FormatJSON {
+			t.Errorf("Expected format %d, got %d", FormatJSON, logger.GetFormat())
+		}
+	})
+
+	t.Run("InvalidFormat", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithFormat(999), // Invalid format
+		)
+		if err == nil {
+			t.Error("Expected error for invalid format")
+		}
+	})
+}
+
+func TestWithJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "json.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithJSON(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with JSON: %v", err)
+	}
+	defer logger.Close()
+
+	if logger.GetFormat() != FormatJSON {
+		t.Errorf("Expected JSON format, got %d", logger.GetFormat())
+	}
+
+	logger.Info("json test")
+	time.Sleep(50 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	// Should contain JSON structure
+	if !strings.Contains(string(content), "{") || !strings.Contains(string(content), "}") {
+		t.Error("Expected JSON format in log output")
+	}
+}
+
+func TestWithText(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "text.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithText(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with text: %v", err)
+	}
+	defer logger.Close()
+
+	if logger.GetFormat() != FormatText {
+		t.Errorf("Expected text format, got %d", logger.GetFormat())
+	}
+}
+
+func TestWithChannelSize(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "channel.log")
+
+	t.Run("ValidChannelSize", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithChannelSize(500),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with channel size: %v", err)
+		}
+		defer logger.Close()
+
+		// Channel size is private, but we can test that it was created successfully
+		logger.Info("channel test")
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	t.Run("InvalidChannelSize", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithChannelSize(0), // Invalid size
+		)
+		if err == nil {
+			t.Error("Expected error for invalid channel size")
+		}
+	})
+}
+
+func TestWithRotation(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "rotation.log")
+
+	t.Run("ValidRotation", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithRotation(1024*1024, 5), // 1MB, 5 files
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with rotation: %v", err)
+		}
+		defer logger.Close()
+
+		if logger.GetMaxSize() != 1024*1024 {
+			t.Errorf("Expected max size 1048576, got %d", logger.GetMaxSize())
+		}
+	})
+
+	t.Run("InvalidRotationSize", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithRotation(0, 5), // Invalid size
+		)
+		if err == nil {
+			t.Error("Expected error for invalid rotation size")
+		}
+	})
+
+	t.Run("InvalidRotationFiles", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithRotation(1024, 0), // Invalid file count
+		)
+		if err == nil {
+			t.Error("Expected error for invalid rotation file count")
+		}
+	})
+}
+
+func TestWithCompression(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "compression.log")
+
+	t.Run("GzipCompression", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithCompression(CompressionGzip, 1),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with compression: %v", err)
+		}
+		defer logger.Close()
+
+		// Compression setting is internal, test that logger was created
+		logger.Info("compression test")
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	t.Run("NoCompression", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithCompression(CompressionNone, 1),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with no compression: %v", err)
+		}
+		defer logger.Close()
+	})
+
+	t.Run("InvalidCompression", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithCompression(999, 1), // Invalid compression type
+		)
+		if err == nil {
+			t.Error("Expected error for invalid compression type")
+		}
+	})
+}
+
+func TestWithGzipCompression(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "gzip.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithGzipCompression(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with gzip compression: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Info("gzip test")
+	time.Sleep(50 * time.Millisecond)
+}
+
+func TestWithStackTrace(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "stack.log")
+
+	t.Run("EnableStackTrace", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithStackTrace(true),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with stack trace: %v", err)
+		}
+		defer logger.Close()
+
+		logger.Info("stack test")
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	t.Run("DisableStackTrace", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithStackTrace(false),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger without stack trace: %v", err)
+		}
+		defer logger.Close()
+	})
+}
+
+func TestWithSampling(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "sampling.log")
+
+	t.Run("ValidSampling", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithSampling(0.5, DefaultSampleKeyFunc), // 50% sampling
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with sampling: %v", err)
+		}
+		defer logger.Close()
+
+		if logger.GetSamplingRate() != 0.5 {
+			t.Errorf("Expected sampling rate 0.5, got %f", logger.GetSamplingRate())
+		}
+	})
+
+	t.Run("InvalidSamplingRate", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithSampling(-0.1, DefaultSampleKeyFunc), // Invalid rate
+		)
+		if err == nil {
+			t.Error("Expected error for invalid sampling rate")
+		}
+	})
+}
+
+func TestWithRateSampling(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "rate_sampling.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithRateSampling(0.25), // 25% sampling
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with rate sampling: %v", err)
+	}
+	defer logger.Close()
+
+	if logger.GetSamplingRate() != 0.25 {
+		t.Errorf("Expected sampling rate 0.25, got %f", logger.GetSamplingRate())
+	}
+}
+
+func TestWithFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "filter.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithFilter(func(level int, message string, fields map[string]interface{}) bool {
+			return !strings.Contains(message, "filtered")
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with filter: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Info("normal message")
+	logger.Info("filtered message")
+	time.Sleep(50 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	logContent := string(content)
+	if !strings.Contains(logContent, "normal message") {
+		t.Error("Expected normal message to appear")
+	}
+	if strings.Contains(logContent, "filtered message") {
+		t.Error("Expected filtered message to not appear")
+	}
+}
+
+func TestWithLevelFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "level_filter.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithLevelFilter(LevelWarn), // Only warn and error
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with level filter: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Debug("debug message")  // Should be filtered
+	logger.Info("info message")    // Should be filtered  
+	logger.Warn("warn message")    // Should appear
+	logger.Error("error message")  // Should appear
+	time.Sleep(50 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	logContent := string(content)
+	if strings.Contains(logContent, "debug message") || strings.Contains(logContent, "info message") {
+		t.Error("Expected debug and info messages to be filtered")
+	}
+	if !strings.Contains(logContent, "warn message") || !strings.Contains(logContent, "error message") {
+		t.Error("Expected warn and error messages to appear")
+	}
+}
+
+func TestWithErrorHandler(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "error_handler.log")
+
+	var capturedError LogError
+	handler := func(err LogError) {
+		capturedError = err
+	}
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithErrorHandler(handler),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with error handler: %v", err)
+	}
+	defer logger.Close()
+
+	// Trigger an error by logging after closing the file
+	logger.mu.RLock()
+	var dest *Destination
+	if logger.defaultDest != nil {
+		dest = logger.defaultDest
+	} else if len(logger.Destinations) > 0 {
+		dest = logger.Destinations[0]
+	}
+	logger.mu.RUnlock()
+
+	if dest != nil {
+		dest.mu.Lock()
+		if dest.File != nil {
+			dest.File.Close()
+		}
+		dest.mu.Unlock()
+
+		logger.Info("This should trigger error handler")
+		time.Sleep(100 * time.Millisecond)
+
+		if capturedError.Message == "" {
+			t.Error("Expected error handler to be called")
+		}
+	}
+}
+
+func TestWithMaxAge(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "max_age.log")
+
+	t.Run("ValidMaxAge", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithMaxAge(24*time.Hour),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with max age: %v", err)
+		}
+		defer logger.Close()
+	})
+
+	t.Run("InvalidMaxAge", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithMaxAge(-time.Hour), // Invalid negative duration
+		)
+		if err == nil {
+			t.Error("Expected error for invalid max age")
+		}
+	})
+}
+
+func TestWithCleanupInterval(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "cleanup.log")
+
+	t.Run("ValidCleanupInterval", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithCleanupInterval(time.Hour),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with cleanup interval: %v", err)
+		}
+		defer logger.Close()
+	})
+
+	t.Run("InvalidCleanupInterval", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithCleanupInterval(-time.Minute), // Invalid negative duration
+		)
+		if err == nil {
+			t.Error("Expected error for invalid cleanup interval")
+		}
+	})
+}
+
+func TestWithTimezone(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "timezone.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithTimezone(time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with timezone: %v", err)
+	}
+	defer logger.Close()
+
+	options := logger.GetFormatOptions()
+	if options.TimeZone != time.UTC {
+		t.Error("Expected UTC timezone")
+	}
+}
+
+func TestWithUTC(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "utc.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithUTC(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with UTC: %v", err)
+	}
+	defer logger.Close()
+
+	options := logger.GetFormatOptions()
+	if options.TimeZone != time.UTC {
+		t.Error("Expected UTC timezone")
+	}
+}
+
+func TestWithTimestampFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "timestamp.log")
+
+	t.Run("ValidTimestampFormat", func(t *testing.T) {
+		customFormat := "2006-01-02 15:04:05"
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithTimestampFormat(customFormat),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with timestamp format: %v", err)
+		}
+		defer logger.Close()
+
+		options := logger.GetFormatOptions()
+		if options.TimestampFormat != customFormat {
+			t.Errorf("Expected timestamp format %s, got %s", customFormat, options.TimestampFormat)
+		}
+	})
+
+	t.Run("EmptyTimestampFormat", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithTimestampFormat(""), // Invalid empty format
+		)
+		if err == nil {
+			t.Error("Expected error for empty timestamp format")
+		}
+	})
+}
+
+func TestWithRecovery(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "recovery.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithRecovery(true),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with recovery: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Info("recovery test")
+	time.Sleep(50 * time.Millisecond)
+}
+
+func TestWithRedaction(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "redaction.log")
+
+	redactionRules := map[string]string{
+		"password": "[REDACTED]",
+		"secret":   "[HIDDEN]",
+	}
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithRedaction(redactionRules),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with redaction: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Info("User password is secret123")
+	time.Sleep(50 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	logContent := string(content)
+	if strings.Contains(logContent, "secret123") {
+		t.Error("Expected secret to be redacted")
+	}
+}
+
+func TestWithBatchProcessing(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "batch.log")
+
+	t.Run("ValidBatchSettings", func(t *testing.T) {
+		logger, err := NewWithOptions(
+			WithPath(logFile),
+			WithBatchProcessing(1024, 10, 100*time.Millisecond),
+		)
+		if err != nil {
+			t.Fatalf("Failed to create logger with batch processing: %v", err)
+		}
+		defer logger.Close()
+	})
+
+	t.Run("InvalidBatchSize", func(t *testing.T) {
+		_, err := NewWithOptions(
+			WithPath(logFile),
+			WithBatchProcessing(0, 10, 100*time.Millisecond), // Invalid size
+		)
+		if err == nil {
+			t.Error("Expected error for invalid batch size")
+		}
+	})
+}
+
+func TestWithDefaultBatching(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "default_batch.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithDefaultBatching(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with default batching: %v", err)
+	}
+	defer logger.Close()
+}
+
+func TestWithProductionDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "production.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithProductionDefaults(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with production defaults: %v", err)
+	}
+	defer logger.Close()
+
+	// Verify production settings
+	if logger.GetLevel() != LevelInfo {
+		t.Errorf("Expected production level %d, got %d", LevelInfo, logger.GetLevel())
+	}
+	if logger.GetFormat() != FormatJSON {
+		t.Errorf("Expected JSON format for production, got %d", logger.GetFormat())
+	}
+}
+
+func TestWithDevelopmentDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "development.log")
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithDevelopmentDefaults(),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with development defaults: %v", err)
+	}
+	defer logger.Close()
+
+	// Verify development settings
+	if logger.GetLevel() != LevelDebug {
+		t.Errorf("Expected development level %d, got %d", LevelDebug, logger.GetLevel())
+	}
+	if logger.GetFormat() != FormatText {
+		t.Errorf("Expected text format for development, got %d", logger.GetFormat())
+	}
+}
+
+func TestWithBackendFactory(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "backend_factory.log")
+
+	// Mock backend factory
+	factory := func(config interface{}) (interface{}, error) {
+		return nil, nil
+	}
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithBackendFactory(factory),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with backend factory: %v", err)
+	}
+	defer logger.Close()
+}
+
+func TestWithFormatter(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "formatter.log")
+
+	// Create a custom formatter
+	formatter, err := formatters.NewJSONFormatter(&formatters.JSONConfig{
+		PrettyPrint: true,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create formatter: %v", err)
+	}
+
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithFormatter(formatter),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with formatter: %v", err)
+	}
+	defer logger.Close()
+
+	logger.Info("formatter test")
+	time.Sleep(50 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	if !strings.Contains(string(content), "formatter test") {
+		t.Error("Expected message not found in log")
+	}
+}
+
+func TestComplexOptionsChaining(t *testing.T) {
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "complex.log")
+
+	// Test complex option chaining
+	logger, err := NewWithOptions(
+		WithPath(logFile),
+		WithLevel(LevelDebug),
+		WithJSON(),
+		WithRotation(1024*1024, 5),
+		WithGzipCompression(),
+		WithStackTrace(true),
+		WithUTC(),
+		WithTimestampFormat(time.RFC3339),
+		WithRecovery(true),
+		WithMaxAge(24*time.Hour),
+		WithCleanupInterval(time.Hour),
+		WithChannelSize(200),
+		WithErrorHandler(func(err LogError) {
+			// Custom error handler
+		}),
+		WithFilter(func(level int, message string, fields map[string]interface{}) bool {
+			return true // Allow all messages
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create logger with complex options: %v", err)
+	}
+	defer logger.Close()
+
+	// Verify some settings
+	if logger.GetLevel() != LevelDebug {
+		t.Errorf("Expected level %d, got %d", LevelDebug, logger.GetLevel())
+	}
+	if logger.GetFormat() != FormatJSON {
+		t.Errorf("Expected JSON format, got %d", logger.GetFormat())
+	}
+
+	// Test logging
+	logger.Debug("complex options test")
+	logger.Info("info message")
+	logger.Warn("warn message")
+	logger.Error("error message")
+	
+	time.Sleep(100 * time.Millisecond)
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Error("Expected log content, got empty file")
+	}
+}

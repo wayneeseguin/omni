@@ -145,7 +145,7 @@ test-integration-verbose:
 	@VERBOSE=1 $(GOTEST) -v -tags=integration -timeout=10m ./...
 
 # Run all test targets
-test-all: test-unit test-verbose test-race test-integration test-integration-verbose test-nats-recovery test-nats-monitor test-nats-load
+test-all: test-verbose test-race test-integration-verbose test-nats-recovery test-nats-monitor test-nats-load
 	@echo "All tests completed!"
 
 # Integration testing targets
@@ -215,6 +215,16 @@ coverage:
 	@$(GOTEST) -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /examples/)
 	@$(GOCMD) tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
 	@echo "Coverage report generated: $(COVERAGE_HTML)"
+	@echo "Opening coverage report in browser..."
+	@if command -v open >/dev/null 2>&1; then \
+		open $(COVERAGE_HTML); \
+	elif command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open $(COVERAGE_HTML); \
+	elif command -v start >/dev/null 2>&1; then \
+		start $(COVERAGE_HTML); \
+	else \
+		echo "Please open $(COVERAGE_HTML) in your browser manually"; \
+	fi
 
 coverage-text:
 	@echo "Test coverage summary:"

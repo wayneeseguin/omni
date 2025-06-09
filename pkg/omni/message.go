@@ -329,7 +329,9 @@ func (f *Omni) processFileMessage(msg LogMessage, dest *Destination, entryPtr *s
 			f.logError("lock", dest.URI, "Failed to acquire file lock", err, ErrorLevelHigh)
 			return
 		}
-		defer dest.Lock.Unlock()
+		defer func() {
+			_ = dest.Lock.Unlock() // Unlock is best effort
+		}()
 	}
 
 	var entry string

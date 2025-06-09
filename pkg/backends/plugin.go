@@ -435,3 +435,14 @@ func RegisterFilterPlugin(plugin plugins.FilterPlugin) error {
 	
 	return nil
 }
+
+// ClearRegisteredPlugins clears all registered plugins (for testing only)
+func ClearRegisteredPlugins() {
+	defaultPluginManager.mu.Lock()
+	defer defaultPluginManager.mu.Unlock()
+	
+	defaultPluginManager.backends = make(map[string]plugins.BackendPlugin)
+	defaultPluginManager.formatters = make(map[string]plugins.FormatterPlugin)
+	defaultPluginManager.filters = make(map[string]plugins.FilterPlugin)
+	defaultPluginManager.loaded = make(map[string]plugins.Plugin)
+}

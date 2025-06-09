@@ -303,7 +303,7 @@ func (f *Omni) WithField(key string, value interface{}) Logger {
 
 func (f *Omni) WithError(err error) Logger {
 	if err == nil {
-		return &LoggerAdapter{logger: f}
+		return f
 	}
 	return f.WithField("error", err.Error())
 }
@@ -715,6 +715,9 @@ func (f *Omni) GetErrors() <-chan LogError {
 // Filter integration
 
 func (f *Omni) AddFilter(filter FilterFunc) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	
 	if f.filterManager == nil {
 		f.filterManager = features.NewFilterManager()
 		f.filterManager.SetErrorHandler(func(source, dest, msg string, err error) {
@@ -723,21 +726,63 @@ func (f *Omni) AddFilter(filter FilterFunc) error {
 		f.filterManager.SetMetricsHandler(f.trackMetric)
 	}
 	
-	// Convert to features.FilterFunc
+	if f.filterNames == nil {
+		f.filterNames = make(map[string]FilterFunc)
+	}
+	
+	// Generate unique name for the filter
+	f.filterCounter++
+	filterName := fmt.Sprintf("filter_%d", f.filterCounter)
+	
+	// Store the mapping
+	f.filterNames[filterName] = filter
+	
+	// Convert to features.FilterFunc and add with name
 	featuresFilter := features.FilterFunc(filter)
-	return f.filterManager.AddFilter(featuresFilter)
+	return f.filterManager.AddNamedFilter(filterName, "", featuresFilter, 0)
 }
 
 func (f *Omni) RemoveFilter(filter FilterFunc) error {
-	// Filters can't be removed by function reference easily
-	// This would need a different approach with named filters
-	return fmt.Errorf("removing filters by reference not supported, use ClearFilters instead")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	
+	if f.filterManager == nil || f.filterNames == nil {
+		return fmt.Errorf("no filters to remove")
+	}
+	
+	// Find the filter name by function reference
+	var filterName string
+	for name, storedFilter := range f.filterNames {
+		if fmt.Sprintf("%p", storedFilter) == fmt.Sprintf("%p", filter) {
+			filterName = name
+			break
+		}
+	}
+	
+	if filterName == "" {
+		return fmt.Errorf("filter not found")
+	}
+	
+	// Remove from mapping
+	delete(f.filterNames, filterName)
+	
+	// Remove from filter manager
+	return f.filterManager.RemoveFilter(filterName)
 }
 
 func (f *Omni) ClearFilters() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	
 	if f.filterManager != nil {
 		f.filterManager.ClearFilters()
 	}
+	
+	// Clear the mapping
+	if f.filterNames != nil {
+		f.filterNames = make(map[string]FilterFunc)
+	}
+	f.filterCounter = 0
 }
 
 // Sampling integration

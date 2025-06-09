@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 )
 
 // SyslogBackendImpl implements the Backend interface for syslog
@@ -16,6 +17,7 @@ type SyslogBackendImpl struct {
 	writer   *bufio.Writer
 	priority int
 	tag      string
+	mu       sync.Mutex // Protects concurrent access to writer
 }
 
 // NewSyslogBackend creates a new syslog backend
@@ -53,6 +55,9 @@ func NewSyslogBackend(network, address string, priority int, tag string) (*Syslo
 
 // Write writes a log entry to syslog
 func (sb *SyslogBackendImpl) Write(entry []byte) (int, error) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	
 	// Format syslog message: <priority>tag: message
 	message := fmt.Sprintf("<%d>%s: %s", sb.priority, sb.tag, strings.TrimSpace(string(entry)))
 	
@@ -74,6 +79,9 @@ func (sb *SyslogBackendImpl) Write(entry []byte) (int, error) {
 
 // Flush flushes buffered data
 func (sb *SyslogBackendImpl) Flush() error {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	
 	if sb.writer != nil {
 		return sb.writer.Flush()
 	}
@@ -82,11 +90,16 @@ func (sb *SyslogBackendImpl) Flush() error {
 
 // Close closes the syslog connection
 func (sb *SyslogBackendImpl) Close() error {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	
 	var errs []error
 	
 	// Flush writer
-	if err := sb.Flush(); err != nil {
-		errs = append(errs, fmt.Errorf("flush: %w", err))
+	if sb.writer != nil {
+		if err := sb.writer.Flush(); err != nil {
+			errs = append(errs, fmt.Errorf("flush: %w", err))
+		}
 	}
 	
 	// Close connection
@@ -109,11 +122,15 @@ func (sb *SyslogBackendImpl) SupportsAtomic() bool {
 
 // SetPriority sets the syslog priority
 func (sb *SyslogBackendImpl) SetPriority(priority int) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 	sb.priority = priority
 }
 
 // SetTag sets the syslog tag
 func (sb *SyslogBackendImpl) SetTag(tag string) {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
 	sb.tag = tag
 }
 

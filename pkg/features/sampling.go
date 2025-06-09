@@ -1,10 +1,11 @@
 package features
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"math"
-	"math/rand"
 	"regexp"
 	"sort"
 	"sync"
@@ -335,7 +336,14 @@ func (s *SamplingManager) ShouldLog(level int, message string, fields map[string
 	// Check level-specific sampling
 	if s.levelSampling != nil {
 		if rate, ok := s.levelSampling[level]; ok {
-			shouldLog := s.applySampling(rate, level, message, fields)
+			// Use random sampling for level-specific rates
+			randomVal, err := secureRandomFloat64()
+			if err != nil {
+				// On error, fall back to always log
+				s.updateMetrics(true)
+				return true
+			}
+			shouldLog := randomVal < rate
 			s.updateMetrics(shouldLog)
 			return shouldLog
 		}
@@ -345,6 +353,19 @@ func (s *SamplingManager) ShouldLog(level int, message string, fields map[string
 	shouldLog := s.applySampling(s.rate, level, message, fields)
 	s.updateMetrics(shouldLog)
 	return shouldLog
+}
+
+// secureRandomFloat64 generates a cryptographically secure random float64 in [0, 1)
+func secureRandomFloat64() (float64, error) {
+	var b [8]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	// Convert to uint64 and scale to [0, 1)
+	// Use only 53 bits for precision (same as math/rand)
+	uint64Val := binary.BigEndian.Uint64(b[:]) >> 11
+	return float64(uint64Val) / float64(1<<53), nil
 }
 
 // checkPatternRules checks if any pattern rule matches
@@ -358,8 +379,12 @@ func (s *SamplingManager) checkPatternRules(message string, fields map[string]in
 			if re.MatchString(message) {
 				s.trackPatternHit(rule.Pattern)
 				// Apply sampling rate for this pattern
-				// #nosec G404 - weak RNG is acceptable for log sampling decisions
-				return rand.Float64() < rule.Rate, true
+				randomVal, err := secureRandomFloat64()
+				if err != nil {
+					// On error, fall back to always log
+					return true, true
+				}
+				return randomVal < rule.Rate, true
 			}
 			
 			// Check fields if enabled
@@ -367,8 +392,12 @@ func (s *SamplingManager) checkPatternRules(message string, fields map[string]in
 				for _, v := range fields {
 					if str, ok := v.(string); ok && re.MatchString(str) {
 						s.trackPatternHit(rule.Pattern)
-						// #nosec G404 - weak RNG is acceptable for log sampling decisions
-						return rand.Float64() < rule.Rate, true
+						randomVal, err := secureRandomFloat64()
+						if err != nil {
+							// On error, fall back to always log
+							return true, true
+						}
+						return randomVal < rule.Rate, true
 					}
 				}
 			}
@@ -387,8 +416,12 @@ func (s *SamplingManager) applySampling(rate float64, level int, message string,
 		return true
 
 	case SamplingRandom:
-		// #nosec G404 - weak RNG is acceptable for random log sampling
-		return rand.Float64() < rate
+		randomVal, err := secureRandomFloat64()
+		if err != nil {
+			// On error, fall back to always log
+			return true
+		}
+		return randomVal < rate
 
 	case SamplingConsistent:
 		if rate >= 1.0 {
@@ -454,12 +487,28 @@ func (s *SamplingManager) GetMetrics() SamplingMetrics {
 		return SamplingMetrics{}
 	}
 
-	return SamplingMetrics{
+	metrics := SamplingMetrics{
 		TotalMessages:   atomic.LoadUint64(&s.metrics.TotalMessages),
 		SampledMessages: atomic.LoadUint64(&s.metrics.SampledMessages),
 		DroppedMessages: atomic.LoadUint64(&s.metrics.DroppedMessages),
 		CurrentRate:     s.metrics.CurrentRate,
+		StrategyHits:    make(map[string]uint64),
+		LevelHits:       make(map[int]uint64),
+		PatternHits:     make(map[string]uint64),
 	}
+	
+	// Copy maps
+	for k, v := range s.metrics.StrategyHits {
+		metrics.StrategyHits[k] = v
+	}
+	for k, v := range s.metrics.LevelHits {
+		metrics.LevelHits[k] = v
+	}
+	for k, v := range s.metrics.PatternHits {
+		metrics.PatternHits[k] = v
+	}
+	
+	return metrics
 }
 
 // GetStrategy returns the current sampling strategy
@@ -565,8 +614,12 @@ func (a *AdaptiveSampler) ShouldLog(level int, message string, fields map[string
 	}
 	
 	// Apply current rate
-	// #nosec G404 - weak RNG is acceptable for adaptive log sampling
-	return rand.Float64() < a.currentRate
+	randomVal, err := secureRandomFloat64()
+	if err != nil {
+		// On error, fall back to always log
+		return true
+	}
+	return randomVal < a.currentRate
 }
 
 // adjustRate adjusts the sampling rate based on traffic patterns

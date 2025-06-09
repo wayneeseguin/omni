@@ -279,11 +279,6 @@ func (f *Omni) log(level int, message string) {
 //   - format: Printf-style format string
 //   - args: Arguments for the format string
 func (f *Omni) logf(level int, format string, args ...interface{}) {
-	// Check if logger is closed
-	if f.IsClosed() {
-		return
-	}
-
 	if f.GetLevel() > level {
 		return
 	}
@@ -295,7 +290,7 @@ func (f *Omni) logf(level int, format string, args ...interface{}) {
 		return
 	}
 
-	// Create log message and send to channel
+	// Create log message
 	msg := LogMessage{
 		Level:     level,
 		Format:    format,
@@ -303,11 +298,20 @@ func (f *Omni) logf(level int, format string, args ...interface{}) {
 		Timestamp: time.Now(),
 	}
 
+	// Atomically check if closed and send message under lock
+	f.mu.RLock()
+	if f.closed {
+		f.mu.RUnlock()
+		return
+	}
+	
 	// Try to send to channel, but don't block if channel is full
 	select {
 	case f.msgChan <- msg:
 		// Message sent successfully
+		f.mu.RUnlock()
 	default:
+		f.mu.RUnlock()
 		// Channel is full
 		f.trackMessageDropped()
 		var levelName string

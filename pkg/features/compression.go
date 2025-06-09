@@ -153,7 +153,7 @@ func (c *CompressionManager) stopWorkers() {
 func (c *CompressionManager) Start() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.compressionType != CompressionNone {
+	if c.compressionType != CompressionNone && c.compressCh == nil {
 		c.startWorkers()
 	}
 }
@@ -167,8 +167,8 @@ func (c *CompressionManager) Stop() {
 
 // QueueFile adds a file to the compression queue
 func (c *CompressionManager) QueueFile(path string) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if c.compressionType != CompressionNone && c.compressCh != nil {
 		select {

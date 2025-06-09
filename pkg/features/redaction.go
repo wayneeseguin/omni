@@ -286,9 +286,29 @@ func RedactSensitiveWithLevel(input string, level int, config *RedactionConfig, 
 //   - redactor: Custom redactor instance
 //   - fieldPathRules: Field path rules for targeted redaction
 func RecursiveRedact(v interface{}, currentPath string, redactor *Redactor, fieldPathRules []FieldPathRule) {
+	RecursiveRedactWithSkip(v, currentPath, redactor, fieldPathRules, nil)
+}
+
+// RecursiveRedactWithSkip walks the JSON structure and redacts sensitive values, skipping specified fields.
+// It recursively processes maps and arrays to find and redact sensitive fields.
+// Also handles field path-based redaction.
+//
+// Parameters:
+//   - v: The value to process (can be map, slice, or other types)
+//   - currentPath: The current JSON path (e.g., "user.profile")
+//   - redactor: Custom redactor instance
+//   - fieldPathRules: Field path rules for targeted redaction
+//   - skipFields: Map of field names to skip (already redacted)
+func RecursiveRedactWithSkip(v interface{}, currentPath string, redactor *Redactor, fieldPathRules []FieldPathRule, skipFields map[string]bool) {
 	switch val := v.(type) {
 	case map[string]interface{}:
 		for k, v2 := range val {
+			// Skip fields that have been contextually redacted
+			if skipFields != nil && skipFields[k] {
+				// Skip this field, it was already redacted by contextual rules
+				continue
+			}
+			
 			// Build the current field path
 			fieldPath := k
 			if currentPath != "" {
@@ -316,13 +336,13 @@ func RecursiveRedact(v interface{}, currentPath string, redactor *Redactor, fiel
 				}
 				
 				// Continue recursively even for strings in case of nested objects
-				RecursiveRedact(v2, fieldPath, redactor, fieldPathRules)
+				RecursiveRedactWithSkip(v2, fieldPath, redactor, fieldPathRules, skipFields)
 			} else if IsSensitiveKey(k) {
 				// Fall back to keyword-based redaction for non-string values
 				val[k] = "[REDACTED]"
 			} else {
 				// Continue recursively
-				RecursiveRedact(v2, fieldPath, redactor, fieldPathRules)
+				RecursiveRedactWithSkip(v2, fieldPath, redactor, fieldPathRules, skipFields)
 			}
 		}
 	case []interface{}:
@@ -333,7 +353,7 @@ func RecursiveRedact(v interface{}, currentPath string, redactor *Redactor, fiel
 			
 			switch itemVal := item.(type) {
 			case map[string]interface{}, []interface{}:
-				RecursiveRedact(itemVal, indexPath, redactor, fieldPathRules)
+				RecursiveRedactWithSkip(itemVal, indexPath, redactor, fieldPathRules, skipFields)
 				val[i] = itemVal
 			default:
 				// Check if the array element path should be redacted
@@ -386,8 +406,18 @@ func MatchesPath(path, pattern string) bool {
 	
 	// Support wildcard matching (basic implementation)
 	if strings.Contains(pattern, "*") {
-		// Convert pattern to regex-like matching
-		regexPattern := strings.ReplaceAll(pattern, "*", ".*")
+		// Handle special case where pattern starts with "*."
+		if strings.HasPrefix(pattern, "*.") {
+			suffix := pattern[2:] // Remove "*."
+			if path == suffix {
+				return true // Match when the path is just the suffix (no prefix)
+			}
+			// Also check if it matches with a prefix
+			return strings.HasSuffix(path, "."+suffix)
+		}
+		
+		// Convert pattern to regex-like matching for other wildcard cases
+		regexPattern := strings.ReplaceAll(pattern, "*", "[^.]*")
 		matched, _ := regexp.MatchString("^"+regexPattern+"$", path)
 		return matched
 	}
@@ -787,14 +817,6 @@ func (rm *RedactionManager) RedactMessage(level int, message string, fields map[
 		}
 	}()
 	
-	// Check cache first
-	cacheKey := rm.generateCacheKey(message, fields)
-	if rm.cache != nil {
-		if cached, hit := rm.cache.Get(cacheKey); hit {
-			return cached, fields // Return cached result
-		}
-	}
-	
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 	
@@ -807,15 +829,21 @@ func (rm *RedactionManager) RedactMessage(level int, message string, fields map[
 		}
 	}
 	
-	// Apply contextual rules
+	// Apply contextual rules and field redaction first
 	redactedFields := rm.applyContextualRules(level, fields)
 	
-	// Redact message
-	redactedMessage := rm.redactString(message)
-	
-	// Cache result
+	// Check cache first for message redaction only
+	cacheKey := rm.generateCacheKey(message, fields)
+	var redactedMessage string
 	if rm.cache != nil {
-		rm.cache.Set(cacheKey, redactedMessage)
+		if cached, hit := rm.cache.Get(cacheKey); hit {
+			redactedMessage = cached
+		} else {
+			redactedMessage = rm.redactString(message)
+			rm.cache.Set(cacheKey, redactedMessage)
+		}
+	} else {
+		redactedMessage = rm.redactString(message)
 	}
 	
 	return redactedMessage, redactedFields
@@ -832,20 +860,24 @@ func (rm *RedactionManager) applyContextualRules(level int, fields map[string]in
 		result[k] = v
 	}
 	
+	// Track fields redacted by contextual rules to avoid double redaction
+	contextuallyRedacted := make(map[string]bool)
+	
 	// Apply contextual rules
 	for _, rule := range rm.contextualRules {
 		if rule.Condition(level, fields) {
 			for _, field := range rule.RedactFields {
 				if _, exists := result[field]; exists {
 					result[field] = rule.Replacement
+					contextuallyRedacted[field] = true
 					rm.trackFieldRedaction(field)
 				}
 			}
 		}
 	}
 	
-	// Apply standard field redaction
-	RecursiveRedact(result, "", rm.customRedactor, rm.fieldPathRules)
+	// Apply standard field redaction but skip contextually redacted fields
+	RecursiveRedactWithSkip(result, "", rm.customRedactor, rm.fieldPathRules, contextuallyRedacted)
 	
 	return result
 }

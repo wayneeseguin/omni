@@ -93,7 +93,9 @@ type Omni struct {
 	writeCount   uint64
 	
 	// Filtering
-	filters []FilterFunc
+	filters       []FilterFunc
+	filterNames   map[string]FilterFunc // Maps filter names to functions for removal
+	filterCounter int                   // Counter for generating unique filter names
 	
 	// Redaction fields
 	redactor          *Redactor
