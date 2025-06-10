@@ -380,32 +380,57 @@ func TestForceShutdownOnTimeout(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
+	// Add multiple destinations to slow down shutdown
+	for i := 0; i < 5; i++ {
+		destPath := filepath.Join(tmpDir, fmt.Sprintf("dest_%d.log", i))
+		if err := logger.AddDestination(destPath); err != nil {
+			t.Fatalf("Failed to add destination %d: %v", i, err)
+		}
+	}
+
 	// Use a channel to control the goroutine
 	stopLogging := make(chan struct{})
 	loggerDone := make(chan struct{})
+	messagesSent := make(chan struct{})
 
 	// Flood the logger with messages to make shutdown take longer
 	go func() {
 		defer close(loggerDone)
-		for i := 0; i < 1000000; i++ {
+		// Send a large batch of messages
+		for i := 0; i < 100000; i++ {
 			select {
 			case <-stopLogging:
 				return
 			default:
-				logger.Infof("Force shutdown test message %d", i)
-				// Add tiny delays to ensure messages keep coming during shutdown
-				if i%1000 == 0 {
-					time.Sleep(time.Microsecond)
-				}
+				logger.Infof("Force shutdown test message with longer content to ensure processing takes time %d", i)
+			}
+		}
+		close(messagesSent)
+		// Keep sending messages during shutdown attempt
+		for {
+			select {
+			case <-stopLogging:
+				return
+			default:
+				logger.Infof("Continuous message during shutdown")
+				time.Sleep(100 * time.Nanosecond)
 			}
 		}
 	}()
 
-	// Let some messages accumulate first
-	time.Sleep(5 * time.Millisecond)
+	// Wait for initial messages to be sent
+	select {
+	case <-messagesSent:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for messages to be sent")
+	}
 
-	// Very short timeout to force timeout scenario
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	// Let messages accumulate in the channel
+	time.Sleep(10 * time.Millisecond)
+
+	// Use an extremely short timeout to force timeout scenario
+	// Using 1 nanosecond to ensure timeout happens
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	defer cancel()
 
 	start := time.Now()
