@@ -247,7 +247,64 @@ jobs:
         cache-dependency-path: go.sum
 
     - name: Run benchmarks
-      run: go test -run=^$ -bench=. -benchmem ./...
+      run: |
+        # Run benchmarks and save results
+        go test -bench=. -benchmem -benchtime=10s -count=3 -cpu=1,2,4 ./... | tee benchmark_results.txt
+
+    - name: Parse benchmark results
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_results.txt >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.txt
+
+    - name: Compare with baseline (PR only)
+      if: github.event_name == 'pull_request'
+      run: |
+        # Checkout main branch for comparison
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+        
+        # Run benchmarks on base branch
+        go test -bench=. -benchmem -benchtime=10s -count=1 ./... | tee benchmark_baseline.txt
+        
+        # Checkout PR branch again
+        git checkout -
+        
+        # Simple comparison
+        echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Baseline (${{ github.base_ref }} branch):" >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_baseline.txt | head -10 >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Current (PR branch):" >> $GITHUB_STEP_SUMMARY  
+        echo "```" >> $GITHUB_STEP_SUMMARY
+        grep -E "^Benchmark" benchmark_results.txt | head -10 >> $GITHUB_STEP_SUMMARY
+        echo "```" >> $GITHUB_STEP_SUMMARY
+
+    - name: Memory profiling
+      run: |
+        # Run memory profiling
+        go test -bench=BenchmarkFlexLogBasic -benchmem -memprofile=mem.prof -cpuprofile=cpu.prof ./... || true
+        
+        # Analyze memory profile if exists
+        if [ -f mem.prof ]; then
+          go tool pprof -top mem.prof | head -20 > mem_profile.txt
+          
+          echo "## Memory Profile (Top 20)" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
+          cat mem_profile.txt >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
+        fi
 
   release-check:
     name: Release Check
@@ -377,3 +434,89 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: false
+
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [vet-and-build, security, test, integration, benchmarks]
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Perl
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y perl zip
+
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create release archives
+      run: |
+        perl scripts/release --version=${{ steps.version.outputs.VERSION }}
+
+    - name: Upload tar.gz artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: omni-${{ steps.version.outputs.VERSION }}-tar
+        path: releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
+
+    - name: Upload zip artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: omni-${{ steps.version.outputs.VERSION }}-zip
+        path: releases/omni-${{ steps.version.outputs.VERSION }}.zip
+
+    - name: Move artifacts to correct location
+      run: |
+        mkdir -p final-releases
+        find releases -name "*.tar.gz" -o -name "*.zip" | xargs -I {} cp {} final-releases/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: Omni ${{ steps.version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        files: |
+          final-releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
+          final-releases/omni-${{ steps.version.outputs.VERSION }}.zip
+        body: |
+          # Omni ${{ steps.version.outputs.VERSION }}
+
+          A flexible Go logging library with multiple destination backends.
+
+          ## Downloads
+
+          - [omni-${{ steps.version.outputs.VERSION }}.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz)
+          - [omni-${{ steps.version.outputs.VERSION }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip)
+
+          ## Installation
+
+          Add to your Go module:
+
+          ```bash
+          go get github.com/wayneeseguin/omni@${{ steps.version.outputs.VERSION }}
+          ```
+
+          Or download and extract the source:
+
+          ```bash
+          # Using tar.gz
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz -o omni.tar.gz
+          tar -xzf omni.tar.gz
+
+          # Using zip
+          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip -o omni.zip
+          unzip omni.zip
+          ```
+
+          ## What's Changed
+
+          See the [changelog](https://github.com/${{ github.repository }}/compare/...${{ steps.version.outputs.VERSION }}) for details.
