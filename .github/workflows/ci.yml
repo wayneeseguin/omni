@@ -260,7 +260,7 @@ jobs:
       id: version_check
       run: |
         # Check commit messages since last tag for version bump indicators
-        commits_since_tag=$(git log --pretty=format:"%s" ${latest_tag}..HEAD 2>/dev/null || git log --pretty=format:"%s")
+        commits_since_tag=$(git log --pretty=format:"%s" ${{ steps.latest_tag.outputs.latest_tag }}..HEAD 2>/dev/null || git log --pretty=format:"%s")
 
         # Look for conventional commit patterns (case-insensitive)
         if echo "$commits_since_tag" | grep -iE "^(feat|feature)(\(.+\))?:? "; then
