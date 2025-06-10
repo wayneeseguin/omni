@@ -432,13 +432,18 @@ func TestForceShutdownOnTimeout(t *testing.T) {
 	close(stopLogging)
 	<-loggerDone
 
-	// Clean up with proper timeout
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel2()
-	logger.Shutdown(ctx2)
+	// Wait a bit for the background Close() that Shutdown started
+	// when it timed out. This ensures file handles are closed.
+	time.Sleep(100 * time.Millisecond)
 
-	// Give a small amount of time for any background cleanup to complete
-	time.Sleep(10 * time.Millisecond)
+	// Ensure logger is fully closed
+	if !logger.IsClosed() {
+		// If still not closed, force close it
+		err = logger.Close()
+		if err != nil {
+			t.Logf("Close error (expected after timeout): %v", err)
+		}
+	}
 }
 
 // TestShutdownErrorRecovery tests shutdown behavior when errors occur during shutdown
