@@ -273,15 +273,15 @@ jobs:
       run: |
         # Check commit messages since last tag for version bump indicators
         commits_since_tag=$(git log --pretty=format:"%s" ${latest_tag}..HEAD 2>/dev/null || git log --pretty=format:"%s")
-        
+
         # Look for conventional commit patterns
-        if echo "$commits_since_tag" | grep -qE "^(feat|feature)(\(.+\))?: "; then
+        if echo "$commits_since_tag" | grep -iqE "^(feat|feature)(\(.+\))?: "; then
           echo "Found feature commits - minor version bump needed"
           echo "bump=minor" >> $GITHUB_OUTPUT
-        elif echo "$commits_since_tag" | grep -qE "^fix(\(.+\))?: "; then
+        elif echo "$commits_since_tag" | grep -iqE "^fix(\(.+\))?: "; then
           echo "Found fix commits - patch version bump needed"
           echo "bump=patch" >> $GITHUB_OUTPUT
-        elif echo "$commits_since_tag" | grep -qE "BREAKING CHANGE:|^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!: "; then
+        elif echo "$commits_since_tag" | grep -iqE "BREAKING CHANGE:|^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!: "; then
           echo "Found breaking changes - major version bump needed"
           echo "bump=major" >> $GITHUB_OUTPUT
         else
@@ -296,10 +296,10 @@ jobs:
         current_version="${{ steps.latest_tag.outputs.latest_tag }}"
         # Remove 'v' prefix
         version=${current_version#v}
-        
+
         # Parse semantic version
         IFS='.' read -r major minor patch <<< "$version"
-        
+
         # Calculate next version based on bump type
         if [[ "${{ steps.version_check.outputs.bump }}" == "major" ]]; then
           major=$((major + 1))
@@ -311,7 +311,7 @@ jobs:
         elif [[ "${{ steps.version_check.outputs.bump }}" == "patch" ]]; then
           patch=$((patch + 1))
         fi
-        
+
         next_version="v${major}.${minor}.${patch}"
         echo "next_version=$next_version" >> $GITHUB_OUTPUT
         echo "Next version: $next_version"
@@ -323,7 +323,7 @@ jobs:
         # Generate release notes from commits
         echo "## What's Changed" > release_notes.md
         echo "" >> release_notes.md
-        
+
         # Group commits by type
         git log --pretty=format:"%s|%h" ${{ steps.latest_tag.outputs.latest_tag }}..HEAD | while IFS='|' read -r msg hash; do
           if [[ $msg =~ ^feat(\(.+\))?: ]]; then
@@ -346,7 +346,7 @@ jobs:
             echo "- $msg ($hash)" >> release_notes.md.other
           fi
         done
-        
+
         # Combine sections
         for type in feat fix docs test refactor other; do
           if [ -f release_notes.md.$type ]; then
@@ -355,7 +355,7 @@ jobs:
             rm release_notes.md.$type
           fi
         done
-        
+
         echo "" >> release_notes.md
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.latest_tag.outputs.latest_tag }}...${{ steps.next_version.outputs.next_version }}" >> release_notes.md
 
