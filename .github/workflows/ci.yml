@@ -262,14 +262,14 @@ jobs:
         # Check commit messages since last tag for version bump indicators
         commits_since_tag=$(git log --pretty=format:"%s" ${latest_tag}..HEAD 2>/dev/null || git log --pretty=format:"%s")
 
-        # Look for conventional commit patterns
-        if echo "$commits_since_tag" | grep -iqE "^(feat|feature)(\(.+\))?: "; then
+        # Look for conventional commit patterns (case-insensitive)
+        if echo "$commits_since_tag" | grep -iE "^(feat|feature)(\(.+\))?: "; then
           echo "Found feature commits - minor version bump needed"
           echo "bump=minor" >> $GITHUB_OUTPUT
-        elif echo "$commits_since_tag" | grep -iqE "^fix(\(.+\))?: "; then
+        elif echo "$commits_since_tag" | grep -iE "^fix(\(.+\))?: "; then
           echo "Found fix commits - patch version bump needed"
           echo "bump=patch" >> $GITHUB_OUTPUT
-        elif echo "$commits_since_tag" | grep -iqE "BREAKING CHANGE:|^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!: "; then
+        elif echo "$commits_since_tag" | grep -iE "BREAKING CHANGE:|^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!: "; then
           echo "Found breaking changes - major version bump needed"
           echo "bump=major" >> $GITHUB_OUTPUT
         else
@@ -314,19 +314,19 @@ jobs:
 
         # Group commits by type
         git log --pretty=format:"%s|%h" ${{ steps.latest_tag.outputs.latest_tag }}..HEAD | while IFS='|' read -r msg hash; do
-          if [[ $msg =~ ^feat(\(.+\))?: ]]; then
+          if [[ $msg =~ ^[Ff]eat(\(.+\))?: ]]; then
             echo "### ✨ Features" >> release_notes.md.feat
             echo "- $msg ($hash)" >> release_notes.md.feat
-          elif [[ $msg =~ ^fix(\(.+\))?: ]]; then
+          elif [[ $msg =~ ^[Ff]ix(\(.+\))?: ]]; then
             echo "### 🐛 Bug Fixes" >> release_notes.md.fix
             echo "- $msg ($hash)" >> release_notes.md.fix
-          elif [[ $msg =~ ^docs(\(.+\))?: ]]; then
+          elif [[ $msg =~ ^[Dd]ocs(\(.+\))?: ]]; then
             echo "### 📚 Documentation" >> release_notes.md.docs
             echo "- $msg ($hash)" >> release_notes.md.docs
-          elif [[ $msg =~ ^test(\(.+\))?: ]]; then
+          elif [[ $msg =~ ^[Tt]est(\(.+\))?: ]]; then
             echo "### 🧪 Tests" >> release_notes.md.test
             echo "- $msg ($hash)" >> release_notes.md.test
-          elif [[ $msg =~ ^refactor(\(.+\))?: ]]; then
+          elif [[ $msg =~ ^[Rr]efactor(\(.+\))?: ]]; then
             echo "### ♻️ Refactoring" >> release_notes.md.refactor
             echo "- $msg ($hash)" >> release_notes.md.refactor
           else
