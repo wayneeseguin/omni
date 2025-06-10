@@ -10,14 +10,14 @@ import (
 // This is determined by checking if the -short flag is set or
 // if OMNI_UNIT_TESTS_ONLY environment variable is set.
 func Unit() bool {
-	// Check if running with -short flag (backward compatibility)
-	if testing.Short() {
+	// Check if explicitly running unit tests only (highest priority)
+	if os.Getenv("OMNI_UNIT_TESTS_ONLY") == "true" {
 		return true
 	}
 
-	// Check if explicitly running unit tests only
-	if os.Getenv("OMNI_UNIT_TESTS_ONLY") == "true" {
-		return true
+	// Check if integration tests are explicitly enabled (overrides -short flag for testing)
+	if os.Getenv("OMNI_RUN_INTEGRATION_TESTS") == "true" {
+		return false
 	}
 
 	// Check if integration tests are explicitly disabled
@@ -25,8 +25,13 @@ func Unit() bool {
 		return true
 	}
 
+	// Check if running with -short flag (backward compatibility)
+	if testing.Short() {
+		return true
+	}
+
 	// Default to unit mode if not explicitly running integration tests
-	return os.Getenv("OMNI_RUN_INTEGRATION_TESTS") != "true"
+	return true
 }
 
 // Integration returns true if running in integration test mode.

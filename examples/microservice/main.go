@@ -271,10 +271,10 @@ func processPaymentHandler(w http.ResponseWriter, r *http.Request) {
 		duration time.Duration
 		failRate float64
 	}{
-		{"validate_merchant", 50 * time.Millisecond, 0.01},
-		{"check_fraud", 100 * time.Millisecond, 0.05},
-		{"authorize_payment", 200 * time.Millisecond, 0.02},
-		{"capture_funds", 150 * time.Millisecond, 0.01},
+		{"validate_merchant", 5 * time.Millisecond, 0.01},
+		{"check_fraud", 10 * time.Millisecond, 0.05},
+		{"authorize_payment", 20 * time.Millisecond, 0.02},
+		{"capture_funds", 15 * time.Millisecond, 0.01},
 	}
 
 	for _, step := range steps {
@@ -345,7 +345,7 @@ func callExternalService(ctx context.Context, payment PaymentRequest) error {
 	})
 
 	// Make request with timeout
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 100 * time.Millisecond}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("external service request: %w", err)

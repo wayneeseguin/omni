@@ -861,3 +861,547 @@ func TestGetPluginManager(t *testing.T) {
 		t.Error("GetPluginManager should return the same instance")
 	}
 }
+
+// ===== ADDITIONAL ERROR PATH TESTS =====
+
+// mockFailingBackendPlugin for testing error conditions
+type mockFailingBackendPlugin struct {
+	*mockBackendPlugin
+	createBackendError error
+	initializeError    error
+	shutdownError      error
+}
+
+func newMockFailingBackendPlugin(name, version string, schemes []string) *mockFailingBackendPlugin {
+	return &mockFailingBackendPlugin{
+		mockBackendPlugin: newMockBackendPlugin(name, version, schemes),
+	}
+}
+
+func (m *mockFailingBackendPlugin) CreateBackend(uri string, config map[string]interface{}) (plugins.Backend, error) {
+	if m.createBackendError != nil {
+		return nil, m.createBackendError
+	}
+	return m.mockBackendPlugin.CreateBackend(uri, config)
+}
+
+func (m *mockFailingBackendPlugin) Initialize(config map[string]interface{}) error {
+	if m.initializeError != nil {
+		return m.initializeError
+	}
+	return m.mockBackendPlugin.Initialize(config)
+}
+
+func (m *mockFailingBackendPlugin) Shutdown(ctx context.Context) error {
+	if m.shutdownError != nil {
+		return m.shutdownError
+	}
+	return m.mockBackendPlugin.Shutdown(ctx)
+}
+
+// mockFailingBackend for testing backend error conditions
+type mockFailingBackend struct {
+	*mockBackend
+	writeError       error
+	flushError       error
+	closeError       error
+	writeAfterClose  bool
+	failureCountDown int
+}
+
+func newMockFailingBackend(name, version string) *mockFailingBackend {
+	return &mockFailingBackend{
+		mockBackend: &mockBackend{
+			name:          name,
+			version:       version,
+			atomicSupport: true,
+		},
+	}
+}
+
+func (m *mockFailingBackend) Write(entry []byte) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.closed && m.writeAfterClose {
+		return 0, fmt.Errorf("backend is closed")
+	}
+
+	if m.failureCountDown > 0 {
+		m.failureCountDown--
+		if m.failureCountDown == 0 {
+			return 0, fmt.Errorf("simulated failure after countdown")
+		}
+	}
+
+	if m.writeError != nil {
+		return 0, m.writeError
+	}
+
+	return m.mockBackend.Write(entry)
+}
+
+func (m *mockFailingBackend) Flush() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.flushError != nil {
+		return m.flushError
+	}
+
+	return m.mockBackend.Flush()
+}
+
+func (m *mockFailingBackend) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.closeError != nil {
+		return m.closeError
+	}
+
+	return m.mockBackend.Close()
+}
+
+// TestPluginBackendImpl_ErrorPaths tests various error conditions
+func TestPluginBackendImpl_ErrorPaths(t *testing.T) {
+	t.Run("create_backend_failure", func(t *testing.T) {
+		mockPlugin := newMockFailingBackendPlugin("failing-plugin", "1.0.0", []string{"fail"})
+		mockPlugin.createBackendError = fmt.Errorf("simulated backend creation failure")
+
+		_, err := backends.NewPluginBackend(mockPlugin, "fail://test", nil)
+		if err == nil {
+			t.Error("Expected error when CreateBackend fails")
+		}
+		if !strings.Contains(err.Error(), "create plugin backend") {
+			t.Errorf("Expected 'create plugin backend' error, got: %v", err)
+		}
+	})
+
+	t.Run("write_with_nil_backend", func(t *testing.T) {
+		// Create a backend and manually set its backend to nil to simulate error condition
+		mockPlugin := newMockBackendPlugin("test-plugin", "1.0.0", []string{"mock"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "mock://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+
+		// Close the backend to set internal backend to nil
+		backend.Close()
+
+		// Now try to write - should fail
+		_, err = backend.Write([]byte("test"))
+		if err == nil {
+			t.Error("Expected error when writing to nil backend")
+		}
+		if !strings.Contains(err.Error(), "plugin backend not initialized") {
+			t.Errorf("Expected 'plugin backend not initialized' error, got: %v", err)
+		}
+	})
+
+	t.Run("flush_with_nil_backend", func(t *testing.T) {
+		mockPlugin := newMockBackendPlugin("test-plugin", "1.0.0", []string{"mock"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "mock://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+
+		// Close the backend to set internal backend to nil
+		backend.Close()
+
+		// Now try to flush - should fail
+		err = backend.Flush()
+		if err == nil {
+			t.Error("Expected error when flushing nil backend")
+		}
+		if !strings.Contains(err.Error(), "plugin backend not initialized") {
+			t.Errorf("Expected 'plugin backend not initialized' error, got: %v", err)
+		}
+	})
+
+	t.Run("supports_atomic_with_nil_backend", func(t *testing.T) {
+		mockPlugin := newMockBackendPlugin("test-plugin", "1.0.0", []string{"mock"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "mock://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+
+		// Close the backend to set internal backend to nil
+		backend.Close()
+
+		// SupportsAtomic should return false for nil backend
+		if backend.SupportsAtomic() {
+			t.Error("SupportsAtomic should return false for nil backend")
+		}
+	})
+
+	t.Run("reset_with_backend_close_error", func(t *testing.T) {
+		// Create a failing backend plugin where CreateBackend initially succeeds
+		// but fails on reset
+		mockPlugin := newMockFailingBackendPlugin("reset-test", "1.0.0", []string{"reset"})
+
+		backend, err := backends.NewPluginBackend(mockPlugin, "reset://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+		defer backend.Close()
+
+		// Write some data first
+		_, err = backend.Write([]byte("test data"))
+		if err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+
+		// Now set the plugin to fail on CreateBackend for the reset
+		mockPlugin.createBackendError = fmt.Errorf("simulated reset failure")
+
+		// Reset should fail
+		err = backend.Reset()
+		if err == nil {
+			t.Error("Expected error when reset fails")
+		}
+		if !strings.Contains(err.Error(), "recreate plugin backend") {
+			t.Errorf("Expected 'recreate plugin backend' error, got: %v", err)
+		}
+	})
+
+	t.Run("write_error_handling", func(t *testing.T) {
+		// Test that write errors don't increment stats
+		mockPlugin := newMockBackendPlugin("normal-plugin", "1.0.0", []string{"normal"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "normal://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+		defer backend.Close()
+
+		// First, do a successful write to verify normal operation
+		_, err = backend.Write([]byte("test"))
+		if err != nil {
+			t.Fatalf("Normal write failed: %v", err)
+		}
+
+		// Verify stats were updated
+		stats := backend.GetStats()
+		if stats.WriteCount != 1 {
+			t.Errorf("Expected 1 write, got %d", stats.WriteCount)
+		}
+		if stats.BytesWritten != 4 {
+			t.Errorf("Expected 4 bytes written, got %d", stats.BytesWritten)
+		}
+	})
+
+	t.Run("zero_byte_write_handling", func(t *testing.T) {
+		// Test that zero-byte writes are handled correctly in stats
+		mockPlugin := newMockBackendPlugin("zero-test", "1.0.0", []string{"zero"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "zero://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+		defer backend.Close()
+
+		// Write zero bytes - this should increment write count but not bytes written
+		n, err := backend.Write([]byte{})
+		if err != nil {
+			t.Fatalf("Zero-byte write failed: %v", err)
+		}
+		if n != 0 {
+			t.Errorf("Expected 0 bytes written, got %d", n)
+		}
+
+		stats := backend.GetStats()
+		if stats.WriteCount != 1 {
+			t.Errorf("Expected 1 write, got %d", stats.WriteCount)
+		}
+		// BytesWritten should remain 0 for zero-byte writes
+		if stats.BytesWritten != 0 {
+			t.Errorf("Expected 0 total bytes written, got %d", stats.BytesWritten)
+		}
+	})
+}
+
+// TestPluginManager_LoadPlugin_ErrorPaths tests error paths in plugin loading
+func TestPluginManager_LoadPlugin_ErrorPaths(t *testing.T) {
+	manager := backends.NewPluginManager()
+
+	t.Run("load_nonexistent_file", func(t *testing.T) {
+		err := manager.LoadPlugin("/nonexistent/plugin.so")
+		if err == nil {
+			t.Error("Expected error when loading nonexistent plugin file")
+		}
+		if !strings.Contains(err.Error(), "open plugin") {
+			t.Errorf("Expected 'open plugin' error, got: %v", err)
+		}
+	})
+
+	// Note: Testing actual .so file loading would require creating valid plugin files,
+	// which is complex for unit tests. The error paths for missing symbols, invalid
+	// interfaces, etc., would be tested in integration tests.
+}
+
+// TestPluginManager_UnloadPlugin_ErrorPaths tests error paths in plugin unloading
+func TestPluginManager_UnloadPlugin_ErrorPaths(t *testing.T) {
+	manager := backends.NewPluginManager()
+
+	t.Run("unload_nonexistent_plugin", func(t *testing.T) {
+		err := manager.UnloadPlugin("nonexistent-plugin")
+		if err == nil {
+			t.Error("Expected error when unloading nonexistent plugin")
+		}
+		if !strings.Contains(err.Error(), "not loaded") {
+			t.Errorf("Expected 'not loaded' error, got: %v", err)
+		}
+	})
+}
+
+// TestPluginBackendImpl_EdgeCases tests edge cases and boundary conditions
+func TestPluginBackendImpl_EdgeCases(t *testing.T) {
+	t.Run("write_zero_bytes", func(t *testing.T) {
+		mockPlugin := newMockBackendPlugin("zero-bytes", "1.0.0", []string{"zero"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "zero://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+		defer backend.Close()
+
+		// Write zero bytes
+		n, err := backend.Write([]byte{})
+		if err != nil {
+			t.Fatalf("Write failed: %v", err)
+		}
+
+		if n != 0 {
+			t.Errorf("Expected 0 bytes written, got %d", n)
+		}
+
+		// Stats should reflect the operation
+		stats := backend.GetStats()
+		if stats.WriteCount != 1 {
+			t.Errorf("Expected 1 write, got %d", stats.WriteCount)
+		}
+		// BytesWritten should remain 0 since we wrote 0 bytes
+		if stats.BytesWritten != 0 {
+			t.Errorf("Expected 0 bytes written, got %d", stats.BytesWritten)
+		}
+	})
+
+	t.Run("multiple_resets", func(t *testing.T) {
+		mockPlugin := newMockBackendPlugin("multi-reset", "1.0.0", []string{"multireset"})
+		backend, err := backends.NewPluginBackend(mockPlugin, "multireset://test", nil)
+		if err != nil {
+			t.Fatalf("Failed to create plugin backend: %v", err)
+		}
+		defer backend.Close()
+
+		// Multiple resets should be safe
+		for i := 0; i < 3; i++ {
+			err = backend.Reset()
+			if err != nil {
+				t.Errorf("Reset %d failed: %v", i, err)
+			}
+
+			// Should be able to write after each reset
+			_, err = backend.Write([]byte(fmt.Sprintf("test %d", i)))
+			if err != nil {
+				t.Errorf("Write after reset %d failed: %v", i, err)
+			}
+		}
+	})
+
+	t.Run("config_variations", func(t *testing.T) {
+		mockPlugin := newMockBackendPlugin("config-test", "1.0.0", []string{"config"})
+
+		configs := []map[string]interface{}{
+			nil,
+			{},
+			{"key": "value"},
+			{"nested": map[string]interface{}{"inner": "value"}},
+			{"array": []string{"a", "b", "c"}},
+			{"number": 42},
+			{"boolean": true},
+		}
+
+		for i, config := range configs {
+			t.Run(fmt.Sprintf("config_%d", i), func(t *testing.T) {
+				uri := fmt.Sprintf("config://test%d", i)
+				backend, err := backends.NewPluginBackend(mockPlugin, uri, config)
+				if err != nil {
+					t.Fatalf("Failed to create backend with config %v: %v", config, err)
+				}
+				defer backend.Close()
+
+				// Should be able to write
+				_, err = backend.Write([]byte("test"))
+				if err != nil {
+					t.Errorf("Write failed with config %v: %v", config, err)
+				}
+
+				// Config should be retrievable
+				retrievedConfig := backend.GetConfig()
+				if len(config) == 0 && len(retrievedConfig) != 0 {
+					t.Errorf("Expected empty config, got: %v", retrievedConfig)
+				}
+			})
+		}
+	})
+}
+
+// TestPluginManager_MultiplePluginTypes tests interactions between different plugin types
+func TestPluginManager_MultiplePluginTypes(t *testing.T) {
+	// Clear existing plugins
+	backends.ClearRegisteredPlugins()
+
+	// Register multiple types of plugins
+	backendPlugin := newMockBackendPlugin("multi-backend", "1.0.0", []string{"multi"})
+	formatterPlugin := newMockFormatterPlugin("multi-formatter", "1.0.0", "multi-format")
+	filterPlugin := newMockFilterPlugin("multi-filter", "1.0.0", "multi-filter")
+
+	err := backends.RegisterBackendPlugin(backendPlugin)
+	if err != nil {
+		t.Fatalf("Failed to register backend plugin: %v", err)
+	}
+
+	err = backends.RegisterFormatterPlugin(formatterPlugin)
+	if err != nil {
+		t.Fatalf("Failed to register formatter plugin: %v", err)
+	}
+
+	err = backends.RegisterFilterPlugin(filterPlugin)
+	if err != nil {
+		t.Fatalf("Failed to register filter plugin: %v", err)
+	}
+
+	manager := backends.GetPluginManager()
+
+	// All plugins should be retrievable
+	_, exists := manager.GetBackendPlugin("multi")
+	if !exists {
+		t.Error("Backend plugin not found")
+	}
+
+	_, exists = manager.GetFormatterPlugin("multi-format")
+	if !exists {
+		t.Error("Formatter plugin not found")
+	}
+
+	_, exists = manager.GetFilterPlugin("multi-filter")
+	if !exists {
+		t.Error("Filter plugin not found")
+	}
+
+	// List should include all plugins
+	plugins := manager.ListPlugins()
+	if len(plugins) < 3 {
+		t.Errorf("Expected at least 3 plugins, got %d", len(plugins))
+	}
+
+	// GetPluginInfo should show all types
+	infos := manager.GetPluginInfo()
+	types := make(map[string]bool)
+	for _, info := range infos {
+		types[info.Type] = true
+	}
+
+	expectedTypes := []string{"backend", "formatter", "filter"}
+	for _, expectedType := range expectedTypes {
+		if !types[expectedType] {
+			t.Errorf("Plugin type %s not found in info", expectedType)
+		}
+	}
+}
+
+// TestPluginManager_AdditionalEdgeCases tests additional edge cases for plugin management
+func TestPluginManager_AdditionalEdgeCases(t *testing.T) {
+	t.Run("plugin_interface_validation", func(t *testing.T) {
+		// Test that interface casting works correctly
+		var mockInterface interface{} = newMockBackendPlugin("interface-test", "1.0.0", []string{"interface"})
+
+		// Should be able to cast to plugins.Plugin
+		if _, ok := mockInterface.(plugins.Plugin); !ok {
+			t.Error("Mock plugin should implement plugins.Plugin interface")
+		}
+
+		// Should be able to cast to plugins.BackendPlugin
+		if _, ok := mockInterface.(plugins.BackendPlugin); !ok {
+			t.Error("Mock backend plugin should implement plugins.BackendPlugin interface")
+		}
+	})
+
+	t.Run("scheme_collision_handling", func(t *testing.T) {
+		backends.ClearRegisteredPlugins()
+
+		// Register two plugins that support the same scheme
+		plugin1 := newMockBackendPlugin("plugin1", "1.0.0", []string{"shared-scheme"})
+		plugin2 := newMockBackendPlugin("plugin2", "2.0.0", []string{"shared-scheme"})
+
+		err := backends.RegisterBackendPlugin(plugin1)
+		if err != nil {
+			t.Fatalf("Failed to register first plugin: %v", err)
+		}
+
+		// Second plugin registration should succeed (overwrites scheme mapping)
+		err = backends.RegisterBackendPlugin(plugin2)
+		if err != nil {
+			t.Fatalf("Failed to register second plugin: %v", err)
+		}
+
+		// Last registered plugin should win for the scheme
+		manager := backends.GetPluginManager()
+		retrievedPlugin, exists := manager.GetBackendPlugin("shared-scheme")
+		if !exists {
+			t.Error("Should find plugin for shared scheme")
+		}
+		if retrievedPlugin.Name() != "plugin2" {
+			t.Errorf("Expected plugin2, got %s", retrievedPlugin.Name())
+		}
+	})
+
+	t.Run("empty_schemes_handling", func(t *testing.T) {
+		backends.ClearRegisteredPlugins()
+
+		// Register plugin with empty schemes
+		plugin := newMockBackendPlugin("empty-schemes", "1.0.0", []string{})
+		err := backends.RegisterBackendPlugin(plugin)
+		if err != nil {
+			t.Fatalf("Failed to register plugin with empty schemes: %v", err)
+		}
+
+		// Plugin should be loaded but not accessible by any scheme
+		manager := backends.GetPluginManager()
+		plugins := manager.ListPlugins()
+		found := false
+		for _, p := range plugins {
+			if p.Name() == "empty-schemes" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Plugin with empty schemes should still be in loaded list")
+		}
+	})
+
+	t.Run("plugin_info_unknown_type", func(t *testing.T) {
+		// Create a plugin that doesn't implement any specific plugin interface
+		type unknownPlugin struct {
+			name        string
+			version     string
+			initialized bool
+		}
+
+		up := &unknownPlugin{name: "unknown-type", version: "1.0.0"}
+
+		// Simulate the logic from GetPluginInfo for unknown types
+		pluginType := "unknown"
+		if _, ok := interface{}(up).(plugins.BackendPlugin); ok {
+			pluginType = "backend"
+		} else if _, ok := interface{}(up).(plugins.FormatterPlugin); ok {
+			pluginType = "formatter"
+		} else if _, ok := interface{}(up).(plugins.FilterPlugin); ok {
+			pluginType = "filter"
+		}
+
+		if pluginType != "unknown" {
+			t.Errorf("Expected unknown type, got %s", pluginType)
+		}
+	})
+}

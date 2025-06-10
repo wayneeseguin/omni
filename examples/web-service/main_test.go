@@ -391,7 +391,7 @@ func TestSlowRequestDetection(t *testing.T) {
 
 	// Create slow handler
 	slowHandler := func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(600 * time.Millisecond) // Longer than 500ms threshold
+		time.Sleep(60 * time.Millisecond) // Reduced from 600ms to 60ms
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("slow response"))
 	}

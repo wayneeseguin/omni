@@ -293,3 +293,167 @@ func TestChannelFullFallback(t *testing.T) {
 		// Don't fail the test as it's timing-dependent
 	}
 }
+
+// TestGetLogLevel tests the GetLogLevel function for converting string levels to numeric constants
+func TestGetLogLevel(t *testing.T) {
+	tests := []struct {
+		name         string
+		level        string
+		defaultLevel []string
+		expected     int
+	}{
+		{
+			name:     "debug level",
+			level:    "debug",
+			expected: LevelDebug,
+		},
+		{
+			name:     "info level",
+			level:    "info",
+			expected: LevelInfo,
+		},
+		{
+			name:     "warn level",
+			level:    "warn",
+			expected: LevelWarn,
+		},
+		{
+			name:     "error level",
+			level:    "error",
+			expected: LevelError,
+		},
+		{
+			name:     "uppercase level",
+			level:    "INFO",
+			expected: LevelInfo,
+		},
+		{
+			name:     "mixed case level",
+			level:    "DebUg",
+			expected: LevelDebug,
+		},
+		{
+			name:     "empty level with no default",
+			level:    "",
+			expected: LevelDebug, // fallback default
+		},
+		{
+			name:         "empty level with default",
+			level:        "",
+			defaultLevel: []string{"warn"},
+			expected:     LevelWarn,
+		},
+		{
+			name:         "empty level with empty default",
+			level:        "",
+			defaultLevel: []string{""},
+			expected:     LevelDebug, // fallback default
+		},
+		{
+			name:     "invalid level",
+			level:    "invalid",
+			expected: LevelInfo, // fallback to info for invalid levels
+		},
+		{
+			name:     "numeric string level",
+			level:    "123",
+			expected: LevelInfo, // fallback to info for unrecognized strings
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result int
+			if len(tt.defaultLevel) > 0 {
+				result = GetLogLevel(tt.level, tt.defaultLevel[0])
+			} else {
+				result = GetLogLevel(tt.level)
+			}
+
+			if result != tt.expected {
+				t.Errorf("GetLogLevel(%q) = %d, expected %d", tt.level, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestLevelConstants tests that all level constants are properly defined
+func TestLevelConstants(t *testing.T) {
+	// Test that level constants have expected values
+	expectedLevels := map[string]int{
+		"LevelTrace": LevelTrace,
+		"LevelDebug": LevelDebug,
+		"LevelInfo":  LevelInfo,
+		"LevelWarn":  LevelWarn,
+		"LevelError": LevelError,
+	}
+
+	// Verify level constants are in ascending order
+	levels := []int{LevelTrace, LevelDebug, LevelInfo, LevelWarn, LevelError}
+	for i := 1; i < len(levels); i++ {
+		if levels[i] <= levels[i-1] {
+			t.Errorf("Level %d should be greater than level %d", levels[i], levels[i-1])
+		}
+	}
+
+	// Test level naming
+	for name, level := range expectedLevels {
+		if level < 0 {
+			t.Errorf("Level constant %s has invalid value %d", name, level)
+		}
+	}
+}
+
+// TestIsLevelEnabled tests level checking functionality
+func TestIsLevelEnabled(t *testing.T) {
+	testDir := t.TempDir()
+	logFile := filepath.Join(testDir, "level_test.log")
+
+	logger, err := New(logFile)
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+	defer logger.Close()
+
+	// Test with different logger levels
+	testCases := []struct {
+		loggerLevel int
+		testLevel   int
+		enabled     bool
+	}{
+		{LevelError, LevelTrace, false},
+		{LevelError, LevelDebug, false},
+		{LevelError, LevelInfo, false},
+		{LevelError, LevelWarn, false},
+		{LevelError, LevelError, true},
+		{LevelWarn, LevelTrace, false},
+		{LevelWarn, LevelDebug, false},
+		{LevelWarn, LevelInfo, false},
+		{LevelWarn, LevelWarn, true},
+		{LevelWarn, LevelError, true},
+		{LevelInfo, LevelTrace, false},
+		{LevelInfo, LevelDebug, false},
+		{LevelInfo, LevelInfo, true},
+		{LevelInfo, LevelWarn, true},
+		{LevelInfo, LevelError, true},
+		{LevelDebug, LevelTrace, false},
+		{LevelDebug, LevelDebug, true},
+		{LevelDebug, LevelInfo, true},
+		{LevelDebug, LevelWarn, true},
+		{LevelDebug, LevelError, true},
+		{LevelTrace, LevelTrace, true},
+		{LevelTrace, LevelDebug, true},
+		{LevelTrace, LevelInfo, true},
+		{LevelTrace, LevelWarn, true},
+		{LevelTrace, LevelError, true},
+	}
+
+	for _, tc := range testCases {
+		logger.SetLevel(tc.loggerLevel)
+		result := logger.IsLevelEnabled(tc.testLevel)
+		if result != tc.enabled {
+			t.Errorf("Logger level %d, test level %d: expected %v, got %v",
+				tc.loggerLevel, tc.testLevel, tc.enabled, result)
+		}
+	}
+}

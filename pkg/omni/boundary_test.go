@@ -27,7 +27,7 @@ func TestBoundaryConditions(t *testing.T) {
 
 		// Should still be able to log
 		logger.Info("test message")
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	t.Run("extremely large channel size", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestBoundaryConditions(t *testing.T) {
 		defer logger.Close()
 
 		logger.Info("test message")
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	t.Run("zero max size", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestBoundaryConditions(t *testing.T) {
 				t.Errorf("FlushAll failed: %v", err)
 			}
 			// Give time for rotation to complete
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 		}
 
 		// Should have multiple files
@@ -142,7 +142,7 @@ func TestBoundaryConditions(t *testing.T) {
 		logger.Infof("%s", "")
 
 		// Give messages time to reach the dispatcher
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
@@ -182,7 +182,7 @@ func TestBoundaryConditions(t *testing.T) {
 		logger.Info(longMessage)
 
 		// Give message time to reach the dispatcher
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
@@ -349,7 +349,7 @@ func TestBoundaryConditions(t *testing.T) {
 		}
 
 		// Cleanup should still happen in background
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	})
 }
 

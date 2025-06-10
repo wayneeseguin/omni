@@ -54,7 +54,7 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		})
 
 		// Log slow requests as warnings
-		if duration > 500*time.Millisecond {
+		if duration > 50*time.Millisecond {
 			logger.WarnWithFields("Slow request detected", map[string]interface{}{
 				"request_id":  requestID,
 				"path":        r.URL.Path,

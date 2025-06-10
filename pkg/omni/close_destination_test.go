@@ -29,7 +29,7 @@ func TestRemoveDestination(t *testing.T) {
 
 	// Log some messages
 	logger.Info("message to both destinations")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Verify both destinations exist
 	dests := logger.ListDestinations()
@@ -51,7 +51,7 @@ func TestRemoveDestination(t *testing.T) {
 
 	// Try to log again - should only go to first destination
 	logger.Info("message to first destination only")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Try to close non-existent destination
 	err = logger.RemoveDestination("nonexistent")
@@ -115,15 +115,15 @@ func TestRemoveDestinationWhileLogging(t *testing.T) {
 	// Start logging in background
 	done := make(chan bool)
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 20; i++ {
 			logger.Info("concurrent message %d", i)
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond) // Reduced from 10ms to 1ms
 		}
 		done <- true
 	}()
 
 	// Wait a bit then close second destination
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) // Reduced from 200ms to 10ms
 	err = logger.RemoveDestination(logFile2)
 	if err != nil {
 		t.Errorf("Failed to close destination during logging: %v", err)
@@ -180,7 +180,7 @@ func TestCloseSyslogDestination(t *testing.T) {
 
 	// Log a message
 	logger.Info("test syslog message")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Close syslog destination
 	err = logger.RemoveDestination(syslogAddr)

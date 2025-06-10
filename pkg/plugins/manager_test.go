@@ -609,7 +609,7 @@ func TestUnloadTimeout(t *testing.T) {
 		shutdownFunc: func(ctx context.Context) error {
 			// Respond properly to context cancellation
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(10 * time.Millisecond):
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()

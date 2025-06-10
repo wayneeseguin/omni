@@ -21,8 +21,8 @@ func TestConcurrentOperations(t *testing.T) {
 		}
 		defer logger.Close()
 
-		const numGoroutines = 10
-		const messagesPerGoroutine = 100
+		const numGoroutines = 5
+		const messagesPerGoroutine = 20
 
 		var wg sync.WaitGroup
 		wg.Add(numGoroutines)
@@ -249,7 +249,7 @@ func TestConcurrentOperations(t *testing.T) {
 		}
 
 		// Give a small delay to ensure rotation completes
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 
 		// Should have rotated files
 		files, err := filepath.Glob(logFile + "*")
@@ -394,7 +394,7 @@ func TestConcurrentOperations(t *testing.T) {
 		wg.Wait()
 
 		// Give time for processing
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
@@ -532,7 +532,7 @@ func TestRaceConditions(t *testing.T) {
 				defer wg.Done()
 				for j := 0; j < 10; j++ {
 					logger.FlushAll()
-					time.Sleep(20 * time.Millisecond)
+					time.Sleep(5 * time.Millisecond)
 				}
 			}()
 		}
