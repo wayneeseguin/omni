@@ -86,8 +86,8 @@ func TestRedactionExample(t *testing.T) {
 		if strings.Contains(content, "123-45-6789") {
 			t.Error("SSN was not redacted")
 		}
-		if !strings.Contains(content, "[SSN-REDACTED]") {
-			t.Error("Expected SSN redaction placeholder not found")
+		if !strings.Contains(content, "[REDACTED]") {
+			t.Error("Expected redaction placeholder not found")
 		}
 	})
 
