@@ -107,7 +107,7 @@ jobs:
         git diff --exit-code go.mod go.sum
 
   test:
-    name: Test
+    name: Unit & Race Tests w/Coverage
     runs-on: ubuntu-latest
     needs: security
 
@@ -136,9 +136,6 @@ jobs:
         file: ./coverage.out
         flags: unittests
         name: codecov-umbrella
-
-    - name: Run benchmarks
-      run: go test -run=^$ -bench=. -benchmem ./...
 
   integration:
     name: Integration Tests
@@ -233,25 +230,150 @@ jobs:
         docker stop omni-test-syslog || true
         docker rm omni-test-syslog || true
 
-  release-check:
-    name: Release Check
+  benchmarks:
+    name: Benchmarks
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: integration
+    needs: [test, integration]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Check if version changed
-      id: version
-      run: |
-        echo "Checking for version changes..."
-        # Add version checking logic here
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.4'
+        cache: true
+        cache-dependency-path: go.sum
 
-    - name: Create Release Notes
-      if: steps.version.outputs.changed == 'true'
+    - name: Run benchmarks
+      run: go test -run=^$ -bench=. -benchmem ./...
+
+  release-check:
+    name: Release Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: benchmarks
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get latest tag
+      id: latest_tag
       run: |
-        echo "## Release Notes" > release_notes.md
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+        echo "Latest tag: $latest_tag"
+
+    - name: Check for version bump in commit messages
+      id: version_check
+      run: |
+        # Check commit messages since last tag for version bump indicators
+        commits_since_tag=$(git log --pretty=format:"%s" ${latest_tag}..HEAD 2>/dev/null || git log --pretty=format:"%s")
+        
+        # Look for conventional commit patterns
+        if echo "$commits_since_tag" | grep -qE "^(feat|feature)(\(.+\))?: "; then
+          echo "Found feature commits - minor version bump needed"
+          echo "bump=minor" >> $GITHUB_OUTPUT
+        elif echo "$commits_since_tag" | grep -qE "^fix(\(.+\))?: "; then
+          echo "Found fix commits - patch version bump needed"
+          echo "bump=patch" >> $GITHUB_OUTPUT
+        elif echo "$commits_since_tag" | grep -qE "BREAKING CHANGE:|^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?!: "; then
+          echo "Found breaking changes - major version bump needed"
+          echo "bump=major" >> $GITHUB_OUTPUT
+        else
+          echo "No version bump needed"
+          echo "bump=none" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Calculate next version
+      id: next_version
+      if: steps.version_check.outputs.bump != 'none'
+      run: |
+        current_version="${{ steps.latest_tag.outputs.latest_tag }}"
+        # Remove 'v' prefix
+        version=${current_version#v}
+        
+        # Parse semantic version
+        IFS='.' read -r major minor patch <<< "$version"
+        
+        # Calculate next version based on bump type
+        if [[ "${{ steps.version_check.outputs.bump }}" == "major" ]]; then
+          major=$((major + 1))
+          minor=0
+          patch=0
+        elif [[ "${{ steps.version_check.outputs.bump }}" == "minor" ]]; then
+          minor=$((minor + 1))
+          patch=0
+        elif [[ "${{ steps.version_check.outputs.bump }}" == "patch" ]]; then
+          patch=$((patch + 1))
+        fi
+        
+        next_version="v${major}.${minor}.${patch}"
+        echo "next_version=$next_version" >> $GITHUB_OUTPUT
+        echo "Next version: $next_version"
+
+    - name: Generate release notes
+      id: release_notes
+      if: steps.version_check.outputs.bump != 'none'
+      run: |
+        # Generate release notes from commits
+        echo "## What's Changed" > release_notes.md
         echo "" >> release_notes.md
-        git log --pretty=format:"- %s" $(git describe --tags --abbrev=0)..HEAD >> release_notes.md
+        
+        # Group commits by type
+        git log --pretty=format:"%s|%h" ${{ steps.latest_tag.outputs.latest_tag }}..HEAD | while IFS='|' read -r msg hash; do
+          if [[ $msg =~ ^feat(\(.+\))?: ]]; then
+            echo "### ✨ Features" >> release_notes.md.feat
+            echo "- $msg ($hash)" >> release_notes.md.feat
+          elif [[ $msg =~ ^fix(\(.+\))?: ]]; then
+            echo "### 🐛 Bug Fixes" >> release_notes.md.fix
+            echo "- $msg ($hash)" >> release_notes.md.fix
+          elif [[ $msg =~ ^docs(\(.+\))?: ]]; then
+            echo "### 📚 Documentation" >> release_notes.md.docs
+            echo "- $msg ($hash)" >> release_notes.md.docs
+          elif [[ $msg =~ ^test(\(.+\))?: ]]; then
+            echo "### 🧪 Tests" >> release_notes.md.test
+            echo "- $msg ($hash)" >> release_notes.md.test
+          elif [[ $msg =~ ^refactor(\(.+\))?: ]]; then
+            echo "### ♻️ Refactoring" >> release_notes.md.refactor
+            echo "- $msg ($hash)" >> release_notes.md.refactor
+          else
+            echo "### 🔧 Other Changes" >> release_notes.md.other
+            echo "- $msg ($hash)" >> release_notes.md.other
+          fi
+        done
+        
+        # Combine sections
+        for type in feat fix docs test refactor other; do
+          if [ -f release_notes.md.$type ]; then
+            cat release_notes.md.$type | sort -u >> release_notes.md
+            echo "" >> release_notes.md
+            rm release_notes.md.$type
+          fi
+        done
+        
+        echo "" >> release_notes.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.latest_tag.outputs.latest_tag }}...${{ steps.next_version.outputs.next_version }}" >> release_notes.md
+
+    - name: Create and push tag
+      if: steps.version_check.outputs.bump != 'none'
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag -a ${{ steps.next_version.outputs.next_version }} -m "Release ${{ steps.next_version.outputs.next_version }}"
+        git push origin ${{ steps.next_version.outputs.next_version }}
+
+    - name: Create GitHub Release
+      if: steps.version_check.outputs.bump != 'none'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.next_version.outputs.next_version }}
+        name: Release ${{ steps.next_version.outputs.next_version }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        generate_release_notes: false
