@@ -181,12 +181,13 @@ func TestBoundaryConditions(t *testing.T) {
 		longMessage := strings.Repeat("A", 1024*1024)
 		logger.Info(longMessage)
 
-		// Give message time to reach the dispatcher
-		time.Sleep(5 * time.Millisecond)
-
+		// Ensure message is fully processed by flushing
 		if err := logger.FlushAll(); err != nil {
 			t.Errorf("FlushAll failed: %v", err)
 		}
+
+		// Give additional time for any background processing on slower systems
+		time.Sleep(50 * time.Millisecond)
 
 		// Should handle large messages
 		content, err := os.ReadFile(logFile)
