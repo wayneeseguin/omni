@@ -230,17 +230,24 @@ jobs:
         docker stop omni-test-syslog || true
         docker rm omni-test-syslog || true
 
-  release-check:
-    name: Release Check
+  release:
+    name: Release
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, integration]
+    needs: [vet-and-build, security, test, integration]
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Set up Perl
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y perl zip
 
     - name: Get latest tag
       id: latest_tag
@@ -340,6 +347,11 @@ jobs:
         echo "" >> release_notes.md
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.latest_tag.outputs.latest_tag }}...${{ steps.next_version.outputs.next_version }}" >> release_notes.md
 
+    - name: Create release archives
+      if: steps.version_check.outputs.bump != 'none'
+      run: |
+        perl scripts/release --version=${{ steps.next_version.outputs.next_version }}
+
     - name: Create and push tag
       if: steps.version_check.outputs.bump != 'none'
       run: |
@@ -358,89 +370,6 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: false
-
-  release:
-    name: Build and Release
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [vet-and-build, security, test, integration]
-    permissions:
-      contents: write
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Perl
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y perl zip
-
-    - name: Get version from tag
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-    - name: Create release archives
-      run: |
-        perl scripts/release --version=${{ steps.version.outputs.VERSION }}
-
-    - name: Upload tar.gz artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: omni-${{ steps.version.outputs.VERSION }}-tar
-        path: releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
-
-    - name: Upload zip artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: omni-${{ steps.version.outputs.VERSION }}-zip
-        path: releases/omni-${{ steps.version.outputs.VERSION }}.zip
-
-    - name: Move artifacts to correct location
-      run: |
-        mkdir -p final-releases
-        find releases -name "*.tar.gz" -o -name "*.zip" | xargs -I {} cp {} final-releases/
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.version.outputs.VERSION }}
-        name: Omni ${{ steps.version.outputs.VERSION }}
-        draft: false
-        prerelease: false
         files: |
-          final-releases/omni-${{ steps.version.outputs.VERSION }}.tar.gz
-          final-releases/omni-${{ steps.version.outputs.VERSION }}.zip
-        body: |
-          # Omni ${{ steps.version.outputs.VERSION }}
-
-          A flexible Go logging library with multiple destination backends.
-
-          ## Downloads
-
-          - [omni-${{ steps.version.outputs.VERSION }}.tar.gz](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz)
-          - [omni-${{ steps.version.outputs.VERSION }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip)
-
-          ## Installation
-
-          Add to your Go module:
-
-          ```bash
-          go get github.com/wayneeseguin/omni@${{ steps.version.outputs.VERSION }}
-          ```
-
-          Or download and extract the source:
-
-          ```bash
-          # Using tar.gz
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.tar.gz -o omni.tar.gz
-          tar -xzf omni.tar.gz
-
-          # Using zip
-          curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/omni-${{ steps.version.outputs.VERSION }}.zip -o omni.zip
-          unzip omni.zip
-          ```
-
-          ## What's Changed
-
-          See the [changelog](https://github.com/${{ github.repository }}/compare/...${{ steps.version.outputs.VERSION }}) for details.
+          releases/omni-${{ steps.next_version.outputs.next_version }}.tar.gz
+          releases/omni-${{ steps.next_version.outputs.next_version }}.zip
