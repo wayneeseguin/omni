@@ -391,42 +391,24 @@ func TestForceShutdownOnTimeout(t *testing.T) {
 	// Use a channel to control the goroutine
 	stopLogging := make(chan struct{})
 	loggerDone := make(chan struct{})
-	messagesSent := make(chan struct{})
 
-	// Flood the logger with messages to make shutdown take longer
+	// Flood the logger with messages continuously
 	go func() {
 		defer close(loggerDone)
-		// Send a large batch of messages
-		for i := 0; i < 100000; i++ {
-			select {
-			case <-stopLogging:
-				return
-			default:
-				logger.Infof("Force shutdown test message with longer content to ensure processing takes time %d", i)
-			}
-		}
-		close(messagesSent)
-		// Keep sending messages during shutdown attempt
+		// Keep sending messages to ensure channel stays full
 		for {
 			select {
 			case <-stopLogging:
 				return
 			default:
-				logger.Infof("Continuous message during shutdown")
-				time.Sleep(100 * time.Nanosecond)
+				// Send messages rapidly to keep channel full
+				logger.Infof("Force shutdown test message with longer content to ensure processing takes time")
 			}
 		}
 	}()
 
-	// Wait for initial messages to be sent
-	select {
-	case <-messagesSent:
-	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for messages to be sent")
-	}
-
 	// Let messages accumulate in the channel
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	// Use an extremely short timeout to force timeout scenario
 	// Using 1 nanosecond to ensure timeout happens
