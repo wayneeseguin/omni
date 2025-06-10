@@ -18,7 +18,7 @@ COVERAGE_HTML=coverage.html
 # Default target - show help
 .DEFAULT_GOAL := help
 
-.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all test-diskfull integration integration-nats integration-vault integration-syslog integration-debug integration-diskfull bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools
+.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all test-diskfull integration integration-nats integration-vault integration-syslog integration-debug integration-diskfull bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools hooks-install hooks-uninstall hooks-check pre-commit pre-push
 
 # Show help with version
 help:
@@ -59,6 +59,8 @@ help:
 	@printf "  \033[36m%-25s\033[0m %s\n" "trivy"               "Run trivy vulnerability scanner"
 	@printf "  \033[36m%-25s\033[0m %s\n" "coverage"            "Generate HTML coverage report"
 	@printf "  \033[36m%-25s\033[0m %s\n" "coverage-text"       "Show coverage summary in terminal"
+	@printf "  \033[36m%-25s\033[0m %s\n" "pre-commit"          "Run all pre-commit checks (fmt, vet, build)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "pre-push"            "Run all pre-push checks (gosec, trivy, test)"
 	@echo ""
 	@echo "Performance:"
 	@printf "  \033[36m%-25s\033[0m %s\n" "bench"               "Run benchmarks"
@@ -72,6 +74,11 @@ help:
 	@echo ""
 	@echo "Examples:"
 	@printf "  \033[36m%-25s\033[0m %s\n" "run-examples"        "Run all example applications"
+	@echo ""
+	@echo "Git Hooks:"
+	@printf "  \033[36m%-25s\033[0m %s\n" "hooks-install"       "Install git hooks for code quality"
+	@printf "  \033[36m%-25s\033[0m %s\n" "hooks-uninstall"     "Remove git hooks"
+	@printf "  \033[36m%-25s\033[0m %s\n" "hooks-check"         "Show current hooks configuration"
 	@echo ""
 	@echo "Version: $(VERSION)"
 
@@ -242,6 +249,16 @@ trivy:
 security: gosec trivy
 	@echo "All security checks completed!"
 
+# Pre-commit checks - Run all checks required before committing
+pre-commit: fmt vet build
+	@echo ""
+	@echo "✅ All pre-commit checks passed!"
+
+# Pre-push checks - Run all checks required before pushing
+pre-push: gosec trivy test
+	@echo ""
+	@echo "✅ All pre-push checks passed!"
+
 # Coverage targets
 coverage:
 	@echo "Generating coverage report..."
@@ -300,3 +317,52 @@ install-tools:
 	@$(GOCMD) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@$(GOCMD) install github.com/securego/gosec/v2/cmd/gosec@latest
 	@$(GOCMD) install golang.org/x/tools/cmd/goimports@latest
+
+# Git hooks management
+hooks-install:
+	@echo "Installing git hooks..."
+	@if [ -d .git ]; then \
+		git config core.hooksPath .githooks; \
+		echo "✅ Git hooks installed successfully!"; \
+		echo "   Pre-commit: go fmt, go vet, make build"; \
+		echo "   Pre-push: gosec, trivy, go test"; \
+	else \
+		echo "❌ Not a git repository. Please run this command from the project root."; \
+		exit 1; \
+	fi
+
+hooks-uninstall:
+	@echo "Uninstalling git hooks..."
+	@if [ -d .git ]; then \
+		git config --unset core.hooksPath; \
+		echo "✅ Git hooks uninstalled successfully!"; \
+	else \
+		echo "❌ Not a git repository. Please run this command from the project root."; \
+		exit 1; \
+	fi
+
+hooks-check:
+	@echo "Checking git hooks configuration..."
+	@if [ -d .git ]; then \
+		hooks_path=$$(git config core.hooksPath); \
+		if [ -n "$$hooks_path" ]; then \
+			echo "✅ Git hooks are active"; \
+			echo "   Hooks path: $$hooks_path"; \
+			if [ -f "$$hooks_path/pre-commit" ]; then \
+				echo "   Pre-commit hook: Installed"; \
+			else \
+				echo "   Pre-commit hook: Not found"; \
+			fi; \
+			if [ -f "$$hooks_path/pre-push" ]; then \
+				echo "   Pre-push hook: Installed"; \
+			else \
+				echo "   Pre-push hook: Not found"; \
+			fi; \
+		else \
+			echo "❌ Git hooks are not active"; \
+			echo "   Run 'make hooks-install' to activate them"; \
+		fi; \
+	else \
+		echo "❌ Not a git repository. Please run this command from the project root."; \
+		exit 1; \
+	fi

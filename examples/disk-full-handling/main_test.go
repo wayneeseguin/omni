@@ -11,7 +11,7 @@ import (
 
 func TestDiskFullHandlingExample(t *testing.T) {
 	testhelpers.SkipIfUnit(t)
-	
+
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test-diskfull.log")
@@ -49,7 +49,7 @@ func TestDiskFullHandlingExample(t *testing.T) {
 
 func TestDiskFullRecovery(t *testing.T) {
 	testhelpers.SkipIfUnit(t)
-	
+
 	// This test verifies that the logger continues to work even with limited disk space
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "recovery-test.log")

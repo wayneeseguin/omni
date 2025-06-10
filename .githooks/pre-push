@@ -1,0 +1,46 @@
+#!/bin/bash
+# Pre-push hook - Runs on git push
+# Adds security scanning and test verification before pushing to remote
+
+set -e
+
+echo "🚀 Running pre-push checks..."
+
+# Run gosec security scanner (if installed)
+if command -v gosec &> /dev/null; then
+    echo "→ Running security scan (gosec)..."
+    if ! gosec -quiet ./...; then
+        echo "❌ Security vulnerabilities detected by gosec."
+        echo "Please fix the security issues before pushing."
+        exit 1
+    fi
+    echo "✅ Security scan passed"
+else
+    echo "⚠️  gosec not installed. Skipping security scan."
+    echo "   Install with: go install github.com/securego/gosec/v2/cmd/gosec@latest"
+fi
+
+# Run trivy vulnerability scanner (if installed)
+if command -v trivy &> /dev/null; then
+    echo "→ Running vulnerability scan (trivy)..."
+    if ! trivy fs . --scanners vuln --quiet; then
+        echo "❌ Vulnerabilities detected by trivy."
+        echo "Please fix the vulnerabilities before pushing."
+        exit 1
+    fi
+    echo "✅ Vulnerability scan passed"
+else
+    echo "⚠️  trivy not installed. Skipping vulnerability scan."
+    echo "   Install with: brew install trivy (macOS) or see https://github.com/aquasecurity/trivy"
+fi
+
+# Run all tests
+echo "→ Running tests (go test)..."
+if ! go test ./... > /dev/null 2>&1; then
+    echo "❌ Tests failed. Please ensure all tests pass before pushing."
+    echo "Run 'go test ./...' to see the full test output."
+    exit 1
+fi
+echo "✅ All tests passed"
+
+echo "✨ All pre-push checks passed! Pushing to remote..."
