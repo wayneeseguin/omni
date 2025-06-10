@@ -380,13 +380,23 @@ func TestForceShutdownOnTimeout(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
+	// Use a channel to control the goroutine
+	stopLogging := make(chan struct{})
+	loggerDone := make(chan struct{})
+
 	// Flood the logger with messages to make shutdown take longer
 	go func() {
+		defer close(loggerDone)
 		for i := 0; i < 1000000; i++ {
-			logger.Infof("Force shutdown test message %d", i)
-			// Add tiny delays to ensure messages keep coming during shutdown
-			if i%1000 == 0 {
-				time.Sleep(time.Microsecond)
+			select {
+			case <-stopLogging:
+				return
+			default:
+				logger.Infof("Force shutdown test message %d", i)
+				// Add tiny delays to ensure messages keep coming during shutdown
+				if i%1000 == 0 {
+					time.Sleep(time.Microsecond)
+				}
 			}
 		}
 	}()
@@ -411,10 +421,17 @@ func TestForceShutdownOnTimeout(t *testing.T) {
 
 	t.Logf("Force shutdown attempt took: %v", shutdownDuration)
 
+	// Stop the logging goroutine
+	close(stopLogging)
+	<-loggerDone
+
 	// Clean up with proper timeout
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
 	logger.Shutdown(ctx2)
+
+	// Give a small amount of time for any background cleanup to complete
+	time.Sleep(10 * time.Millisecond)
 }
 
 // TestShutdownErrorRecovery tests shutdown behavior when errors occur during shutdown
