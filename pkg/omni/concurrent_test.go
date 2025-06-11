@@ -39,8 +39,8 @@ func TestConcurrentOperations(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 
 		// Verify metrics
@@ -107,8 +107,8 @@ func TestConcurrentOperations(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 	})
 
@@ -239,8 +239,8 @@ func TestConcurrentOperations(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 
 		// Ensure all writes are synced to disk
@@ -301,8 +301,8 @@ func TestConcurrentOperations(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 
 		// Verify some messages were logged
@@ -356,8 +356,8 @@ func TestConcurrentOperations(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 	})
 
@@ -396,8 +396,8 @@ func TestConcurrentOperations(t *testing.T) {
 		// Give time for processing
 		time.Sleep(10 * time.Millisecond)
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 
 		// Check metrics for dropped messages
@@ -472,8 +472,8 @@ func TestRaceConditions(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 	})
 
@@ -531,7 +531,7 @@ func TestRaceConditions(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				for j := 0; j < 10; j++ {
-					logger.FlushAll()
+					logger.Sync()
 					time.Sleep(5 * time.Millisecond)
 				}
 			}()
@@ -539,8 +539,8 @@ func TestRaceConditions(t *testing.T) {
 
 		wg.Wait()
 
-		if err := logger.FlushAll(); err != nil {
-			t.Errorf("FlushAll failed: %v", err)
+		if err := logger.Sync(); err != nil {
+			t.Errorf("Sync failed: %v", err)
 		}
 	})
 }
