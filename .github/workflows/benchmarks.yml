@@ -1,10 +1,8 @@
 name: Benchmarks
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  release:
+    types: [created, published]
   workflow_dispatch:
 
 jobs:
@@ -43,32 +41,14 @@ jobs:
         name: benchmark-results
         path: benchmark_results.txt
 
-    - name: Compare with baseline (PR only)
-      if: github.event_name == 'pull_request'
+    - name: Add release information
+      if: github.event_name == 'release'
       run: |
-        # Checkout main branch for comparison
-        git fetch origin ${{ github.base_ref }}
-        git checkout origin/${{ github.base_ref }}
-        
-        # Run benchmarks on base branch (excluding examples)
-        go test -bench=. -benchmem -benchtime=10s -count=1 \
-          ./pkg/... ./internal/... | tee benchmark_baseline.txt
-        
-        # Checkout PR branch again
-        git checkout -
-        
-        # Simple comparison
-        echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Information" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Baseline (${{ github.base_ref }} branch):" >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
-        grep -E "^Benchmark" benchmark_baseline.txt | head -10 >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
+        echo "**Release Tag:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Release Name:** ${{ github.event.release.name }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Current (PR branch):" >> $GITHUB_STEP_SUMMARY  
-        echo "```" >> $GITHUB_STEP_SUMMARY
-        grep -E "^Benchmark" benchmark_results.txt | head -10 >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
 
     - name: Memory profiling
       run: |

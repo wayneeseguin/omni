@@ -18,7 +18,7 @@ COVERAGE_HTML=coverage.html
 # Default target - show help
 .DEFAULT_GOAL := help
 
-.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all test-diskfull integration integration-nats integration-vault integration-syslog integration-debug integration-diskfull bench bench-full fmt vet security gosec trivy coverage coverage-text deploy deps check ci build-examples run-examples install-tools hooks-install hooks-uninstall hooks-check pre-commit pre-push
+.PHONY: all help version build package clean test test-unit test-clean test-verbose test-race test-integration test-integration-verbose test-nats test-vault test-all test-diskfull integration integration-nats integration-vault integration-syslog integration-debug integration-diskfull bench bench-full fmt vet security gosec trivy vuln coverage coverage-text deploy deps check ci build-examples run-examples install-tools hooks-install hooks-uninstall hooks-check pre-commit pre-push
 
 # Show help with version
 help:
@@ -54,9 +54,10 @@ help:
 	@echo "\033[32mCode Quality:\033[0m"
 	@printf "  \033[36m%-25s\033[0m %s\n" "fmt"                 "Format all Go source files using gofmt"
 	@printf "  \033[36m%-25s\033[0m %s\n" "vet"                 "Run go vet for static analysis"
-	@printf "  \033[36m%-25s\033[0m %s\n" "security"            "Run all security checks (gosec + trivy)"
+	@printf "  \033[36m%-25s\033[0m %s\n" "security"            "Run all security checks (gosec + trivy + vuln)"
 	@printf "  \033[36m%-25s\033[0m %s\n" "gosec"               "Run gosec security scanner"
 	@printf "  \033[36m%-25s\033[0m %s\n" "trivy"               "Run trivy vulnerability scanner"
+	@printf "  \033[36m%-25s\033[0m %s\n" "vuln"                "Run govulncheck vulnerability scanner"
 	@printf "  \033[36m%-25s\033[0m %s\n" "coverage"            "Generate HTML coverage report"
 	@printf "  \033[36m%-25s\033[0m %s\n" "coverage-text"       "Show coverage summary in terminal"
 	@printf "  \033[36m%-25s\033[0m %s\n" "pre-commit"          "Run all pre-commit checks (fmt, vet, build)"
@@ -246,7 +247,11 @@ trivy:
 	@echo "Running trivy vulnerability scan..."
 	@trivy fs . --scanners vuln
 
-security: gosec trivy
+vuln:
+	@echo "Running govulncheck vulnerability scan..."
+	@govulncheck ./...
+
+security: gosec trivy vuln
 	@echo "All security checks completed!"
 
 # Pre-commit checks - Run all checks required before committing
@@ -255,7 +260,7 @@ pre-commit: fmt vet build
 	@echo "✅ All pre-commit checks passed!"
 
 # Pre-push checks - Run all checks required before pushing
-pre-push: gosec trivy test
+pre-push: gosec trivy vuln test
 	@echo ""
 	@echo "✅ All pre-push checks passed!"
 
